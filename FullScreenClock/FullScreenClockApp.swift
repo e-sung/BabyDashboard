@@ -11,7 +11,9 @@ import SwiftUI
 struct FullScreenClockApp: App {
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            ContentView(
+                viewModel: ContentViewModel()
+            )
         }
     }
 }
