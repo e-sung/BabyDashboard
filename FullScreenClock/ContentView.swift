@@ -42,6 +42,20 @@ class ContentViewModel: ObservableObject {
 struct ContentView: View {
     @ObservedObject var viewModel: ContentViewModel
 
+    // For Time Picker
+    enum EditingTarget: Identifiable {
+        case yeondoo, chowon
+        var id: Self { self }
+    }
+    @State private var editingTarget: EditingTarget?
+    @State private var tempDate = Date()
+
+    private let timeFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "HH:mm"
+        return formatter
+    }()
+
     var body: some View {
         VStack {
             HStack {
@@ -91,7 +105,15 @@ struct ContentView: View {
             VStack(alignment: .leading) {
                 VStack {
                     Text("연두: \(viewModel.연두수유시간)")
+                        .onTapGesture {
+                            self.tempDate = timeFormatter.date(from: viewModel.연두수유시간) ?? Date()
+                            self.editingTarget = .yeondoo
+                        }
                     Text("초원: \(viewModel.초원수유시간)")
+                        .onTapGesture {
+                            self.tempDate = timeFormatter.date(from: viewModel.초원수유시간) ?? Date()
+                            self.editingTarget = .chowon
+                        }
                 }
                 .font(.system(size: 60))
             }
@@ -102,6 +124,24 @@ struct ContentView: View {
         }
         .onContinueUserActivity(chowonActivityType) { _ in
             viewModel.update초원수유시간()
+        }
+        .sheet(item: $editingTarget) { target in
+            VStack {
+                DatePicker("시간 선택", selection: $tempDate, displayedComponents: .hourAndMinute)
+                    .datePickerStyle(.wheel)
+                    .labelsHidden()
+                Button("완료") {
+                    let newTime = timeFormatter.string(from: self.tempDate)
+                    switch target {
+                    case .yeondoo:
+                        viewModel.연두수유시간 = newTime
+                    case .chowon:
+                        viewModel.초원수유시간 = newTime
+                    }
+                    self.editingTarget = nil
+                }
+                .padding()
+            }
         }
     }
 }
