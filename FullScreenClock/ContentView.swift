@@ -6,6 +6,11 @@
 //
 
 import SwiftUI
+import Intents
+
+// Define activity types
+let yeondooActivityType = "sungdoo.fullscreenClock.yeondooFeeding"
+let chowonActivityType = "sungdoo.fullscreenClock.chowonFeeding"
 
 class ContentViewModel: ObservableObject {
     @Published var time: String = "00:00"
@@ -45,13 +50,30 @@ struct ContentView: View {
                 } label: {
                     Text("연두수유")
                 }
+                .userActivity(yeondooActivityType) { activity in
+                    activity.title = "연두 수유 간 기록"
+                    activity.isEligibleForSearch = true
+                    activity.isEligibleForPrediction = true
+                    activity.suggestedInvocationPhrase = "연두 수유"
+                    let suggestions = INShortcut(userActivity: activity)
+                    INVoiceShortcutCenter.shared.setShortcutSuggestions([suggestions])
+                }
                 Spacer()
                 Button {
                     viewModel.update초원수유시간()
                 } label: {
                     Text("초원수유")
                 }
+                .userActivity(chowonActivityType) { activity in
+                    activity.title = "초원 수유 시간 기록"
+                    activity.isEligibleForSearch = true
+                    activity.isEligibleForPrediction = true
+                    activity.suggestedInvocationPhrase = "초원 수유"
+                    let suggestions = INShortcut(userActivity: activity)
+                    INVoiceShortcutCenter.shared.setShortcutSuggestions([suggestions])
+                }
             }
+            .font(.largeTitle)
             .padding()
             Spacer()
             Text(viewModel.time)
@@ -66,17 +88,20 @@ struct ContentView: View {
                 .fontWeight(.bold)
                 .monospacedDigit()
             Spacer()
-            VStack {
-                Text("최근 수유")
-                    .padding()
-                    .font(.system(size: 50))
+            VStack(alignment: .leading) {
                 VStack {
                     Text("연두: \(viewModel.연두수유시간)")
                     Text("초원: \(viewModel.초원수유시간)")
                 }
-                .font(.largeTitle)
+                .font(.system(size: 60))
             }
             .padding()
+        }
+        .onContinueUserActivity(yeondooActivityType) { _ in
+            viewModel.update연두수유시간()
+        }
+        .onContinueUserActivity(chowonActivityType) { _ in
+            viewModel.update초원수유시간()
         }
     }
 }
