@@ -15,8 +15,12 @@ let chowonActivityType = "sungdoo.fullscreenClock.chowonFeeding"
 class ContentViewModel: ObservableObject {
     @Published var time: String = "00:00"
     @Published var date: String = ""
-    @Published var 연두수유시간: String = "00:00"
-    @Published var 초원수유시간: String = "00:00"
+    @AppStorage("연두수유시간") var 연두수유시간: String = "00:00" {
+        didSet { objectWillChange.send() }
+    }
+    @AppStorage("초원수유시간") var 초원수유시간: String = "00:00" {
+        didSet { objectWillChange.send() }
+    }
 
     init() {
         Timer.scheduledTimer(withTimeInterval: 1, repeats: true, block: { _ in
