@@ -61,67 +61,77 @@ struct ContentView: View {
     }()
 
     var body: some View {
-        VStack {
-            HStack {
-                Button {
-                    viewModel.update연두수유시간()
-                } label: {
-                    Text("연두수유")
+        ZStack {
+            VStack {
+                HStack {
+                    Button {
+                        viewModel.update연두수유시간()
+                    } label: {
+                        Text("연두수유")
+                    }
+                    .userActivity(yeondooActivityType) { activity in
+                        activity.title = "연두 수유 간 기록"
+                        activity.isEligibleForSearch = true
+                        activity.isEligibleForPrediction = true
+                        activity.suggestedInvocationPhrase = "연두 수유"
+                        let suggestions = INShortcut(userActivity: activity)
+                        INVoiceShortcutCenter.shared.setShortcutSuggestions([suggestions])
+                        DispatchQueue.main.async {
+                            activity.becomeCurrent()
+                        }
+                    }
+                    .frame(height: 300, alignment: .top)
+                    Spacer()
+                    Button {
+                        viewModel.update초원수유시간()
+                    } label: {
+                        Text("초원수유")
+                    }
+                    .userActivity(chowonActivityType) { activity in
+                        activity.title = "초원 수유 시간 기록"
+                        activity.isEligibleForSearch = true
+                        activity.isEligibleForPrediction = true
+                        activity.suggestedInvocationPhrase = "초원 수유"
+                        activity.becomeCurrent()
+                        let suggestions = INShortcut(userActivity: activity)
+                        INVoiceShortcutCenter.shared.setShortcutSuggestions([suggestions])
+                        DispatchQueue.main.async {
+                            activity.becomeCurrent()
+                        }
+                    }
                 }
-                .userActivity(yeondooActivityType) { activity in
-                    activity.title = "연두 수유 간 기록"
-                    activity.isEligibleForSearch = true
-                    activity.isEligibleForPrediction = true
-                    activity.suggestedInvocationPhrase = "연두 수유"
-                    let suggestions = INShortcut(userActivity: activity)
-                    INVoiceShortcutCenter.shared.setShortcutSuggestions([suggestions])
-                }
-                Spacer()
-                Button {
-                    viewModel.update초원수유시간()
-                } label: {
-                    Text("초원수유")
-                }
-                .userActivity(chowonActivityType) { activity in
-                    activity.title = "초원 수유 시간 기록"
-                    activity.isEligibleForSearch = true
-                    activity.isEligibleForPrediction = true
-                    activity.suggestedInvocationPhrase = "초원 수유"
-                    let suggestions = INShortcut(userActivity: activity)
-                    INVoiceShortcutCenter.shared.setShortcutSuggestions([suggestions])
-                }
-            }
-            .font(.largeTitle)
-            .padding()
-            Spacer()
-            Text(viewModel.time)
-                .font(.system(size: 320))
-                .lineLimit(1)
-                .minimumScaleFactor(0.1)
-                .padding()
-                .fontWeight(.bold)
-                .monospacedDigit()
-            Text(viewModel.date)
                 .font(.largeTitle)
-                .fontWeight(.bold)
-                .monospacedDigit()
-            Spacer()
-            VStack(alignment: .leading) {
-                VStack {
-                    Text("연두: \(viewModel.연두수유시간)")
-                        .onTapGesture {
-                            self.tempDate = timeFormatter.date(from: viewModel.연두수유시간) ?? Date()
-                            self.editingTarget = .yeondoo
-                        }
-                    Text("초원: \(viewModel.초원수유시간)")
-                        .onTapGesture {
-                            self.tempDate = timeFormatter.date(from: viewModel.초원수유시간) ?? Date()
-                            self.editingTarget = .chowon
-                        }
+                .padding()
+                Spacer()
+                Text(viewModel.time)
+                    .font(.system(size: 320))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.1)
+                    .padding()
+                    .fontWeight(.bold)
+                    .monospacedDigit()
+                Text(viewModel.date)
+                    .font(.largeTitle)
+                    .fontWeight(.bold)
+                    .monospacedDigit()
+                Spacer()
+                VStack(alignment: .leading) {
+                    VStack {
+                        Text("연두: \(viewModel.연두수유시간)")
+                            .onTapGesture {
+                                self.tempDate = timeFormatter.date(from: viewModel.연두수유시간) ?? Date()
+                                self.editingTarget = .yeondoo
+                            }
+                        Text("초원: \(viewModel.초원수유시간)")
+                            .onTapGesture {
+                                self.tempDate = timeFormatter.date(from: viewModel.초원수유시간) ?? Date()
+                                self.editingTarget = .chowon
+                            }
+                    }
+                    .font(.system(size: 60))
                 }
-                .font(.system(size: 60))
+                .padding()
             }
-            .padding()
         }
         .onContinueUserActivity(yeondooActivityType) { _ in
             viewModel.update연두수유시간()
