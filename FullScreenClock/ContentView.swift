@@ -7,27 +7,45 @@ class ContentViewModel: ObservableObject {
     @Published var time: String = "00:00"
     @Published var date: String = ""
     
-    @AppStorage("연두수유시간", store: UserDefaults(suiteName: suiteName)) var 연두수유시간: String = "00:00" {
-        didSet { objectWillChange.send() }
-    }
-    @AppStorage("초원수유시간", store: UserDefaults(suiteName: suiteName)) var 초원수유시간: String = "00:00" {
-        didSet { objectWillChange.send() }
-    }
+    @Published var 연두수유시간: Date?
+    @Published var 초원수유시간: Date?
     
     private var cancellables = Set<AnyCancellable>()
     private let sharedDefaults = UserDefaults(suiteName: suiteName)
+    private let yeondooKey = "연두수유시간"
+    private let chowonKey = "초원수유시간"
+
+    // Single source of truth for formatting
+    private let timeFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "HH:mm"
+        return formatter
+    }()
+
+    // Computed properties for display
+    var 연두수유시간_string: String {
+        if let date = 연두수유시간 { return timeFormatter.string(from: date) }
+        return "--:--"
+    }
+    var 초원수유시간_string: String {
+        if let date = 초원수유시간 { return timeFormatter.string(from: date) }
+        return "--:--"
+    }
 
     init() {
-        Timer.scheduledTimer(withTimeInterval: 1, repeats: true, block: { _ in
-            self.time = Date().formatted(
-                Date.FormatStyle()
-                    .hour(.twoDigits(amPM: .omitted))
-                    .minute(.twoDigits)
-            )
-            self.date = Date().formatted(Date.FormatStyle(locale: Locale(identifier: "ko")).year(.defaultDigits).month(.abbreviated).day(.defaultDigits).weekday(.wide))
+        // Load initial values from UserDefaults
+        self.연두수유시간 = sharedDefaults?.object(forKey: yeondooKey) as? Date
+        self.초원수유시간 = sharedDefaults?.object(forKey: chowonKey) as? Date
+
+        // Timer for the main clock
+        Timer.scheduledTimer(withTimeInterval: 1, repeats: true, block: { [weak self] _ in
+            guard let self = self else { return }
+            let now = Date()
+            self.time = self.timeFormatter.string(from: now)
+            self.date = now.formatted(Date.FormatStyle(locale: Locale(identifier: "ko")).year(.defaultDigits).month(.abbreviated).day(.defaultDigits).weekday(.wide))
         })
 
-        // Observe changes from other processes (like the App Intent)
+        // Observe changes from other processes (Siri Intent)
         NotificationCenter.default.publisher(for: UserDefaults.didChangeNotification)
             .sink { [weak self] _ in
                 DispatchQueue.main.async {
@@ -39,23 +57,31 @@ class ContentViewModel: ObservableObject {
 
     @MainActor
     private func updateFromDefaults() {
-        let yeondoo = sharedDefaults?.string(forKey: "연두수유시간") ?? "00:00"
-        if self.연두수유시간 != yeondoo {
-            self.연두수유시간 = yeondoo
-        }
-        
-        let chowon = sharedDefaults?.string(forKey: "초원수유시간") ?? "00:00"
-        if self.초원수유시간 != chowon {
-            self.초원수유시간 = chowon
-        }
+        self.연두수유시간 = sharedDefaults?.object(forKey: yeondooKey) as? Date
+        self.초원수유시간 = sharedDefaults?.object(forKey: chowonKey) as? Date
     }
 
     func update연두수유시간() {
-        self.연두수유시간 = time
+        let now = Date()
+        self.연두수유시간 = now
+        sharedDefaults?.set(now, forKey: yeondooKey)
     }
 
     func update초원수유시간() {
-        self.초원수유시간 = time
+        let now = Date()
+        self.초원수유시간 = now
+        sharedDefaults?.set(now, forKey: chowonKey)
+    }
+    
+    func setTime(for target: ContentView.EditingTarget, to date: Date) {
+        switch target {
+        case .yeondoo:
+            self.연두수유시간 = date
+            sharedDefaults?.set(date, forKey: yeondooKey)
+        case .chowon:
+            self.초원수유시간 = date
+            sharedDefaults?.set(date, forKey: chowonKey)
+        }
     }
 }
 
@@ -63,38 +89,41 @@ class ContentViewModel: ObservableObject {
 struct ContentView: View {
     @ObservedObject var viewModel: ContentViewModel
 
-    // For Time Picker
     enum EditingTarget: Identifiable {
         case yeondoo, chowon
         var id: Self { self }
     }
     @State private var editingTarget: EditingTarget?
-    @State private var tempDate = Date()
-
-    private let timeFormatter: DateFormatter = {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "HH:mm"
-        return formatter
-    }()
+    
+    private var timeBinding: Binding<Date> {
+        Binding<Date>(
+            get: {
+                switch editingTarget {
+                case .yeondoo:
+                    return viewModel.연두수유시간 ?? Date()
+                case .chowon:
+                    return viewModel.초원수유시간 ?? Date()
+                case .none:
+                    return Date()
+                }
+            },
+            set: { newTime in
+                if let target = editingTarget {
+                    viewModel.setTime(for: target, to: newTime)
+                }
+            }
+        )
+    }
 
     var body: some View {
         ZStack {
-            // Layer 1: Invisible tappable areas
+            // The large tappable areas
             HStack(spacing: 0) {
-                Color.clear
-                    .contentShape(Rectangle())
-                    .onTapGesture {
-                        viewModel.update연두수유시간()
-                    }
-                Color.clear
-                    .contentShape(Rectangle())
-                    .onTapGesture {
-                        viewModel.update초원수유시간()
-                    }
-            }
-            .ignoresSafeArea()
+                Color.clear.contentShape(Rectangle()).onTapGesture { viewModel.update연두수유시간() }
+                Color.clear.contentShape(Rectangle()).onTapGesture { viewModel.update초원수유시간() }
+            }.ignoresSafeArea()
 
-            // Layer 2: The visible UI
+            // The visible UI
             VStack {
                 HStack {
                     Text("연두수유")
@@ -120,35 +149,22 @@ struct ContentView: View {
                     .monospacedDigit()
                 Spacer()
                 HStack {
-                    Text("연두 \(viewModel.연두수유시간)")
-                        .onTapGesture {
-                            self.tempDate = timeFormatter.date(from: viewModel.연두수유시간) ?? Date()
-                            self.editingTarget = .yeondoo
-                        }
+                    Text("연두 \(viewModel.연두수유시간_string)")
+                        .onTapGesture { self.editingTarget = .yeondoo }
                     Spacer()
-                    Text("초원 \(viewModel.초원수유시간)")
-                        .onTapGesture {
-                            self.tempDate = timeFormatter.date(from: viewModel.초원수유시간) ?? Date()
-                            self.editingTarget = .chowon
-                        }
+                    Text("초원 \(viewModel.초원수유시간_string)")
+                        .onTapGesture { self.editingTarget = .chowon }
                 }
                 .font(.system(size: 60))
                 .padding()
             }
         }
-        .sheet(item: $editingTarget) { target in
+        .sheet(item: $editingTarget) { _ in
             VStack {
-                DatePicker("시간 선택", selection: $tempDate, displayedComponents: .hourAndMinute)
+                DatePicker("시간 선택", selection: timeBinding, displayedComponents: .hourAndMinute)
                     .datePickerStyle(.wheel)
                     .labelsHidden()
                 Button("완료") {
-                    let newTime = timeFormatter.string(from: self.tempDate)
-                    switch target {
-                    case .yeondoo:
-                        viewModel.연두수유시간 = newTime
-                    case .chowon:
-                        viewModel.초원수유시간 = newTime
-                    }
                     self.editingTarget = nil
                 }
                 .padding()
