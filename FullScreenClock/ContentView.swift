@@ -1,26 +1,21 @@
-//
-//  ContentView.swift
-//  FullScreenClock
-//
-//  Created by 류성두 on 10/1/25.
-//
-
 import SwiftUI
-import Intents
+import Combine
 
-// Define activity types
-let yeondooActivityType = "sungdoo.fullscreenClock.yeondooFeeding"
-let chowonActivityType = "sungdoo.fullscreenClock.chowonFeeding"
+private let suiteName = "group.sungdoo.fullscreenClock"
 
 class ContentViewModel: ObservableObject {
     @Published var time: String = "00:00"
     @Published var date: String = ""
-    @AppStorage("연두수유시간") var 연두수유시간: String = "00:00" {
+    
+    @AppStorage("연두수유시간", store: UserDefaults(suiteName: suiteName)) var 연두수유시간: String = "00:00" {
         didSet { objectWillChange.send() }
     }
-    @AppStorage("초원수유시간") var 초원수유시간: String = "00:00" {
+    @AppStorage("초원수유시간", store: UserDefaults(suiteName: suiteName)) var 초원수유시간: String = "00:00" {
         didSet { objectWillChange.send() }
     }
+    
+    private var cancellables = Set<AnyCancellable>()
+    private let sharedDefaults = UserDefaults(suiteName: suiteName)
 
     init() {
         Timer.scheduledTimer(withTimeInterval: 1, repeats: true, block: { _ in
@@ -31,6 +26,28 @@ class ContentViewModel: ObservableObject {
             )
             self.date = Date().formatted(Date.FormatStyle(locale: Locale(identifier: "ko")).year(.defaultDigits).month(.abbreviated).day(.defaultDigits).weekday(.wide))
         })
+
+        // Observe changes from other processes (like the App Intent)
+        NotificationCenter.default.publisher(for: UserDefaults.didChangeNotification)
+            .sink { [weak self] _ in
+                DispatchQueue.main.async {
+                    self?.updateFromDefaults()
+                }
+            }
+            .store(in: &cancellables)
+    }
+
+    @MainActor
+    private func updateFromDefaults() {
+        let yeondoo = sharedDefaults?.string(forKey: "연두수유시간") ?? "00:00"
+        if self.연두수유시간 != yeondoo {
+            self.연두수유시간 = yeondoo
+        }
+        
+        let chowon = sharedDefaults?.string(forKey: "초원수유시간") ?? "00:00"
+        if self.초원수유시간 != chowon {
+            self.초원수유시간 = chowon
+        }
     }
 
     func update연두수유시간() {
@@ -68,40 +85,19 @@ struct ContentView: View {
                         viewModel.update연두수유시간()
                     } label: {
                         Text("연두수유")
+                            .bold()
                     }
-                    .userActivity(yeondooActivityType) { activity in
-                        activity.title = "연두 수유 간 기록"
-                        activity.isEligibleForSearch = true
-                        activity.isEligibleForPrediction = true
-                        activity.suggestedInvocationPhrase = "연두 수유"
-                        let suggestions = INShortcut(userActivity: activity)
-                        INVoiceShortcutCenter.shared.setShortcutSuggestions([suggestions])
-                        DispatchQueue.main.async {
-                            activity.becomeCurrent()
-                        }
-                    }
-                    .frame(height: 300, alignment: .top)
                     Spacer()
                     Button {
                         viewModel.update초원수유시간()
                     } label: {
                         Text("초원수유")
-                    }
-                    .userActivity(chowonActivityType) { activity in
-                        activity.title = "초원 수유 시간 기록"
-                        activity.isEligibleForSearch = true
-                        activity.isEligibleForPrediction = true
-                        activity.suggestedInvocationPhrase = "초원 수유"
-                        activity.becomeCurrent()
-                        let suggestions = INShortcut(userActivity: activity)
-                        INVoiceShortcutCenter.shared.setShortcutSuggestions([suggestions])
-                        DispatchQueue.main.async {
-                            activity.becomeCurrent()
-                        }
+                            .bold()
                     }
                 }
                 .font(.largeTitle)
                 .padding()
+
                 Spacer()
                 Text(viewModel.time)
                     .font(.system(size: 320))
@@ -115,29 +111,22 @@ struct ContentView: View {
                     .fontWeight(.bold)
                     .monospacedDigit()
                 Spacer()
-                VStack(alignment: .leading) {
-                    VStack {
-                        Text("연두: \(viewModel.연두수유시간)")
-                            .onTapGesture {
-                                self.tempDate = timeFormatter.date(from: viewModel.연두수유시간) ?? Date()
-                                self.editingTarget = .yeondoo
-                            }
-                        Text("초원: \(viewModel.초원수유시간)")
-                            .onTapGesture {
-                                self.tempDate = timeFormatter.date(from: viewModel.초원수유시간) ?? Date()
-                                self.editingTarget = .chowon
-                            }
-                    }
-                    .font(.system(size: 60))
+                HStack {
+                    Text("연두 \(viewModel.연두수유시간)")
+                        .onTapGesture {
+                            self.tempDate = timeFormatter.date(from: viewModel.연두수유시간) ?? Date()
+                            self.editingTarget = .yeondoo
+                        }
+                    Spacer()
+                    Text("초원 \(viewModel.초원수유시간)")
+                        .onTapGesture {
+                            self.tempDate = timeFormatter.date(from: viewModel.초원수유시간) ?? Date()
+                            self.editingTarget = .chowon
+                        }
                 }
+                .font(.system(size: 60))
                 .padding()
             }
-        }
-        .onContinueUserActivity(yeondooActivityType) { _ in
-            viewModel.update연두수유시간()
-        }
-        .onContinueUserActivity(chowonActivityType) { _ in
-            viewModel.update초원수유시간()
         }
         .sheet(item: $editingTarget) { target in
             VStack {
