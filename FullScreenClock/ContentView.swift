@@ -79,21 +79,29 @@ struct ContentView: View {
 
     var body: some View {
         ZStack {
+            // Layer 1: Invisible tappable areas
+            HStack(spacing: 0) {
+                Color.clear
+                    .contentShape(Rectangle())
+                    .onTapGesture {
+                        viewModel.update연두수유시간()
+                    }
+                Color.clear
+                    .contentShape(Rectangle())
+                    .onTapGesture {
+                        viewModel.update초원수유시간()
+                    }
+            }
+            .ignoresSafeArea()
+
+            // Layer 2: The visible UI
             VStack {
                 HStack {
-                    Button {
-                        viewModel.update연두수유시간()
-                    } label: {
-                        Text("연두수유")
-                            .bold()
-                    }
+                    Text("연두수유")
+                        .bold()
                     Spacer()
-                    Button {
-                        viewModel.update초원수유시간()
-                    } label: {
-                        Text("초원수유")
-                            .bold()
-                    }
+                    Text("초원수유")
+                        .bold()
                 }
                 .font(.largeTitle)
                 .padding()
