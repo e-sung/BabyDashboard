@@ -10,6 +10,11 @@ class ContentViewModel: ObservableObject {
     @Published var 연두수유시간: Date?
     @Published var 초원수유시간: Date?
     
+    @Published var 연두_경과시간: String = ""
+    @Published var 초원_경과시간: String = ""
+    @Published var 연두_경고: Bool = false
+    @Published var 초원_경고: Bool = false
+    
     private var cancellables = Set<AnyCancellable>()
     private let sharedDefaults = UserDefaults(suiteName: suiteName)
     private let yeondooKey = "연두수유시간"
@@ -37,12 +42,31 @@ class ContentViewModel: ObservableObject {
         self.연두수유시간 = sharedDefaults?.object(forKey: yeondooKey) as? Date
         self.초원수유시간 = sharedDefaults?.object(forKey: chowonKey) as? Date
 
-        // Timer for the main clock
+        // Timer for the main clock and elapsed time
         Timer.scheduledTimer(withTimeInterval: 1, repeats: true, block: { [weak self] _ in
             guard let self = self else { return }
             let now = Date()
+            
             self.time = self.timeFormatter.string(from: now)
             self.date = now.formatted(Date.FormatStyle(locale: Locale(identifier: "ko")).year(.defaultDigits).month(.abbreviated).day(.defaultDigits).weekday(.wide))
+
+            if let yeondooTime = self.연두수유시간 {
+                let interval = now.timeIntervalSince(yeondooTime)
+                self.연두_경과시간 = self.formatElapsedTime(from: interval)
+                self.연두_경고 = interval > (3 * 3600) // 3 hours in seconds
+            } else {
+                self.연두_경과시간 = ""
+                self.연두_경고 = false
+            }
+            
+            if let chowonTime = self.초원수유시간 {
+                let interval = now.timeIntervalSince(chowonTime)
+                self.초원_경과시간 = self.formatElapsedTime(from: interval)
+                self.초원_경고 = interval > (3 * 3600)
+            } else {
+                self.초원_경과시간 = ""
+                self.초원_경고 = false
+            }
         })
 
         // Observe changes from other processes (Siri Intent)
@@ -53,6 +77,21 @@ class ContentViewModel: ObservableObject {
                 }
             }
             .store(in: &cancellables)
+    }
+
+    private func formatElapsedTime(from interval: TimeInterval) -> String {
+        guard interval >= 0 else { return "" }
+        
+        let hours = Int(interval) / 3600
+        let minutes = (Int(interval) % 3600) / 60
+        
+        if hours > 0 {
+            return "\(hours)시간 \(minutes)분 전"
+        } else if minutes > 0 {
+            return "\(minutes)분 전"
+        } else {
+            return "방금 전"
+        }
     }
 
     @MainActor
@@ -125,17 +164,13 @@ struct ContentView: View {
 
             // The visible UI
             VStack {
-                HStack {
-                    Text("연두수유")
-                        .bold()
-                    Spacer()
-                    Text("초원수유")
-                        .bold()
-                }
-                .font(.largeTitle)
-                .padding()
 
                 Spacer()
+                Text(viewModel.date)
+                    .font(.largeTitle)
+                    .fontWeight(.bold)
+                    .monospacedDigit()
+                    .padding(.top)
                 Text(viewModel.time)
                     .font(.system(size: 320))
                     .lineLimit(1)
@@ -143,17 +178,26 @@ struct ContentView: View {
                     .padding()
                     .fontWeight(.bold)
                     .monospacedDigit()
-                Text(viewModel.date)
-                    .font(.largeTitle)
-                    .fontWeight(.bold)
-                    .monospacedDigit()
+
                 Spacer()
                 HStack {
-                    Text("연두 \(viewModel.연두수유시간_string)")
-                        .onTapGesture { self.editingTarget = .yeondoo }
+                    VStack(alignment: .center) {
+                        Text("연두 \(viewModel.연두수유시간_string)")
+                            .onTapGesture { self.editingTarget = .yeondoo }
+                        Text(viewModel.연두_경과시간)
+                            .font(.title)
+                            .fontWeight(viewModel.연두_경고 ? .bold : .regular)
+                            .foregroundColor(viewModel.연두_경고 ? .red : .primary)
+                    }
                     Spacer()
-                    Text("초원 \(viewModel.초원수유시간_string)")
-                        .onTapGesture { self.editingTarget = .chowon }
+                    VStack(alignment: .center) {
+                        Text("초원 \(viewModel.초원수유시간_string)")
+                            .onTapGesture { self.editingTarget = .chowon }
+                        Text(viewModel.초원_경과시간)
+                            .font(.title)
+                            .fontWeight(viewModel.초원_경고 ? .bold : .regular)
+                            .foregroundColor(viewModel.초원_경고 ? .red : .primary)
+                    }
                 }
                 .font(.system(size: 60))
                 .padding()

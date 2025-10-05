@@ -13,12 +13,13 @@ struct UpdateYeondooFeedingTimeIntent: AppIntent  {
     @MainActor
     func perform() async throws -> some IntentResult & ProvidesDialog {
         if let sharedDefaults = UserDefaults(suiteName: suiteName) {
-            let currentTime = Date().formatted(
+            let now = Date()
+            let currentTime = now.formatted(
                 Date.FormatStyle()
                     .hour(.twoDigits(amPM: .omitted))
                     .minute(.twoDigits)
             )
-            sharedDefaults.set(currentTime, forKey: "연두수유시간")
+            sharedDefaults.set(now, forKey: "연두수유시간")
             return .result(dialog: "연두 수유 시간을 \(currentTime)으로 기록했어요.")
         } else {
             return .result(dialog: "App Group이 설정되지 않았습니다.")
