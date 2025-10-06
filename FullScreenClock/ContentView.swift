@@ -154,58 +154,70 @@ struct ContentView: View {
         )
     }
 
+    var clockView: some View {
+        VStack {
+            Text(viewModel.date)
+                .font(.largeTitle)
+                .fontWeight(.bold)
+                .monospacedDigit()
+                .padding(.top)
+            Text(viewModel.time)
+                .font(.system(size: 320))
+                .lineLimit(1)
+                .minimumScaleFactor(0.1)
+                .padding()
+                .fontWeight(.bold)
+                .monospacedDigit()
+        }
+    }
+
+    var statusView: some View {
+        HStack {
+            VStack(alignment: .center) {
+                Text("연두 \(viewModel.연두수유시간_string)")
+                    .onTapGesture { self.editingTarget = .yeondoo }
+                Text(viewModel.연두_경과시간)
+                    .font(.title)
+                    .fontWeight(viewModel.연두_경고 ? .bold : .regular)
+                    .foregroundColor(viewModel.연두_경고 ? .red : .primary)
+            }
+            Spacer()
+            VStack(alignment: .center) {
+                Text("초원 \(viewModel.초원수유시간_string)")
+                    .onTapGesture { self.editingTarget = .chowon }
+                Text(viewModel.초원_경과시간)
+                    .font(.title)
+                    .fontWeight(viewModel.초원_경고 ? .bold : .regular)
+                    .foregroundColor(viewModel.초원_경고 ? .red : .primary)
+            }
+        }
+        .font(.system(size: 60))
+        .padding()
+    }
+
+    var tappableArea: some View {
+        HStack(spacing: 0) {
+            Color.clear.contentShape(Rectangle()).onTapGesture { viewModel.update연두수유시간() }
+            Color.clear.contentShape(Rectangle()).onTapGesture { viewModel.update초원수유시간() }
+        }.ignoresSafeArea()
+    }
+
     var body: some View {
         ZStack {
-            // The large tappable areas
-            HStack(spacing: 0) {
-                Color.clear.contentShape(Rectangle()).onTapGesture { viewModel.update연두수유시간() }
-                Color.clear.contentShape(Rectangle()).onTapGesture { viewModel.update초원수유시간() }
-            }.ignoresSafeArea()
-
-            // The visible UI
             VStack {
-
                 Spacer()
-                Text(viewModel.date)
-                    .font(.largeTitle)
-                    .fontWeight(.bold)
-                    .monospacedDigit()
-                    .padding(.top)
-                Text(viewModel.time)
-                    .font(.system(size: 320))
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.1)
-                    .padding()
-                    .fontWeight(.bold)
-                    .monospacedDigit()
-
-                Spacer()
-                HStack {
-                    VStack(alignment: .center) {
-                        Text("연두 \(viewModel.연두수유시간_string)")
-                            .onTapGesture { self.editingTarget = .yeondoo }
-                        Text(viewModel.연두_경과시간)
-                            .font(.title)
-                            .fontWeight(viewModel.연두_경고 ? .bold : .regular)
-                            .foregroundColor(viewModel.연두_경고 ? .red : .primary)
-                    }
-                    Spacer()
-                    VStack(alignment: .center) {
-                        Text("초원 \(viewModel.초원수유시간_string)")
-                            .onTapGesture { self.editingTarget = .chowon }
-                        Text(viewModel.초원_경과시간)
-                            .font(.title)
-                            .fontWeight(viewModel.초원_경고 ? .bold : .regular)
-                            .foregroundColor(viewModel.초원_경고 ? .red : .primary)
-                    }
+                ZStack {
+                    clockView
+                    tappableArea
                 }
-                .font(.system(size: 60))
-                .padding()
+                Spacer()
+                statusView
+
             }
         }
         .sheet(item: $editingTarget) { _ in
             VStack {
-                DatePicker("시간 선택", selection: timeBinding, displayedComponents: .hourAndMinute)
+                DatePicker("시간 선택", selection: timeBinding, displayedComponents: [.date, .hourAndMinute])
                     .datePickerStyle(.wheel)
                     .labelsHidden()
                 Button("완료") {

@@ -7,16 +7,32 @@
       <BreakpointProxy
          BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
          <BreakpointContent
-            uuid = "637D3059-88F9-4F1C-AB86-232D13CF2477"
+            uuid = "98C2A767-0613-4E4E-A04C-26937419600C"
             shouldBeEnabled = "Yes"
             ignoreCount = "0"
             continueAfterRunningActions = "No"
             filePath = "FullScreenClock/ContentView.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "99"
-            endingLineNumber = "99"
-            landmarkName = "updateFromDefaults()"
+            startingLineNumber = "107"
+            endingLineNumber = "107"
+            landmarkName = "update&#xc5f0;&#xb450;&#xc218;&#xc720;&#xc2dc;&#xac04;()"
+            landmarkType = "7">
+         </BreakpointContent>
+      </BreakpointProxy>
+      <BreakpointProxy
+         BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
+         <BreakpointContent
+            uuid = "6E3D1C49-1549-42A1-B772-689CAE11CA1A"
+            shouldBeEnabled = "Yes"
+            ignoreCount = "0"
+            continueAfterRunningActions = "No"
+            filePath = "FullScreenClock/ContentView.swift"
+            startingColumnNumber = "9223372036854775807"
+            endingColumnNumber = "9223372036854775807"
+            startingLineNumber = "122"
+            endingLineNumber = "122"
+            landmarkName = "setTime(for:to:)"
             landmarkType = "7">
          </BreakpointContent>
       </BreakpointProxy>
