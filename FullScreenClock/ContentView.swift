@@ -151,14 +151,19 @@ private struct VerticalProgressView: View {
     var body: some View {
         GeometryReader { geometry in
             ZStack(alignment: .bottom) {
+                // Determine colors based on progress
+                let trackColor = progress > 1.0 ? Color.green : Color.gray.opacity(0.3)
+                let fillColor = progress > 1.0 ? Color.red : Color.green
+                let displayProgress = progress > 1.0 ? progress - 1.0 : progress
+
                 // Background track
                 Capsule()
-                    .fill(Color.gray.opacity(0.3))
+                    .fill(trackColor)
 
                 // Filled progress
                 Capsule()
-                    .fill(Color.accentColor)
-                    .frame(height: geometry.size.height * CGFloat(min(max(0, progress), 1))) // Clamp progress between 0 and 1
+                    .fill(fillColor)
+                    .frame(height: geometry.size.height * CGFloat(min(max(0, displayProgress), 1))) // Adjust height calculation for overdue progress
             }
             .frame(width: 4)
         }
@@ -174,9 +179,14 @@ private struct BabyStatusView: View {
     let onTap: () -> Void
 
     var body: some View {
-        VStack(alignment: .center) {
-            Text("\(name) \(feedingTime)")
-                .onTapGesture(perform: onTap)
+        VStack(alignment: .center, spacing: 16) {
+            HStack {
+                Text("\(name) ")
+                    .font(.system(size: 50))
+                Text("\(feedingTime)")
+                    .bold()
+            }
+            .onTapGesture(perform: onTap)
             Text(elapsedTime)
                 .font(.title)
                 .fontWeight(isWarning ? .bold : .regular)
@@ -218,18 +228,17 @@ struct ContentView: View {
 
     var clockView: some View {
         VStack {
-            Text(viewModel.date)
-                .font(.largeTitle)
-                .fontWeight(.bold)
-                .monospacedDigit()
-                .padding(.top)
             Text(viewModel.time)
                 .font(.system(size: 320))
                 .lineLimit(1)
                 .minimumScaleFactor(0.1)
-                .padding()
                 .fontWeight(.bold)
                 .monospacedDigit()
+            Text(viewModel.date)
+                .font(.largeTitle)
+                .fontWeight(.bold)
+                .monospacedDigit()
+                .offset(y: -30)
         }
     }
 
@@ -278,11 +287,15 @@ struct ContentView: View {
             VStack {
                 Spacer() // Pushes content to the center vertically
                 ZStack {
-                    clockView
+                    VStack {
+                        clockView
+                        Spacer()
+                        dashboardView
+                            .padding(.leading, 100)
+                            .padding(.trailing, 100)
+                    }
                     tappableArea
                 }
-                Spacer()
-                dashboardView
 
             }
             .padding()
