@@ -4,7 +4,9 @@ import Combine
 private let suiteName = "group.sungdoo.fullscreenClock"
 
 class ContentViewModel: ObservableObject {
-    @Published var time: String = "00:00"
+    @Published var hour: String = "00"
+    @Published var minute: String = "00"
+    @Published var showColon: Bool = true
     @Published var date: String = ""
     
     @Published var 연두수유시간: Date?
@@ -55,7 +57,14 @@ class ContentViewModel: ObservableObject {
             guard let self = self else { return }
             let now = Date()
             
-            self.time = self.timeFormatter.string(from: now)
+            let calendar = Calendar.current
+            let second = calendar.component(.second, from: now)
+            self.showColon = second % 2 == 0
+
+            let components = calendar.dateComponents([.hour, .minute], from: now)
+            self.hour = String(format: "%02d", components.hour ?? 0)
+            self.minute = String(format: "%02d", components.minute ?? 0)
+
             self.date = now.formatted(Date.FormatStyle(locale: Locale(identifier: "ko")).year(.defaultDigits).month(.abbreviated).day(.defaultDigits).weekday(.wide))
 
             if let yeondooTime = self.연두수유시간 {
@@ -228,12 +237,24 @@ struct ContentView: View {
 
     var clockView: some View {
         VStack {
-            Text(viewModel.time)
-                .font(.system(size: 320))
-                .lineLimit(1)
-                .minimumScaleFactor(0.1)
-                .fontWeight(.bold)
-                .monospacedDigit()
+            HStack(spacing: 0) {
+                Text(viewModel.hour)
+                ZStack {
+                    Text(":")
+                        .opacity(0)
+                    Text(":")
+                        .opacity(viewModel.showColon ? 1 : 0)
+                }
+                .offset(y: -10)
+                .font(.system(size: 200))
+                Text(viewModel.minute)
+            }
+            .font(.system(size: 320))
+            .lineLimit(1)
+            .minimumScaleFactor(0.1)
+            .fontWeight(.bold)
+            .monospacedDigit()
+
             Text(viewModel.date)
                 .font(.largeTitle)
                 .fontWeight(.bold)
