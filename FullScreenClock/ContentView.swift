@@ -14,7 +14,12 @@ class ContentViewModel: ObservableObject {
     @Published var 초원_경과시간: String = ""
     @Published var 연두_경고: Bool = false
     @Published var 초원_경고: Bool = false
-    
+
+    @Published var animateYeondoo: Bool = false
+    @Published var animateChowon: Bool = false
+
+    static var shared = ContentViewModel()
+
     private var cancellables = Set<AnyCancellable>()
     private let sharedDefaults = UserDefaults(suiteName: suiteName)
     private let yeondooKey = "연두수유시간"
@@ -104,12 +109,20 @@ class ContentViewModel: ObservableObject {
         let now = Date()
         self.연두수유시간 = now
         sharedDefaults?.set(now, forKey: yeondooKey)
+        animateYeondoo = true
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.31) {
+            self.animateYeondoo = false
+        }
     }
 
     func update초원수유시간() {
         let now = Date()
         self.초원수유시간 = now
         sharedDefaults?.set(now, forKey: chowonKey)
+        animateChowon = true
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.31) {
+            self.animateChowon = false
+        }
     }
     
     func setTime(for target: ContentView.EditingTarget, to date: Date) {
@@ -133,7 +146,7 @@ struct ContentView: View {
         var id: Self { self }
     }
     @State private var editingTarget: EditingTarget?
-    
+
     private var timeBinding: Binding<Date> {
         Binding<Date>(
             get: {
@@ -181,6 +194,8 @@ struct ContentView: View {
                     .fontWeight(viewModel.연두_경고 ? .bold : .regular)
                     .foregroundColor(viewModel.연두_경고 ? .red : .primary)
             }
+            .scaleEffect(viewModel.animateYeondoo ? 1.2 : 1)
+            .animation(.easeInOut(duration: 0.3), value: viewModel.animateYeondoo)
             Spacer()
             VStack(alignment: .center) {
                 Text("초원 \(viewModel.초원수유시간_string)")
@@ -190,6 +205,8 @@ struct ContentView: View {
                     .fontWeight(viewModel.초원_경고 ? .bold : .regular)
                     .foregroundColor(viewModel.초원_경고 ? .red : .primary)
             }
+            .scaleEffect(viewModel.animateChowon ? 1.2 : 1)
+            .animation(.easeInOut(duration: 0.3), value: viewModel.animateChowon)
         }
         .font(.system(size: 60))
         .padding()

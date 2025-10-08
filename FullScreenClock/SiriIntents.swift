@@ -20,6 +20,7 @@ struct UpdateYeondooFeedingTimeIntent: AppIntent  {
                     .minute(.twoDigits)
             )
             sharedDefaults.set(now, forKey: "연두수유시간")
+            ContentViewModel.shared.update연두수유시간()
             return .result(value: timeString)
         }
         return .result(value: "")
@@ -38,6 +39,7 @@ struct UpdateChowonFeedingTimeIntent: AppIntent {
         if let sharedDefaults = UserDefaults(suiteName: suiteName) {
             let currentDate = Date()
             sharedDefaults.set(currentDate, forKey: "초원수유시간") // Save Date object
+            ContentViewModel().update초원수유시간()
 
             // Format string only for the dialog
             let timeString = currentDate.formatted(
