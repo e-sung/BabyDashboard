@@ -15,6 +15,9 @@ class ContentViewModel: ObservableObject {
     @Published var 연두_경고: Bool = false
     @Published var 초원_경고: Bool = false
 
+    @Published var 연두_progress: Double = 0.0
+    @Published var 초원_progress: Double = 0.0
+
     @Published var animateYeondoo: Bool = false
     @Published var animateChowon: Bool = false
 
@@ -59,18 +62,22 @@ class ContentViewModel: ObservableObject {
                 let interval = now.timeIntervalSince(yeondooTime)
                 self.연두_경과시간 = self.formatElapsedTime(from: interval)
                 self.연두_경고 = interval > (3 * 3600) // 3 hours in seconds
+                self.연두_progress = interval / (3 * 3600)
             } else {
                 self.연두_경과시간 = ""
                 self.연두_경고 = false
+                self.연두_progress = 0.0
             }
             
             if let chowonTime = self.초원수유시간 {
                 let interval = now.timeIntervalSince(chowonTime)
                 self.초원_경과시간 = self.formatElapsedTime(from: interval)
                 self.초원_경고 = interval > (3 * 3600)
+                self.초원_progress = interval / (3 * 3600)
             } else {
                 self.초원_경과시간 = ""
                 self.초원_경고 = false
+                self.초원_progress = 0.0
             }
         })
 
@@ -138,6 +145,48 @@ class ContentViewModel: ObservableObject {
 }
 
 
+private struct VerticalProgressView: View {
+    let progress: Double
+
+    var body: some View {
+        GeometryReader { geometry in
+            ZStack(alignment: .bottom) {
+                // Background track
+                Capsule()
+                    .fill(Color.gray.opacity(0.3))
+
+                // Filled progress
+                Capsule()
+                    .fill(Color.accentColor)
+                    .frame(height: geometry.size.height * CGFloat(min(max(0, progress), 1))) // Clamp progress between 0 and 1
+            }
+            .frame(width: 4)
+        }
+    }
+}
+
+private struct BabyStatusView: View {
+    let name: String
+    let feedingTime: String
+    let elapsedTime: String
+    let isWarning: Bool
+    let isAnimating: Bool
+    let onTap: () -> Void
+
+    var body: some View {
+        VStack(alignment: .center) {
+            Text("\(name) \(feedingTime)")
+                .onTapGesture(perform: onTap)
+            Text(elapsedTime)
+                .font(.title)
+                .fontWeight(isWarning ? .bold : .regular)
+                .foregroundColor(isWarning ? .red : .primary)
+        }
+        .scaleEffect(isAnimating ? 1.2 : 1)
+        .animation(.easeInOut(duration: 0.3), value: isAnimating)
+    }
+}
+
 struct ContentView: View {
     @ObservedObject var viewModel: ContentViewModel
 
@@ -184,29 +233,25 @@ struct ContentView: View {
         }
     }
 
-    var statusView: some View {
+    var dashboardView: some View {
         HStack {
-            VStack(alignment: .center) {
-                Text("연두 \(viewModel.연두수유시간_string)")
-                    .onTapGesture { self.editingTarget = .yeondoo }
-                Text(viewModel.연두_경과시간)
-                    .font(.title)
-                    .fontWeight(viewModel.연두_경고 ? .bold : .regular)
-                    .foregroundColor(viewModel.연두_경고 ? .red : .primary)
-            }
-            .scaleEffect(viewModel.animateYeondoo ? 1.2 : 1)
-            .animation(.easeInOut(duration: 0.3), value: viewModel.animateYeondoo)
+            BabyStatusView(
+                name: "연두",
+                feedingTime: viewModel.연두수유시간_string,
+                elapsedTime: viewModel.연두_경과시간,
+                isWarning: viewModel.연두_경고,
+                isAnimating: viewModel.animateYeondoo,
+                onTap: { self.editingTarget = .yeondoo }
+            )
             Spacer()
-            VStack(alignment: .center) {
-                Text("초원 \(viewModel.초원수유시간_string)")
-                    .onTapGesture { self.editingTarget = .chowon }
-                Text(viewModel.초원_경과시간)
-                    .font(.title)
-                    .fontWeight(viewModel.초원_경고 ? .bold : .regular)
-                    .foregroundColor(viewModel.초원_경고 ? .red : .primary)
-            }
-            .scaleEffect(viewModel.animateChowon ? 1.2 : 1)
-            .animation(.easeInOut(duration: 0.3), value: viewModel.animateChowon)
+            BabyStatusView(
+                name: "초원",
+                feedingTime: viewModel.초원수유시간_string,
+                elapsedTime: viewModel.초원_경과시간,
+                isWarning: viewModel.초원_경고,
+                isAnimating: viewModel.animateChowon,
+                onTap: { self.editingTarget = .chowon }
+            )
         }
         .font(.system(size: 60))
         .padding()
@@ -221,16 +266,26 @@ struct ContentView: View {
 
     var body: some View {
         ZStack {
-            VStack {
+            HStack(spacing: 0) {
+                VerticalProgressView(progress: viewModel.연두_progress)
+                    .frame(width: 20) // Fixed width for the vertical bar
+                    .padding(.leading, 10)
                 Spacer()
+                VerticalProgressView(progress: viewModel.초원_progress)
+                    .frame(width: 20) // Fixed width for the vertical bar
+                    .padding(.trailing, 10)
+            }
+            VStack {
+                Spacer() // Pushes content to the center vertically
                 ZStack {
                     clockView
                     tappableArea
                 }
                 Spacer()
-                statusView
+                dashboardView
 
             }
+            .padding()
         }
         .sheet(item: $editingTarget) { _ in
             VStack {
