@@ -188,12 +188,12 @@ private struct BabyStatusView: View {
     let onTap: () -> Void
 
     var body: some View {
-        VStack(alignment: .center, spacing: 16) {
+        VStack(alignment: .center, spacing: 8) {
             HStack {
                 Text("\(name) ")
                     .font(.system(size: 50))
                 Text("\(feedingTime)")
-                    .bold()
+                    .fontWeight(.heavy)
             }
             .onTapGesture(perform: onTap)
             Text(elapsedTime)
@@ -237,7 +237,7 @@ struct ContentView: View {
 
     var clockView: some View {
         VStack {
-            HStack(spacing: 0) {
+            HStack(spacing: 16) {
                 Text(viewModel.hour)
                 ZStack {
                     Text(":")
@@ -253,7 +253,6 @@ struct ContentView: View {
             .lineLimit(1)
             .minimumScaleFactor(0.1)
             .fontWeight(.bold)
-            .monospacedDigit()
 
             Text(viewModel.date)
                 .font(.largeTitle)
@@ -285,6 +284,7 @@ struct ContentView: View {
         }
         .font(.system(size: 60))
         .padding()
+        .padding([.leading, .trailing])
     }
 
     var tappableArea: some View {
@@ -310,6 +310,7 @@ struct ContentView: View {
                 ZStack {
                     VStack {
                         clockView
+                            .offset(y: 30)
                         Spacer()
                         dashboardView
                             .padding(.leading, 100)
