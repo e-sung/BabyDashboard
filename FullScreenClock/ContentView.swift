@@ -201,7 +201,7 @@ private struct BabyStatusView: View {
                 .fontWeight(isWarning ? .bold : .regular)
                 .foregroundColor(isWarning ? .red : .primary)
         }
-        .scaleEffect(isAnimating ? 1.2 : 1)
+        .scaleEffect(isAnimating ? 0.9 : 1)
         .animation(.easeInOut(duration: 0.3), value: isAnimating)
     }
 }
@@ -308,6 +308,7 @@ struct ContentView: View {
             VStack {
                 Spacer() // Pushes content to the center vertically
                 ZStack {
+                    tappableArea
                     VStack {
                         clockView
                             .offset(y: 30)
@@ -317,6 +318,7 @@ struct ContentView: View {
                             .padding(.trailing, 100)
                     }
                     tappableArea
+                        .frame(height: 100)
                 }
 
             }

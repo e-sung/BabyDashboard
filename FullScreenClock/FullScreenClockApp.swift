@@ -12,7 +12,7 @@ struct FullScreenClockApp: App {
     var body: some Scene {
         WindowGroup {
             ContentView(
-                viewModel: ContentViewModel()
+                viewModel: ContentViewModel.shared
             )
         }
     }
