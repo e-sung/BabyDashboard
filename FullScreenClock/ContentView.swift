@@ -175,6 +175,7 @@ private struct VerticalProgressView: View {
                     .frame(height: geometry.size.height * CGFloat(min(max(0, displayProgress), 1))) // Adjust height calculation for overdue progress
             }
             .frame(width: 4)
+            .animation(.linear(duration: 0.6), value: progress)
         }
     }
 }
