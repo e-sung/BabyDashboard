@@ -179,7 +179,8 @@ class ContentViewModel: ObservableObject {
 private struct BabyStatusView: View {
     @ObservedObject var babyState: BabyState
     @Binding var isAnimating: Bool
-    let onTap: () -> Void
+    let onTimeTap: () -> Void
+    let onNameTap: () -> Void
 
     private let timeFormatter: DateFormatter = {
         let formatter = DateFormatter()
@@ -200,11 +201,12 @@ private struct BabyStatusView: View {
                 Text("\(feedingTime)")
                     .fontWeight(.heavy)
             }
-            .onTapGesture(perform: onTap)
+            .onTapGesture(perform: onNameTap)
             Text(babyState.elapsedTime)
                 .font(.title)
                 .fontWeight(babyState.isWarning ? .bold : .regular)
                 .foregroundColor(babyState.isWarning ? .red : .primary)
+                .onTapGesture(perform: onTimeTap)
         }
         .scaleEffect(isAnimating ? 0.9 : 1)
         .animation(.easeInOut(duration: 0.3), value: isAnimating)
@@ -259,6 +261,8 @@ struct ContentView: View {
         }
     }
 
+    @State private var showProfileManagement = false
+
     var dashboardView: some View {
         HStack {
             ForEach(viewModel.babyStates) { babyState in
@@ -269,7 +273,8 @@ struct ContentView: View {
                 BabyStatusView(
                     babyState: babyState,
                     isAnimating: isAnimating,
-                    onTap: { self.editingTarget = babyState.profile.id }
+                    onTimeTap: { self.editingTarget = babyState.profile.id },
+                    onNameTap: { self.showProfileManagement = true }
                 )
                 if babyState.id != viewModel.babyStates.last?.id {
                     Spacer()
@@ -279,6 +284,9 @@ struct ContentView: View {
         .font(.system(size: 60))
         .padding()
         .padding([.leading, .trailing])
+        .sheet(isPresented: $showProfileManagement) {
+            ProfileManagementView(viewModel: viewModel)
+        }
     }
 
     var tappableArea: some View {
