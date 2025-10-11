@@ -227,6 +227,8 @@ private struct BabyStatusView: View {
 struct ContentView: View {
     @ObservedObject var viewModel: ContentViewModel
     @State private var editingTarget: UUID?
+    @State private var editingProfile: BabyProfile? = nil
+    @State private var isAddingProfile = false
 
     private var timeBinding: Binding<Date> {
         Binding<Date>(
@@ -272,12 +274,10 @@ struct ContentView: View {
         }
     }
 
-    @State private var showProfileManagement = false
-
     var dashboardView: some View {
         Group {
             if viewModel.babyStates.isEmpty {
-                BabyStatusEmptyView(onAdd: { self.showProfileManagement = true })
+                BabyStatusEmptyView(onAdd: { self.isAddingProfile = true })
             } else {
                 HStack {
                     ForEach(viewModel.babyStates) { babyState in
@@ -289,11 +289,15 @@ struct ContentView: View {
                             babyState: babyState,
                             isAnimating: isAnimating,
                             onTimeTap: { self.editingTarget = babyState.profile.id },
-                            onNameTap: { self.showProfileManagement = true }
+                            onNameTap: { self.editingProfile = babyState.profile }
                         )
                         if babyState.id != viewModel.babyStates.last?.id {
                             Spacer()
                         }
+                    }
+                    if viewModel.babyStates.count == 1 {
+                        Spacer()
+                        BabyStatusEmptyView(onAdd: { self.isAddingProfile = true })
                     }
                 }
             }
@@ -301,8 +305,11 @@ struct ContentView: View {
         .font(.system(size: 60))
         .padding()
         .padding([.leading, .trailing])
-        .sheet(isPresented: $showProfileManagement) {
-            ProfileManagementView(viewModel: viewModel)
+        .sheet(isPresented: $isAddingProfile) {
+            ProfileEditView(viewModel: viewModel)
+        }
+        .sheet(item: $editingProfile) { profile in
+            ProfileEditView(viewModel: viewModel, profile: profile)
         }
     }
 
