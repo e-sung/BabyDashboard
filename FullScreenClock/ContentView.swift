@@ -53,10 +53,16 @@ class ContentViewModel: ObservableObject {
 
     private func loadProfiles() {
         if let data = sharedDefaults?.data(forKey: profilesKey),
-           let decodedProfiles = try? JSONDecoder().decode([BabyProfile].self, from: data) {
-            self.profiles = decodedProfiles
+           var decodedProfiles = try? JSONDecoder().decode([BabyProfile].self, from: data) {
+            while decodedProfiles.count < 2 {
+                decodedProfiles.append(BabyProfile(id: UUID(), name: "Baby \(decodedProfiles.count + 1)"))
+            }
+            self.profiles = Array(decodedProfiles.prefix(2))
         } else {
-            self.profiles = []
+            self.profiles = [
+                BabyProfile(id: UUID(), name: "Baby 1"),
+                BabyProfile(id: UUID(), name: "Baby 2")
+            ]
         }
     }
 
@@ -151,14 +157,6 @@ class ContentViewModel: ObservableObject {
         }
     }
 
-    func addProfile(name: String) {
-        let newProfile = BabyProfile(id: UUID(), name: name)
-        profiles.append(newProfile)
-        let newState = BabyState(profile: newProfile)
-        babyStates.append(newState)
-        animationStates[newProfile.id] = false
-    }
-
     func updateProfile(profile: BabyProfile, newName: String) {
         if let index = profiles.firstIndex(where: { $0.id == profile.id }) {
             profiles[index].name = newName
@@ -170,17 +168,6 @@ class ContentViewModel: ObservableObject {
                 babyStates[stateIndex] = newState
             }
         }
-    }
-
-    func deleteProfile(at offsets: IndexSet) {
-        let idsToDelete = offsets.map { profiles[$0].id }
-        profiles.remove(atOffsets: offsets)
-        babyStates.removeAll { idsToDelete.contains($0.profile.id) }
-    }
-
-    func moveProfile(from source: IndexSet, to destination: Int) {
-        profiles.move(fromOffsets: source, toOffset: destination)
-        babyStates.move(fromOffsets: source, toOffset: destination)
     }
 }
 
@@ -275,39 +262,26 @@ struct ContentView: View {
     }
 
     var dashboardView: some View {
-        Group {
-            if viewModel.babyStates.isEmpty {
-                BabyStatusEmptyView(onAdd: { self.isAddingProfile = true })
-            } else {
-                HStack {
-                    ForEach(viewModel.babyStates) { babyState in
-                        let isAnimating = Binding(
-                            get: { viewModel.animationStates[babyState.profile.id, default: false] },
-                            set: { viewModel.animationStates[babyState.profile.id] = $0 }
-                        )
-                        BabyStatusView(
-                            babyState: babyState,
-                            isAnimating: isAnimating,
-                            onTimeTap: { self.editingTarget = babyState.profile.id },
-                            onNameTap: { self.editingProfile = babyState.profile }
-                        )
-                        if babyState.id != viewModel.babyStates.last?.id {
-                            Spacer()
-                        }
-                    }
-                    if viewModel.babyStates.count == 1 {
-                        Spacer()
-                        BabyStatusEmptyView(onAdd: { self.isAddingProfile = true })
-                    }
+        HStack {
+            ForEach(viewModel.babyStates) { babyState in
+                let isAnimating = Binding(
+                    get: { viewModel.animationStates[babyState.profile.id, default: false] },
+                    set: { viewModel.animationStates[babyState.profile.id] = $0 }
+                )
+                BabyStatusView(
+                    babyState: babyState,
+                    isAnimating: isAnimating,
+                    onTimeTap: { self.editingTarget = babyState.profile.id },
+                    onNameTap: { self.editingProfile = babyState.profile }
+                )
+                if babyState.id != viewModel.babyStates.last?.id {
+                    Spacer()
                 }
             }
         }
         .font(.system(size: 60))
         .padding()
         .padding([.leading, .trailing])
-        .sheet(isPresented: $isAddingProfile) {
-            ProfileEditView(viewModel: viewModel)
-        }
         .sheet(item: $editingProfile) { profile in
             ProfileEditView(viewModel: viewModel, profile: profile)
         }

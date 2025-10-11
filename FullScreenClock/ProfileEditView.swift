@@ -4,7 +4,7 @@ import SwiftUI
 struct ProfileEditView: View {
     @ObservedObject var viewModel: ContentViewModel
     @Environment(\.dismiss) var dismiss
-    var profile: BabyProfile?
+    var profile: BabyProfile
 
     @State private var name: String = ""
 
@@ -13,11 +13,9 @@ struct ProfileEditView: View {
             Form {
                 TextField("Baby's Name", text: $name)
             }
-            .navigationTitle(profile == nil ? "Add Profile" : "Edit Profile")
+            .navigationTitle("Edit Profile")
             .onAppear {
-                if let profile = profile {
-                    name = profile.name
-                }
+                name = profile.name
             }
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
@@ -31,11 +29,7 @@ struct ProfileEditView: View {
     }
 
     private func save() {
-        if let profile = profile {
-            viewModel.updateProfile(profile: profile, newName: name)
-        } else {
-            viewModel.addProfile(name: name)
-        }
+        viewModel.updateProfile(profile: profile, newName: name)
         dismiss()
     }
 }
