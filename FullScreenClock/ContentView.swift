@@ -8,20 +8,16 @@ class ContentViewModel: ObservableObject {
     @Published var minute: String = "00"
     @Published var showColon: Bool = true
     @Published var date: String = ""
-    
-    @Published var 연두수유시간: Date?
-    @Published var 초원수유시간: Date?
-    
-    @Published var 연두_경과시간: String = ""
-    @Published var 초원_경과시간: String = ""
-    @Published var 연두_경고: Bool = false
-    @Published var 초원_경고: Bool = false
 
-    @Published var 연두_progress: Double = 0.0
-    @Published var 초원_progress: Double = 0.0
+    @Published var babyStates: [BabyState] = []
+    @Published var profiles: [BabyProfile] = [] {
+        didSet {
+            saveProfiles()
+        }
+    }
 
-    @Published var animateYeondoo: Bool = false
-    @Published var animateChowon: Bool = false
+    private var animationTimers: [UUID: Timer] = [:]
+    @Published var animationStates: [UUID: Bool] = [:]
 
     let timeScope: TimeInterval = 3 * 3600
 
@@ -29,70 +25,23 @@ class ContentViewModel: ObservableObject {
 
     private var cancellables = Set<AnyCancellable>()
     private let sharedDefaults = UserDefaults(suiteName: suiteName)
-    private let yeondooKey = "연두수유시간"
-    private let chowonKey = "초원수유시간"
+    private let profilesKey = "babyProfiles"
 
-    // Single source of truth for formatting
     private let timeFormatter: DateFormatter = {
         let formatter = DateFormatter()
         formatter.dateFormat = "HH:mm"
         return formatter
     }()
 
-    // Computed properties for display
-    var 연두수유시간_string: String {
-        if let date = 연두수유시간 { return timeFormatter.string(from: date) }
-        return "--:--"
-    }
-    var 초원수유시간_string: String {
-        if let date = 초원수유시간 { return timeFormatter.string(from: date) }
-        return "--:--"
-    }
-
     init() {
-        // Load initial values from UserDefaults
-        self.연두수유시간 = sharedDefaults?.object(forKey: yeondooKey) as? Date
-        self.초원수유시간 = sharedDefaults?.object(forKey: chowonKey) as? Date
+        loadProfiles()
+        setupBabyStates()
+        loadInitialFeedingTimes()
 
-        // Timer for the main clock and elapsed time
         Timer.scheduledTimer(withTimeInterval: 1, repeats: true, block: { [weak self] _ in
-            guard let self = self else { return }
-            let now = Date()
-            
-            let calendar = Calendar.current
-            let second = calendar.component(.second, from: now)
-            self.showColon = second % 2 == 0
-
-            let components = calendar.dateComponents([.hour, .minute], from: now)
-            self.hour = String(format: "%02d", components.hour ?? 0)
-            self.minute = String(format: "%02d", components.minute ?? 0)
-
-            self.date = now.formatted(Date.FormatStyle(locale: Locale(identifier: "ko")).year(.defaultDigits).month(.abbreviated).day(.defaultDigits).weekday(.wide))
-
-            if let yeondooTime = self.연두수유시간 {
-                let interval = now.timeIntervalSince(yeondooTime)
-                self.연두_경과시간 = self.formatElapsedTime(from: interval)
-                self.연두_경고 = interval > (3 * 3600) // 3 hours in seconds
-                self.연두_progress = interval / (3 * 3600)
-            } else {
-                self.연두_경과시간 = ""
-                self.연두_경고 = false
-                self.연두_progress = 0.0
-            }
-            
-            if let chowonTime = self.초원수유시간 {
-                let interval = now.timeIntervalSince(chowonTime)
-                self.초원_경과시간 = self.formatElapsedTime(from: interval)
-                self.초원_경고 = interval > (3 * 3600)
-                self.초원_progress = interval / (3 * 3600)
-            } else {
-                self.초원_경과시간 = ""
-                self.초원_경고 = false
-                self.초원_progress = 0.0
-            }
+            self?.updateClockAndElapsedTimes()
         })
 
-        // Observe changes from other processes (Siri Intent)
         NotificationCenter.default.publisher(for: UserDefaults.didChangeNotification)
             .sink { [weak self] _ in
                 DispatchQueue.main.async {
@@ -102,12 +51,86 @@ class ContentViewModel: ObservableObject {
             .store(in: &cancellables)
     }
 
+    private func loadProfiles() {
+        if let data = sharedDefaults?.data(forKey: profilesKey),
+           let decodedProfiles = try? JSONDecoder().decode([BabyProfile].self, from: data) {
+            self.profiles = decodedProfiles
+        } else {
+            // For backward compatibility, create profiles from old hardcoded names
+            self.profiles = [
+                BabyProfile(id: UUID(), name: "연두"),
+                BabyProfile(id: UUID(), name: "초원")
+            ]
+        }
+    }
+
+    private func saveProfiles() {
+        if let data = try? JSONEncoder().encode(profiles) {
+            sharedDefaults?.set(data, forKey: profilesKey)
+        }
+    }
+
+    private func setupBabyStates() {
+        babyStates = profiles.map { BabyState(profile: $0) }
+        profiles.forEach { profile in
+            animationStates[profile.id] = false
+        }
+    }
+
+    private func loadInitialFeedingTimes() {
+        // One-time migration from old keys
+        let yeondooKey = "연두수유시간"
+        let chowonKey = "초원수유시간"
+
+        if let yeondooDate = sharedDefaults?.object(forKey: yeondooKey) as? Date,
+           let yeondooState = babyStates.first(where: { $0.profile.name == "연두" }) {
+            yeondooState.lastFeedingTime = yeondooDate
+            sharedDefaults?.removeObject(forKey: yeondooKey) // Remove old key after migration
+        }
+
+        if let chowonDate = sharedDefaults?.object(forKey: chowonKey) as? Date,
+           let chowonState = babyStates.first(where: { $0.profile.name == "초원" }) {
+            chowonState.lastFeedingTime = chowonDate
+            sharedDefaults?.removeObject(forKey: chowonKey) // Remove old key after migration
+        }
+        
+        // Load times for all profiles using new key format
+        for state in babyStates {
+            if let date = sharedDefaults?.object(forKey: state.profile.id.uuidString) as? Date {
+                state.lastFeedingTime = date
+            }
+        }
+    }
+
+    private func updateClockAndElapsedTimes() {
+        let now = Date()
+        let calendar = Calendar.current
+        let second = calendar.component(.second, from: now)
+        showColon = second % 2 == 0
+
+        let components = calendar.dateComponents([.hour, .minute], from: now)
+        hour = String(format: "%02d", components.hour ?? 0)
+        minute = String(format: "%02d", components.minute ?? 0)
+        date = now.formatted(Date.FormatStyle(locale: Locale(identifier: "ko")).year(.defaultDigits).month(.abbreviated).day(.defaultDigits).weekday(.wide))
+
+        for state in babyStates {
+            if let feedingTime = state.lastFeedingTime {
+                let interval = now.timeIntervalSince(feedingTime)
+                state.elapsedTime = formatElapsedTime(from: interval)
+                state.isWarning = interval > (3 * 3600) // 3 hours
+                state.progress = interval / (3 * 3600)
+            } else {
+                state.elapsedTime = ""
+                state.isWarning = false
+                state.progress = 0.0
+            }
+        }
+    }
+
     private func formatElapsedTime(from interval: TimeInterval) -> String {
         guard interval >= 0 else { return "" }
-        
         let hours = Int(interval) / 3600
         let minutes = (Int(interval) % 3600) / 60
-        
         if hours > 0 {
             return "\(hours)시간 \(minutes)분 전"
         } else if minutes > 0 {
@@ -119,38 +142,33 @@ class ContentViewModel: ObservableObject {
 
     @MainActor
     private func updateFromDefaults() {
-        self.연두수유시간 = sharedDefaults?.object(forKey: yeondooKey) as? Date
-        self.초원수유시간 = sharedDefaults?.object(forKey: chowonKey) as? Date
-    }
-
-    func update연두수유시간() {
-        let now = Date()
-        self.연두수유시간 = now
-        sharedDefaults?.set(now, forKey: yeondooKey)
-        animateYeondoo = true
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.31) {
-            self.animateYeondoo = false
+        // This might need to be more specific if we have many things in UserDefaults
+        for state in babyStates {
+            if let date = sharedDefaults?.object(forKey: state.profile.id.uuidString) as? Date {
+                state.lastFeedingTime = date
+            }
         }
     }
 
-    func update초원수유시간() {
+    func updateFeedingTime(for babyId: UUID) {
         let now = Date()
-        self.초원수유시간 = now
-        sharedDefaults?.set(now, forKey: chowonKey)
-        animateChowon = true
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.31) {
-            self.animateChowon = false
+        if let babyState = babyStates.first(where: { $0.profile.id == babyId }) {
+            babyState.lastFeedingTime = now
+            sharedDefaults?.set(now, forKey: babyId.uuidString)
+            
+            // Animation
+            animationStates[babyId] = true
+            animationTimers[babyId]?.invalidate()
+            animationTimers[babyId] = Timer.scheduledTimer(withTimeInterval: 0.31, repeats: false) { [weak self] _ in
+                self?.animationStates[babyId] = false
+            }
         }
     }
     
-    func setTime(for target: ContentView.EditingTarget, to date: Date) {
-        switch target {
-        case .yeondoo:
-            self.연두수유시간 = date
-            sharedDefaults?.set(date, forKey: yeondooKey)
-        case .chowon:
-            self.초원수유시간 = date
-            sharedDefaults?.set(date, forKey: chowonKey)
+    func setFeedingTime(for babyId: UUID, to date: Date) {
+        if let babyState = babyStates.first(where: { $0.profile.id == babyId }) {
+            babyState.lastFeedingTime = date
+            sharedDefaults?.set(date, forKey: babyId.uuidString)
         }
     }
 }
@@ -159,26 +177,34 @@ class ContentViewModel: ObservableObject {
 
 
 private struct BabyStatusView: View {
-    let name: String
-    let feedingTime: String
-    let elapsedTime: String
-    let isWarning: Bool
-    let isAnimating: Bool
+    @ObservedObject var babyState: BabyState
+    @Binding var isAnimating: Bool
     let onTap: () -> Void
+
+    private let timeFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "HH:mm"
+        return formatter
+    }()
+
+    private var feedingTime: String {
+        if let date = babyState.lastFeedingTime { return timeFormatter.string(from: date) }
+        return "--:--"
+    }
 
     var body: some View {
         VStack(alignment: .center, spacing: 8) {
             HStack {
-                Text("\(name) ")
+                Text("\(babyState.profile.name) ")
                     .font(.system(size: 50))
                 Text("\(feedingTime)")
                     .fontWeight(.heavy)
             }
             .onTapGesture(perform: onTap)
-            Text(elapsedTime)
+            Text(babyState.elapsedTime)
                 .font(.title)
-                .fontWeight(isWarning ? .bold : .regular)
-                .foregroundColor(isWarning ? .red : .primary)
+                .fontWeight(babyState.isWarning ? .bold : .regular)
+                .foregroundColor(babyState.isWarning ? .red : .primary)
         }
         .scaleEffect(isAnimating ? 0.9 : 1)
         .animation(.easeInOut(duration: 0.3), value: isAnimating)
@@ -187,28 +213,20 @@ private struct BabyStatusView: View {
 
 struct ContentView: View {
     @ObservedObject var viewModel: ContentViewModel
-
-    enum EditingTarget: Identifiable {
-        case yeondoo, chowon
-        var id: Self { self }
-    }
-    @State private var editingTarget: EditingTarget?
+    @State private var editingTarget: UUID?
 
     private var timeBinding: Binding<Date> {
         Binding<Date>(
             get: {
-                switch editingTarget {
-                case .yeondoo:
-                    return viewModel.연두수유시간 ?? Date()
-                case .chowon:
-                    return viewModel.초원수유시간 ?? Date()
-                case .none:
-                    return Date()
+                if let targetId = editingTarget,
+                   let babyState = viewModel.babyStates.first(where: { $0.profile.id == targetId }) {
+                    return babyState.lastFeedingTime ?? Date()
                 }
+                return Date()
             },
             set: { newTime in
-                if let target = editingTarget {
-                    viewModel.setTime(for: target, to: newTime)
+                if let targetId = editingTarget {
+                    viewModel.setFeedingTime(for: targetId, to: newTime)
                 }
             }
         )
@@ -243,23 +261,20 @@ struct ContentView: View {
 
     var dashboardView: some View {
         HStack {
-            BabyStatusView(
-                name: "연두",
-                feedingTime: viewModel.연두수유시간_string,
-                elapsedTime: viewModel.연두_경과시간,
-                isWarning: viewModel.연두_경고,
-                isAnimating: viewModel.animateYeondoo,
-                onTap: { self.editingTarget = .yeondoo }
-            )
-            Spacer()
-            BabyStatusView(
-                name: "초원",
-                feedingTime: viewModel.초원수유시간_string,
-                elapsedTime: viewModel.초원_경과시간,
-                isWarning: viewModel.초원_경고,
-                isAnimating: viewModel.animateChowon,
-                onTap: { self.editingTarget = .chowon }
-            )
+            ForEach(viewModel.babyStates) { babyState in
+                let isAnimating = Binding(
+                    get: { viewModel.animationStates[babyState.profile.id, default: false] },
+                    set: { viewModel.animationStates[babyState.profile.id] = $0 }
+                )
+                BabyStatusView(
+                    babyState: babyState,
+                    isAnimating: isAnimating,
+                    onTap: { self.editingTarget = babyState.profile.id }
+                )
+                if babyState.id != viewModel.babyStates.last?.id {
+                    Spacer()
+                }
+            }
         }
         .font(.system(size: 60))
         .padding()
@@ -268,23 +283,28 @@ struct ContentView: View {
 
     var tappableArea: some View {
         HStack(spacing: 0) {
-            Color.clear.contentShape(Rectangle()).onTapGesture { viewModel.update연두수유시간() }
-            Color.clear.contentShape(Rectangle()).onTapGesture { viewModel.update초원수유시간() }
+            ForEach(viewModel.babyStates) { babyState in
+                Color.clear.contentShape(Rectangle()).onTapGesture { viewModel.updateFeedingTime(for: babyState.profile.id) }
+            }
         }.ignoresSafeArea()
     }
 
     var body: some View {
         ZStack {
             HStack(spacing: 0) {
-                VerticalProgressView(progress: viewModel.연두_progress, timeScope: viewModel.timeScope)
-                    .frame(width: 10)
-                Spacer()
-                VerticalProgressView(progress: viewModel.초원_progress, timeScope: viewModel.timeScope)
-                    .frame(width: 10)
+                ForEach(viewModel.babyStates) { babyState in
+                    VerticalProgressView(progress: babyState.progress, timeScope: viewModel.timeScope)
+                        .frame(width: 20)
+                        .padding(.leading, babyState.id == viewModel.babyStates.first?.id ? 10 : 0)
+                        .padding(.trailing, babyState.id == viewModel.babyStates.last?.id ? 10 : 0)
+                    if babyState.id != viewModel.babyStates.last?.id {
+                        Spacer()
+                    }
+                }
             }
             .padding(.horizontal, 20)
             VStack {
-                Spacer() // Pushes content to the center vertically
+                Spacer()
                 ZStack {
                     tappableArea
                     VStack {
@@ -316,6 +336,24 @@ struct ContentView: View {
     }
 }
 
-#Preview {
-    ContentView(viewModel: ContentViewModel())
+#if DEBUG
+struct ContentView_Previews: PreviewProvider {
+    static var previews: some View {
+        ContentView(viewModel: createMockViewModel())
+    }
+
+    static func createMockViewModel() -> ContentViewModel {
+        let vm = ContentViewModel()
+        let baby1 = BabyProfile(id: UUID(), name: "연두")
+        let baby2 = BabyProfile(id: UUID(), name: "초원")
+        vm.profiles = [baby1, baby2]
+        vm.babyStates = [
+            BabyState(profile: baby1),
+            BabyState(profile: baby2)
+        ]
+        vm.babyStates[0].lastFeedingTime = Date().addingTimeInterval(-120)
+        vm.babyStates[1].lastFeedingTime = Date().addingTimeInterval(-7200)
+        return vm
+    }
 }
+#endif
