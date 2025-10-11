@@ -150,6 +150,38 @@ class ContentViewModel: ObservableObject {
             sharedDefaults?.set(date, forKey: babyId.uuidString)
         }
     }
+
+    func addProfile(name: String) {
+        let newProfile = BabyProfile(id: UUID(), name: name)
+        profiles.append(newProfile)
+        let newState = BabyState(profile: newProfile)
+        babyStates.append(newState)
+        animationStates[newProfile.id] = false
+    }
+
+    func updateProfile(profile: BabyProfile, newName: String) {
+        if let index = profiles.firstIndex(where: { $0.id == profile.id }) {
+            profiles[index].name = newName
+            if let stateIndex = babyStates.firstIndex(where: { $0.profile.id == profile.id }) {
+                // Recreate the baby state to ensure the view updates.
+                let oldState = babyStates[stateIndex]
+                let newState = BabyState(profile: profiles[index])
+                newState.lastFeedingTime = oldState.lastFeedingTime
+                babyStates[stateIndex] = newState
+            }
+        }
+    }
+
+    func deleteProfile(at offsets: IndexSet) {
+        let idsToDelete = offsets.map { profiles[$0].id }
+        profiles.remove(atOffsets: offsets)
+        babyStates.removeAll { idsToDelete.contains($0.profile.id) }
+    }
+
+    func moveProfile(from source: IndexSet, to destination: Int) {
+        profiles.move(fromOffsets: source, toOffset: destination)
+        babyStates.move(fromOffsets: source, toOffset: destination)
+    }
 }
 
 

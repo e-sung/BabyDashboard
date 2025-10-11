@@ -42,11 +42,11 @@ struct ProfileManagementView: View {
     }
 
     private func deleteProfile(at offsets: IndexSet) {
-        viewModel.profiles.remove(atOffsets: offsets)
+        viewModel.deleteProfile(at: offsets)
     }
 
     private func moveProfile(from source: IndexSet, to destination: Int) {
-        viewModel.profiles.move(fromOffsets: source, toOffset: destination)
+        viewModel.moveProfile(from: source, to: destination)
     }
 }
 
@@ -81,16 +81,10 @@ struct ProfileEditView: View {
 
     private func save() {
         if let profile = profile {
-            // Edit existing profile
-            if let index = viewModel.profiles.firstIndex(where: { $0.id == profile.id }) {
-                viewModel.profiles[index].name = name
-            }
+            viewModel.updateProfile(profile: profile, newName: name)
         } else {
-            // Add new profile
-            let newProfile = BabyProfile(id: UUID(), name: name)
-            viewModel.profiles.append(newProfile)
+            viewModel.addProfile(name: name)
         }
-        viewModel.objectWillChange.send()
         dismiss()
     }
 }
