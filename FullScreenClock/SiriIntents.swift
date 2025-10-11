@@ -48,6 +48,7 @@ struct BabyProfileQuery: EntityQuery {
 struct UpdateFeedingTimeIntent: AppIntent {
     static var title: LocalizedStringResource = "Update Feeding Time"
     static var description = IntentDescription("Records the last feeding time for a baby.")
+    static var openAppWhenRun: Bool = true
 
     @Parameter(title: "Baby")
     var baby: BabyProfileEntity
@@ -70,8 +71,7 @@ struct BabyMonitorShortcuts: AppShortcutsProvider {
         AppShortcut(
             intent: UpdateFeedingTimeIntent(),
             phrases: [
-                "Update feeding time for \(.applicationName)",
-                "Log feeding for \(.baby) in \(.applicationName)"
+                "Update feeding time for \(.applicationName)"
             ],
             shortTitle: "Log Feeding Time",
             systemImageName: "baby.bottle.fill"

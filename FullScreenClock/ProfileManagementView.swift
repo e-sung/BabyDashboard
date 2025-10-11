@@ -42,11 +42,11 @@ struct ProfileManagementView: View {
     }
 
     private func deleteProfile(at offsets: IndexSet) {
-        profiles.remove(atOffsets: offsets)
+        viewModel.profiles.remove(atOffsets: offsets)
     }
 
     private func moveProfile(from source: IndexSet, to destination: Int) {
-        profiles.move(fromOffsets: source, toOffset: destination)
+        viewModel.profiles.move(fromOffsets: source, toOffset: destination)
     }
 }
 

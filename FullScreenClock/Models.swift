@@ -1,6 +1,10 @@
 
 import Foundation
 
+extension UUID: Identifiable {
+    public var id: UUID { self }
+}
+
 struct BabyProfile: Identifiable, Codable, Hashable {
     let id: UUID
     var name: String
