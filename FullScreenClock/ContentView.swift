@@ -192,15 +192,15 @@ private struct BabyStatusView: View {
             HStack {
                 Text("\(babyState.profile.name) ")
                     .font(.system(size: 50))
+                    .onTapGesture(perform: onNameTap)
                 Text("\(feedingTime)")
                     .fontWeight(.heavy)
+                    .onTapGesture(perform: onTimeTap)
             }
-            .onTapGesture(perform: onNameTap)
             Text(babyState.elapsedTime)
                 .font(.title)
                 .fontWeight(babyState.isWarning ? .bold : .regular)
                 .foregroundColor(babyState.isWarning ? .red : .primary)
-                .onTapGesture(perform: onTimeTap)
         }
         .scaleEffect(isAnimating ? 0.9 : 1)
         .animation(.easeInOut(duration: 0.3), value: isAnimating)
