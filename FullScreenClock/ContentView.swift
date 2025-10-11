@@ -243,20 +243,26 @@ struct ContentView: View {
     @State private var showProfileManagement = false
 
     var dashboardView: some View {
-        HStack {
-            ForEach(viewModel.babyStates) { babyState in
-                let isAnimating = Binding(
-                    get: { viewModel.animationStates[babyState.profile.id, default: false] },
-                    set: { viewModel.animationStates[babyState.profile.id] = $0 }
-                )
-                BabyStatusView(
-                    babyState: babyState,
-                    isAnimating: isAnimating,
-                    onTimeTap: { self.editingTarget = babyState.profile.id },
-                    onNameTap: { self.showProfileManagement = true }
-                )
-                if babyState.id != viewModel.babyStates.last?.id {
-                    Spacer()
+        Group {
+            if viewModel.babyStates.isEmpty {
+                BabyStatusEmptyView(onAdd: { self.showProfileManagement = true })
+            } else {
+                HStack {
+                    ForEach(viewModel.babyStates) { babyState in
+                        let isAnimating = Binding(
+                            get: { viewModel.animationStates[babyState.profile.id, default: false] },
+                            set: { viewModel.animationStates[babyState.profile.id] = $0 }
+                        )
+                        BabyStatusView(
+                            babyState: babyState,
+                            isAnimating: isAnimating,
+                            onTimeTap: { self.editingTarget = babyState.profile.id },
+                            onNameTap: { self.showProfileManagement = true }
+                        )
+                        if babyState.id != viewModel.babyStates.last?.id {
+                            Spacer()
+                        }
+                    }
                 }
             }
         }
@@ -331,15 +337,16 @@ struct ContentView_Previews: PreviewProvider {
 
     static func createMockViewModel() -> ContentViewModel {
         let vm = ContentViewModel()
-        let baby1 = BabyProfile(id: UUID(), name: "연두")
-        let baby2 = BabyProfile(id: UUID(), name: "초원")
-        vm.profiles = [baby1, baby2]
-        vm.babyStates = [
-            BabyState(profile: baby1),
-            BabyState(profile: baby2)
-        ]
-        vm.babyStates[0].lastFeedingTime = Date().addingTimeInterval(-120)
-        vm.babyStates[1].lastFeedingTime = Date().addingTimeInterval(-7200)
+        vm.profiles = []
+//        let baby1 = BabyProfile(id: UUID(), name: "연두")
+//        let baby2 = BabyProfile(id: UUID(), name: "초원")
+//        vm.profiles = [baby1, baby2]
+//        vm.babyStates = [
+//            BabyState(profile: baby1),
+//            BabyState(profile: baby2)
+//        ]
+//        vm.babyStates[0].lastFeedingTime = Date().addingTimeInterval(-120)
+//        vm.babyStates[1].lastFeedingTime = Date().addingTimeInterval(-7200)
         return vm
     }
 }
