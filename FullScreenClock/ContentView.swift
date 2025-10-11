@@ -57,8 +57,8 @@ class ContentViewModel: ObservableObject {
             self.profiles = decodedProfiles
         } else {
             self.profiles = [
-                BabyProfile(id: UUID(), name: String(localized: "Baby 1")),
-                BabyProfile(id: UUID(), name: String(localized: "Baby 2"))
+                BabyProfile(id: UUID(), name: String(localized: "Baby 1", comment: "Default name for baby 1")),
+                BabyProfile(id: UUID(), name: String(localized: "Baby 2", comment: "Default name for baby 2"))
             ]
         }
     }
