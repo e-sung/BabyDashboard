@@ -161,11 +161,7 @@ class ContentViewModel: ObservableObject {
         if let index = profiles.firstIndex(where: { $0.id == profile.id }) {
             profiles[index].name = newName
             if let stateIndex = babyStates.firstIndex(where: { $0.profile.id == profile.id }) {
-                // Recreate the baby state to ensure the view updates.
-                let oldState = babyStates[stateIndex]
-                let newState = BabyState(profile: profiles[index])
-                newState.lastFeedingTime = oldState.lastFeedingTime
-                babyStates[stateIndex] = newState
+                babyStates[stateIndex].profile = profiles[index]
             }
         }
     }

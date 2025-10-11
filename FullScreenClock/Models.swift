@@ -11,7 +11,7 @@ struct BabyProfile: Identifiable, Codable, Hashable {
 }
 
 class BabyState: ObservableObject, Identifiable {
-    let profile: BabyProfile
+    @Published var profile: BabyProfile
     @Published var lastFeedingTime: Date?
     @Published var elapsedTime: String = ""
     @Published var isWarning: Bool = false
