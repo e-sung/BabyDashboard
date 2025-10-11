@@ -56,11 +56,7 @@ class ContentViewModel: ObservableObject {
            let decodedProfiles = try? JSONDecoder().decode([BabyProfile].self, from: data) {
             self.profiles = decodedProfiles
         } else {
-            // For backward compatibility, create profiles from old hardcoded names
-            self.profiles = [
-                BabyProfile(id: UUID(), name: "연두"),
-                BabyProfile(id: UUID(), name: "초원")
-            ]
+            self.profiles = []
         }
     }
 
@@ -78,23 +74,6 @@ class ContentViewModel: ObservableObject {
     }
 
     private func loadInitialFeedingTimes() {
-        // One-time migration from old keys
-        let yeondooKey = "연두수유시간"
-        let chowonKey = "초원수유시간"
-
-        if let yeondooDate = sharedDefaults?.object(forKey: yeondooKey) as? Date,
-           let yeondooState = babyStates.first(where: { $0.profile.name == "연두" }) {
-            yeondooState.lastFeedingTime = yeondooDate
-            sharedDefaults?.removeObject(forKey: yeondooKey) // Remove old key after migration
-        }
-
-        if let chowonDate = sharedDefaults?.object(forKey: chowonKey) as? Date,
-           let chowonState = babyStates.first(where: { $0.profile.name == "초원" }) {
-            chowonState.lastFeedingTime = chowonDate
-            sharedDefaults?.removeObject(forKey: chowonKey) // Remove old key after migration
-        }
-        
-        // Load times for all profiles using new key format
         for state in babyStates {
             if let date = sharedDefaults?.object(forKey: state.profile.id.uuidString) as? Date {
                 state.lastFeedingTime = date

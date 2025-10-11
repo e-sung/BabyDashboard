@@ -37,10 +37,7 @@ struct BabyProfileQuery: EntityQuery {
            let decodedProfiles = try? JSONDecoder().decode([BabyProfile].self, from: data) {
             return decodedProfiles
         } else {
-            return [
-                BabyProfile(id: UUID(), name: "연두"),
-                BabyProfile(id: UUID(), name: "초원")
-            ]
+            return []
         }
     }
 }
