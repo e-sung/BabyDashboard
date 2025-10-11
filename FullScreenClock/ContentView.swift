@@ -53,15 +53,12 @@ class ContentViewModel: ObservableObject {
 
     private func loadProfiles() {
         if let data = sharedDefaults?.data(forKey: profilesKey),
-           var decodedProfiles = try? JSONDecoder().decode([BabyProfile].self, from: data) {
-            while decodedProfiles.count < 2 {
-                decodedProfiles.append(BabyProfile(id: UUID(), name: "Baby \(decodedProfiles.count + 1)"))
-            }
-            self.profiles = Array(decodedProfiles.prefix(2))
+           var decodedProfiles = try? JSONDecoder().decode([BabyProfile].self, from: data), decodedProfiles.count == 2 { // currently support only twin baby scenario
+            self.profiles = decodedProfiles
         } else {
             self.profiles = [
-                BabyProfile(id: UUID(), name: "Baby 1"),
-                BabyProfile(id: UUID(), name: "Baby 2")
+                BabyProfile(id: UUID(), name: String(localized: "Baby 1")),
+                BabyProfile(id: UUID(), name: String(localized: "Baby 2"))
             ]
         }
     }
@@ -117,11 +114,11 @@ class ContentViewModel: ObservableObject {
         let hours = Int(interval) / 3600
         let minutes = (Int(interval) % 3600) / 60
         if hours > 0 {
-            return "\(hours)시간 \(minutes)분 전"
+            return String(localized: "\(hours)시간 \(minutes)분 전", comment: "Elapsed time format: X hours Y minutes ago")
         } else if minutes > 0 {
-            return "\(minutes)분 전"
+            return String(localized: "\(minutes)분 전", comment: "Elapsed time format: Y minutes ago")
         } else {
-            return "방금 전"
+            return String(localized: "방금 전", comment: "Elapsed time format: Just now")
         }
     }
 
@@ -184,7 +181,7 @@ private struct BabyStatusView: View {
 
     private var feedingTime: String {
         if let date = babyState.lastFeedingTime { return timeFormatter.string(from: date) }
-        return "--:--"
+        return String(localized: "--:--")
     }
 
     var body: some View {
@@ -211,7 +208,6 @@ struct ContentView: View {
     @ObservedObject var viewModel: ContentViewModel
     @State private var editingTarget: UUID?
     @State private var editingProfile: BabyProfile? = nil
-    @State private var isAddingProfile = false
 
     private var timeBinding: Binding<Date> {
         Binding<Date>(
@@ -326,10 +322,10 @@ struct ContentView: View {
         }
         .sheet(item: $editingTarget) { _ in
             VStack {
-                DatePicker("시간 선택", selection: timeBinding, displayedComponents: [.date, .hourAndMinute])
+                DatePicker(String(localized: "시간 선택"), selection: timeBinding, displayedComponents: [.date, .hourAndMinute])
                     .datePickerStyle(.wheel)
                     .labelsHidden()
-                Button("완료") {
+                Button(String(localized: "완료")) {
                     self.editingTarget = nil
                 }
                 .padding()
@@ -338,7 +334,6 @@ struct ContentView: View {
     }
 }
 
-#if DEBUG
 struct ContentView_Previews: PreviewProvider {
     static var previews: some View {
         ContentView(viewModel: createMockViewModel())
@@ -346,17 +341,6 @@ struct ContentView_Previews: PreviewProvider {
 
     static func createMockViewModel() -> ContentViewModel {
         let vm = ContentViewModel()
-        vm.profiles = []
-//        let baby1 = BabyProfile(id: UUID(), name: "연두")
-//        let baby2 = BabyProfile(id: UUID(), name: "초원")
-//        vm.profiles = [baby1, baby2]
-//        vm.babyStates = [
-//            BabyState(profile: baby1),
-//            BabyState(profile: baby2)
-//        ]
-//        vm.babyStates[0].lastFeedingTime = Date().addingTimeInterval(-120)
-//        vm.babyStates[1].lastFeedingTime = Date().addingTimeInterval(-7200)
         return vm
     }
 }
-#endif

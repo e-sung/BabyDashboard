@@ -43,11 +43,11 @@ struct BabyProfileQuery: EntityQuery {
 }
 
 struct UpdateFeedingTimeIntent: AppIntent {
-    static var title: LocalizedStringResource = "Update Feeding Time"
-    static var description = IntentDescription("Records the last feeding time for a baby.")
+    static var title: LocalizedStringResource = LocalizedStringResource(String(localized: "Update Feeding Time"))
+    static var description = IntentDescription(LocalizedStringResource(String(localized: "Records the last feeding time for a baby.")))
     static var openAppWhenRun: Bool = true
 
-    @Parameter(title: "Baby")
+    @Parameter(title: LocalizedStringResource(String(localized: "Baby")))
     var baby: BabyProfileEntity
 
     @MainActor
@@ -70,7 +70,7 @@ struct BabyMonitorShortcuts: AppShortcutsProvider {
             phrases: [
                 "Update feeding time for \(.applicationName)"
             ],
-            shortTitle: "Log Feeding Time",
+            shortTitle: LocalizedStringResource(String(localized: "Log Feeding Time")),
             systemImageName: "baby.bottle.fill"
         )
     }

@@ -11,18 +11,18 @@ struct ProfileEditView: View {
     var body: some View {
         NavigationView {
             Form {
-                TextField("Baby's Name", text: $name)
+                TextField(String(localized: "Baby's Name"), text: $name)
             }
-            .navigationTitle("Edit Profile")
+            .navigationTitle(String(localized: "Edit Profile"))
             .onAppear {
                 name = profile.name
             }
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { dismiss() }
+                    Button(String(localized: "Cancel")) { dismiss() }
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Save") { save() }
+                    Button(String(localized: "Save")) { save() }
                 }
             }
         }
