@@ -23,6 +23,8 @@ class ContentViewModel: ObservableObject {
     @Published var animateYeondoo: Bool = false
     @Published var animateChowon: Bool = false
 
+    let timeScope: TimeInterval = 3 * 3600
+
     static var shared = ContentViewModel()
 
     private var cancellables = Set<AnyCancellable>()
@@ -154,31 +156,7 @@ class ContentViewModel: ObservableObject {
 }
 
 
-private struct VerticalProgressView: View {
-    let progress: Double
 
-    var body: some View {
-        GeometryReader { geometry in
-            ZStack(alignment: .bottom) {
-                // Determine colors based on progress
-                let trackColor = progress > 1.0 ? Color.green : Color.gray.opacity(0.3)
-                let fillColor = progress > 1.0 ? Color.red : Color.green
-                let displayProgress = progress > 1.0 ? progress - 1.0 : progress
-
-                // Background track
-                Capsule()
-                    .fill(trackColor)
-
-                // Filled progress
-                Capsule()
-                    .fill(fillColor)
-                    .frame(height: geometry.size.height * CGFloat(min(max(0, displayProgress), 1))) // Adjust height calculation for overdue progress
-            }
-            .frame(width: 4)
-            .animation(.linear(duration: 0.6), value: progress)
-        }
-    }
-}
 
 private struct BabyStatusView: View {
     let name: String
@@ -298,14 +276,13 @@ struct ContentView: View {
     var body: some View {
         ZStack {
             HStack(spacing: 0) {
-                VerticalProgressView(progress: viewModel.연두_progress)
-                    .frame(width: 20) // Fixed width for the vertical bar
-                    .padding(.leading, 10)
+                VerticalProgressView(progress: viewModel.연두_progress, timeScope: viewModel.timeScope)
+                    .frame(width: 10)
                 Spacer()
-                VerticalProgressView(progress: viewModel.초원_progress)
-                    .frame(width: 20) // Fixed width for the vertical bar
-                    .padding(.trailing, 10)
+                VerticalProgressView(progress: viewModel.초원_progress, timeScope: viewModel.timeScope)
+                    .frame(width: 10)
             }
+            .padding(.horizontal, 20)
             VStack {
                 Spacer() // Pushes content to the center vertically
                 ZStack {
