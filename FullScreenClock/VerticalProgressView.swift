@@ -18,30 +18,45 @@ struct VerticalProgressView: View {
                 // Background track
                 Capsule().fill(trackColor)
 
+                // Background Indicators
+                indicators(geometry: geometry, color: Color.primary.opacity(0.8))
+
                 // Filled progress
+                let filledHeight = geometry.size.height * CGFloat(min(max(0, displayProgress), 1))
                 Capsule()
                     .fill(fillColor)
-                    .frame(height: geometry.size.height * CGFloat(min(max(0, displayProgress), 1)))
+                    .frame(height: filledHeight)
                 
-                // Indicators
-                ForEach(0..<Int(timeScope / indicatorInterval), id: \.self) { index in
-                    let interval = TimeInterval(index + 1) * indicatorInterval
-                    let isHourMark = (index + 1) % 2 == 0
-                    
-                    if interval < timeScope {
+                // Foreground Indicators
+                indicators(geometry: geometry, color: Color.black)
+                    .mask(
                         VStack {
                             Spacer()
                             Rectangle()
-                                .fill(Color.primary.opacity(0.3))
-                                .frame(width: 10, height: isHourMark ? 3 : 1)
-                                .offset(y: -geometry.size.height * CGFloat(interval / timeScope))
+                                .frame(height: filledHeight)
                         }
-                    }
-                }
+                    )
             }
             .frame(width: 10)
             .clipShape(Capsule())
             .animation(.linear(duration: 0.6), value: progress)
+        }
+    }
+
+    private func indicators(geometry: GeometryProxy, color: Color) -> some View {
+        ForEach(0..<Int(timeScope / indicatorInterval), id: \.self) { index in
+            let interval = TimeInterval(index + 1) * indicatorInterval
+            let isHourMark = (index + 1) % 2 == 0
+            
+            if interval < timeScope {
+                VStack {
+                    Spacer()
+                    Rectangle()
+                        .fill(color)
+                        .frame(width: 10, height: isHourMark ? 3 : 1)
+                        .offset(y: -geometry.size.height * CGFloat(interval / timeScope))
+                }
+            }
         }
     }
 }
