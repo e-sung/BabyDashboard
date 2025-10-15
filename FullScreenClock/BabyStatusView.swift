@@ -25,18 +25,19 @@ struct BabyStatusView2: View {
         return String(localized: "--:--")
     }
     private var diaperImageSize: CGFloat {
-        return 70
+        return 50
     }
 
     var body: some View {
         VStack(alignment: .leading) {
             Text("\(babyState.profile.name)")
-                .font(.system(size: 50))
+                .font(.system(size: 40))
+                .fontWeight(.bold)
                 .onTapGesture(perform: onNameTap)
-            VStack(alignment: .leading, spacing: 8) {
+            VStack(alignment: .leading, spacing: 2) {
                 HStack(alignment: .center) {
                     Text("🍼")
-                        .font(.system(size: 70))
+                        .font(.system(size: 50))
                     VStack(alignment: .leading) {
                         Text(feedingTime)
                             .fontWeight(.heavy)
@@ -54,9 +55,14 @@ struct BabyStatusView2: View {
                         .frame(width: diaperImageSize, height: diaperImageSize)
                         .foregroundStyle(.primary)
                     VStack {
-                        Text("4분 전")
-                            .fontWeight(.heavy)
+                        Text(babyState.diaperState.elapsedTimeFormatted)
+                            .fontWeight(babyState.diaperState.shouldWarn ? .regular : .heavy)
+                            .font(.largeTitle)
+                            .foregroundStyle(babyState.diaperState.shouldWarn ? .red : .primary)
                     }
+                }
+                .onTapGesture {
+                    babyState.diaperState = DiaperState(diaperChangedAt: Date.now)
                 }
             }
             .font(.system(size: 60))
@@ -69,17 +75,17 @@ struct BabyStatusView2: View {
 
 
 #Preview {
-    HStack(spacing: 10) {
+    HStack(spacing: 200) {
         BabyStatusView2(
             babyState: BabyState(
                 profile: BabyProfile(id: UUID(), name: "연두"),
-                feedState: FeedState(feededAt: Date.now.addingTimeInterval(-3840))
+                feedState: FeedState(feededAt: Date.now.addingTimeInterval(-3840)), diaperState: DiaperState(diaperChangedAt: Date.now.addingTimeInterval(-3800))
             ), isAnimating: .constant(false), onFeedTimeTap: {}, onNameTap: {}
         )
         BabyStatusView2(
             babyState: BabyState(
                 profile: BabyProfile(id: UUID(), name: "초원"),
-                feedState: FeedState(feededAt: Date.now.addingTimeInterval(-3840))
+                feedState: FeedState(feededAt: Date.now.addingTimeInterval(-3840)), diaperState: DiaperState(diaperChangedAt: Date.now.addingTimeInterval(-840))
             ), isAnimating: .constant(false), onFeedTimeTap: {}, onNameTap: {}
         )
     }

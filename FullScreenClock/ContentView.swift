@@ -70,7 +70,7 @@ class ContentViewModel: ObservableObject {
     }
 
     private func setupBabyStates() {
-        babyStates = profiles.map { BabyState(profile: $0, feedState: FeedState(feededAt: nil)) }
+        babyStates = profiles.map { BabyState(profile: $0, feedState: FeedState(feededAt: nil), diaperState: DiaperState(diaperChangedAt: nil)) }
         profiles.forEach { profile in
             animationStates[profile.id] = false
         }
@@ -220,7 +220,7 @@ struct ContentView: View {
                 .font(.system(size: 200))
                 Text(viewModel.minute)
             }
-            .font(.system(size: 320))
+            .font(.system(size: 290))
             .lineLimit(1)
             .minimumScaleFactor(0.1)
             .fontWeight(.bold)
@@ -244,7 +244,7 @@ struct ContentView: View {
                     babyState: babyState,
                     isAnimating: isAnimating,
                     onFeedTimeTap: { self.editingTarget = babyState.profile.id },
-                    onNameTap: { self.editingProfile = babyState.profile }
+                    onNameTap: { self.editingProfile = babyState.profile },
                 )
                 if babyState.id != viewModel.babyStates.last?.id {
                     Spacer()
