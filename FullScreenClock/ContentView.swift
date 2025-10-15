@@ -53,7 +53,7 @@ class ContentViewModel: ObservableObject {
 
     private func loadProfiles() {
         if let data = sharedDefaults?.data(forKey: profilesKey),
-           var decodedProfiles = try? JSONDecoder().decode([BabyProfile].self, from: data), decodedProfiles.count == 2 { // currently support only twin baby scenario
+           let decodedProfiles = try? JSONDecoder().decode([BabyProfile].self, from: data), decodedProfiles.count == 2 { // currently support only twin baby scenario
             self.profiles = decodedProfiles
         } else {
             self.profiles = [
@@ -70,7 +70,7 @@ class ContentViewModel: ObservableObject {
     }
 
     private func setupBabyStates() {
-        babyStates = profiles.map { BabyState(profile: $0) }
+        babyStates = profiles.map { BabyState(profile: $0, feedState: FeedState(feededAt: nil)) }
         profiles.forEach { profile in
             animationStates[profile.id] = false
         }
@@ -79,7 +79,7 @@ class ContentViewModel: ObservableObject {
     private func loadInitialFeedingTimes() {
         for state in babyStates {
             if let date = sharedDefaults?.object(forKey: state.profile.id.uuidString) as? Date {
-                state.lastFeedingTime = date
+                state.feedState = FeedState(feededAt: date)
             }
         }
     }
@@ -96,29 +96,9 @@ class ContentViewModel: ObservableObject {
         date = now.formatted(Date.FormatStyle(locale: Locale(identifier: "ko")).year(.defaultDigits).month(.abbreviated).day(.defaultDigits).weekday(.wide))
 
         for state in babyStates {
-            if let feedingTime = state.lastFeedingTime {
-                let interval = now.timeIntervalSince(feedingTime)
-                state.elapsedTime = formatElapsedTime(from: interval)
-                state.isWarning = interval > (3 * 3600) // 3 hours
-                state.progress = interval / (3 * 3600)
-            } else {
-                state.elapsedTime = ""
-                state.isWarning = false
-                state.progress = 0.0
+            if state.feedState.feededAt != nil {
+                state.feedState = FeedState(feededAt: state.feedState.feededAt)
             }
-        }
-    }
-
-    private func formatElapsedTime(from interval: TimeInterval) -> String {
-        guard interval >= 0 else { return "" }
-        let hours = Int(interval) / 3600
-        let minutes = (Int(interval) % 3600) / 60
-        if hours > 0 {
-            return String(localized: "\(hours)시간 \(minutes)분 전", comment: "Elapsed time format: X hours Y minutes ago")
-        } else if minutes > 0 {
-            return String(localized: "\(minutes)분 전", comment: "Elapsed time format: Y minutes ago")
-        } else {
-            return String(localized: "방금 전", comment: "Elapsed time format: Just now")
         }
     }
 
@@ -127,7 +107,7 @@ class ContentViewModel: ObservableObject {
         // This might need to be more specific if we have many things in UserDefaults
         for state in babyStates {
             if let date = sharedDefaults?.object(forKey: state.profile.id.uuidString) as? Date {
-                state.lastFeedingTime = date
+                state.feedState = FeedState(feededAt: date)
             }
         }
     }
@@ -135,7 +115,7 @@ class ContentViewModel: ObservableObject {
     func updateFeedingTime(for babyId: UUID) {
         let now = Date()
         if let babyState = babyStates.first(where: { $0.profile.id == babyId }) {
-            babyState.lastFeedingTime = now
+            babyState.feedState = FeedState(feededAt: now)
             sharedDefaults?.set(now, forKey: babyId.uuidString)
             
             // Animation
@@ -149,7 +129,7 @@ class ContentViewModel: ObservableObject {
     
     func setFeedingTime(for babyId: UUID, to date: Date) {
         if let babyState = babyStates.first(where: { $0.profile.id == babyId }) {
-            babyState.lastFeedingTime = date
+            babyState.feedState = FeedState(feededAt: date)
             sharedDefaults?.set(date, forKey: babyId.uuidString)
         }
     }
@@ -170,7 +150,7 @@ class ContentViewModel: ObservableObject {
 private struct BabyStatusView: View {
     @ObservedObject var babyState: BabyState
     @Binding var isAnimating: Bool
-    let onTimeTap: () -> Void
+    let onFeedTimeTap: () -> Void
     let onNameTap: () -> Void
 
     private let timeFormatter: DateFormatter = {
@@ -180,7 +160,7 @@ private struct BabyStatusView: View {
     }()
 
     private var feedingTime: String {
-        if let date = babyState.lastFeedingTime { return timeFormatter.string(from: date) }
+        if let date = babyState.feedState.feededAt { return timeFormatter.string(from: date) }
         return String(localized: "--:--")
     }
 
@@ -192,12 +172,12 @@ private struct BabyStatusView: View {
                     .onTapGesture(perform: onNameTap)
                 Text("\(feedingTime)")
                     .fontWeight(.heavy)
-                    .onTapGesture(perform: onTimeTap)
+                    .onTapGesture(perform: onFeedTimeTap)
             }
-            Text(babyState.elapsedTime)
+            Text(babyState.feedState.elapsedTimeFormatted)
                 .font(.title)
-                .fontWeight(babyState.isWarning ? .bold : .regular)
-                .foregroundColor(babyState.isWarning ? .red : .primary)
+                .fontWeight(babyState.feedState.shouldWarn ? .bold : .regular)
+                .foregroundColor(babyState.feedState.shouldWarn ? .red : .primary)
         }
         .scaleEffect(isAnimating ? 0.9 : 1)
         .animation(.easeInOut(duration: 0.3), value: isAnimating)
@@ -214,7 +194,7 @@ struct ContentView: View {
             get: {
                 if let targetId = editingTarget,
                    let babyState = viewModel.babyStates.first(where: { $0.profile.id == targetId }) {
-                    return babyState.lastFeedingTime ?? Date()
+                    return babyState.feedState.feededAt ?? Date()
                 }
                 return Date()
             },
@@ -260,10 +240,10 @@ struct ContentView: View {
                     get: { viewModel.animationStates[babyState.profile.id, default: false] },
                     set: { viewModel.animationStates[babyState.profile.id] = $0 }
                 )
-                BabyStatusView(
+                BabyStatusView2(
                     babyState: babyState,
                     isAnimating: isAnimating,
-                    onTimeTap: { self.editingTarget = babyState.profile.id },
+                    onFeedTimeTap: { self.editingTarget = babyState.profile.id },
                     onNameTap: { self.editingProfile = babyState.profile }
                 )
                 if babyState.id != viewModel.babyStates.last?.id {
@@ -291,7 +271,7 @@ struct ContentView: View {
         ZStack {
             HStack(spacing: 0) {
                 ForEach(viewModel.babyStates) { babyState in
-                    VerticalProgressView(progress: babyState.progress, timeScope: viewModel.timeScope)
+                    VerticalProgressView(progress: babyState.feedState.progress, timeScope: viewModel.timeScope)
                         .frame(width: 20)
                         .padding(.leading, babyState.id == viewModel.babyStates.first?.id ? 10 : 0)
                         .padding(.trailing, babyState.id == viewModel.babyStates.last?.id ? 10 : 0)

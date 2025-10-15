@@ -6,6 +6,10 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		0848F0162E9EB7B6002DA66A /* Then in Frameworks */ = {isa = PBXBuildFile; productRef = 0848F0152E9EB7B6002DA66A /* Then */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXContainerItemProxy section */
 		0814D47D2E8D4E7F0073412C /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -52,6 +56,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				0848F0162E9EB7B6002DA66A /* Then in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -112,6 +117,7 @@
 			);
 			name = FullScreenClock;
 			packageProductDependencies = (
+				0848F0152E9EB7B6002DA66A /* Then */,
 			);
 			productName = FullScreenClock;
 			productReference = 0814D46E2E8D4E7E0073412C /* FullScreenClock.app */;
@@ -196,6 +202,9 @@
 			);
 			mainGroup = 0814D4652E8D4E7E0073412C;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				0848F0142E9EB7B6002DA66A /* XCRemoteSwiftPackageReference "Then" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 0814D46F2E8D4E7E0073412C /* Products */;
 			projectDirPath = "";
@@ -594,6 +603,25 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		0848F0142E9EB7B6002DA66A /* XCRemoteSwiftPackageReference "Then" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/devxoul/Then";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 3.0.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		0848F0152E9EB7B6002DA66A /* Then */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 0848F0142E9EB7B6002DA66A /* XCRemoteSwiftPackageReference "Then" */;
+			productName = Then;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 0814D4662E8D4E7E0073412C /* Project object */;
 }
