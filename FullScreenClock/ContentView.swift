@@ -16,8 +16,10 @@ class ContentViewModel: ObservableObject {
         }
     }
 
-    private var animationTimers: [UUID: Timer] = [:]
-    @Published var animationStates: [UUID: Bool] = [:]
+    private var feedAnimationTimers: [UUID: Timer] = [:]
+    private var diaperAnimationTimers: [UUID: Timer] = [:]
+    @Published var feedAnimationStates: [UUID: Bool] = [:]
+    @Published var diaperAnimationStates: [UUID: Bool] = [:]
 
     let timeScope: TimeInterval = 3 * 3600
 
@@ -26,6 +28,7 @@ class ContentViewModel: ObservableObject {
     private var cancellables = Set<AnyCancellable>()
     private let sharedDefaults = UserDefaults(suiteName: suiteName)
     private let profilesKey = "babyProfiles"
+    private let diaperKeySuffix = "-diaper"
 
     private let timeFormatter: DateFormatter = {
         let formatter = DateFormatter()
@@ -36,7 +39,7 @@ class ContentViewModel: ObservableObject {
     init() {
         loadProfiles()
         setupBabyStates()
-        loadInitialFeedingTimes()
+        loadInitialStates()
 
         Timer.scheduledTimer(withTimeInterval: 1, repeats: true, block: { [weak self] _ in
             self?.updateClockAndElapsedTimes()
@@ -72,14 +75,18 @@ class ContentViewModel: ObservableObject {
     private func setupBabyStates() {
         babyStates = profiles.map { BabyState(profile: $0, feedState: FeedState(feededAt: nil), diaperState: DiaperState(diaperChangedAt: nil)) }
         profiles.forEach { profile in
-            animationStates[profile.id] = false
+            feedAnimationStates[profile.id] = false
+            diaperAnimationStates[profile.id] = false
         }
     }
 
-    private func loadInitialFeedingTimes() {
+    private func loadInitialStates() {
         for state in babyStates {
             if let date = sharedDefaults?.object(forKey: state.profile.id.uuidString) as? Date {
                 state.feedState = FeedState(feededAt: date)
+            }
+            if let date = sharedDefaults?.object(forKey: state.profile.id.uuidString + diaperKeySuffix) as? Date {
+                state.diaperState = DiaperState(diaperChangedAt: date)
             }
         }
     }
@@ -99,6 +106,9 @@ class ContentViewModel: ObservableObject {
             if state.feedState.feededAt != nil {
                 state.feedState = FeedState(feededAt: state.feedState.feededAt)
             }
+            if state.diaperState.diaperChangedAt != nil {
+                state.diaperState = DiaperState(diaperChangedAt: state.diaperState.diaperChangedAt)
+            }
         }
     }
 
@@ -109,25 +119,43 @@ class ContentViewModel: ObservableObject {
             if let date = sharedDefaults?.object(forKey: state.profile.id.uuidString) as? Date {
                 state.feedState = FeedState(feededAt: date)
             }
+            if let date = sharedDefaults?.object(forKey: state.profile.id.uuidString + diaperKeySuffix) as? Date {
+                state.diaperState = DiaperState(diaperChangedAt: date)
+            }
         }
     }
 
-    func updateFeedingTime(for babyId: UUID) {
+    func updateFeedTime(for babyId: UUID) {
         let now = Date()
         if let babyState = babyStates.first(where: { $0.profile.id == babyId }) {
             babyState.feedState = FeedState(feededAt: now)
             sharedDefaults?.set(now, forKey: babyId.uuidString)
             
             // Animation
-            animationStates[babyId] = true
-            animationTimers[babyId]?.invalidate()
-            animationTimers[babyId] = Timer.scheduledTimer(withTimeInterval: 0.31, repeats: false) { [weak self] _ in
-                self?.animationStates[babyId] = false
+            feedAnimationStates[babyId] = true
+            feedAnimationTimers[babyId]?.invalidate()
+            feedAnimationTimers[babyId] = Timer.scheduledTimer(withTimeInterval: 0.31, repeats: false) { [weak self] _ in
+                self?.feedAnimationStates[babyId] = false
             }
         }
     }
     
-    func setFeedingTime(for babyId: UUID, to date: Date) {
+    func updateDiaperTime(for babyId: UUID) {
+        let now = Date()
+        if let babyState = babyStates.first(where: { $0.profile.id == babyId }) {
+            babyState.diaperState = DiaperState(diaperChangedAt: now)
+            sharedDefaults?.set(now, forKey: babyId.uuidString + diaperKeySuffix)
+            
+            // Animation
+            diaperAnimationStates[babyId] = true
+            diaperAnimationTimers[babyId]?.invalidate()
+            diaperAnimationTimers[babyId] = Timer.scheduledTimer(withTimeInterval: 0.31, repeats: false) { [weak self] _ in
+                self?.diaperAnimationStates[babyId] = false
+            }
+        }
+    }
+    
+    func setFeedTime(for babyId: UUID, to date: Date) {
         if let babyState = babyStates.first(where: { $0.profile.id == babyId }) {
             babyState.feedState = FeedState(feededAt: date)
             sharedDefaults?.set(date, forKey: babyId.uuidString)
@@ -200,7 +228,7 @@ struct ContentView: View {
             },
             set: { newTime in
                 if let targetId = editingTarget {
-                    viewModel.setFeedingTime(for: targetId, to: newTime)
+                    viewModel.setFeedTime(for: targetId, to: newTime)
                 }
             }
         )
@@ -236,15 +264,21 @@ struct ContentView: View {
     var dashboardView: some View {
         HStack {
             ForEach(viewModel.babyStates) { babyState in
-                let isAnimating = Binding(
-                    get: { viewModel.animationStates[babyState.profile.id, default: false] },
-                    set: { viewModel.animationStates[babyState.profile.id] = $0 }
+                let isFeedAnimating = Binding(
+                    get: { viewModel.feedAnimationStates[babyState.profile.id, default: false] },
+                    set: { viewModel.feedAnimationStates[babyState.profile.id] = $0 }
+                )
+                let isDiaperAnimating = Binding(
+                    get: { viewModel.diaperAnimationStates[babyState.profile.id, default: false] },
+                    set: { viewModel.diaperAnimationStates[babyState.profile.id] = $0 }
                 )
                 BabyStatusView2(
                     babyState: babyState,
-                    isAnimating: isAnimating,
+                    isFeedAnimating: isFeedAnimating,
+                    isDiaperAnimating: isDiaperAnimating,
                     onFeedTimeTap: { self.editingTarget = babyState.profile.id },
-                    onNameTap: { self.editingProfile = babyState.profile },
+                    onDiaperTap: { viewModel.updateDiaperTime(for: babyState.profile.id) },
+                    onNameTap: { self.editingProfile = babyState.profile }
                 )
                 if babyState.id != viewModel.babyStates.last?.id {
                     Spacer()
@@ -262,7 +296,7 @@ struct ContentView: View {
     var tappableArea: some View {
         HStack(spacing: 0) {
             ForEach(viewModel.babyStates) { babyState in
-                Color.clear.contentShape(Rectangle()).onTapGesture { viewModel.updateFeedingTime(for: babyState.profile.id) }
+                Color.clear.contentShape(Rectangle()).onTapGesture { viewModel.updateFeedTime(for: babyState.profile.id) }
             }
         }.ignoresSafeArea()
     }

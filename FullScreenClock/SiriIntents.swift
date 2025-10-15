@@ -52,14 +52,25 @@ struct UpdateFeedingTimeIntent: AppIntent {
 
     @MainActor
     func perform() async throws -> some IntentResult & ReturnsValue<String> {
-        if let sharedDefaults = UserDefaults(suiteName: suiteName) {
-            let now = Date()
-            sharedDefaults.set(now, forKey: baby.id.uuidString)
-            ContentViewModel.shared.updateFeedingTime(for: baby.id)
-            let timeString = now.formatted(date: .omitted, time: .shortened)
-            return .result(value: "\(baby.name) feeding time updated to \(timeString)")
-        }
-        return .result(value: "Failed to update feeding time.")
+        ContentViewModel.shared.updateFeedTime(for: baby.id)
+        let timeString = Date().formatted(date: .omitted, time: .shortened)
+        return .result(value: "\(baby.name) feeding time updated to \(timeString)")
+    }
+}
+
+struct UpdateDiaperTimeIntent: AppIntent {
+    static var title: LocalizedStringResource = "Update Diaper Time"
+    static var description = IntentDescription("Records the last diaper change time for a baby.")
+    static var openAppWhenRun: Bool = true
+
+    @Parameter(title: "Baby")
+    var baby: BabyProfileEntity
+
+    @MainActor
+    func perform() async throws -> some IntentResult & ReturnsValue<String> {
+        ContentViewModel.shared.updateDiaperTime(for: baby.id)
+        let timeString = Date().formatted(date: .omitted, time: .shortened)
+        return .result(value: "\(baby.name) diaper time updated to \(timeString)")
     }
 }
 
@@ -72,6 +83,14 @@ struct BabyMonitorShortcuts: AppShortcutsProvider {
             ],
             shortTitle: "Log Feeding Time",
             systemImageName: "baby.bottle.fill"
+        )
+        AppShortcut(
+            intent: UpdateDiaperTimeIntent(),
+            phrases: [
+                "Update diaper time for \(.applicationName)"
+            ],
+            shortTitle: "Log Diaper Change",
+            systemImageName: "record.circle"
         )
     }
 }
