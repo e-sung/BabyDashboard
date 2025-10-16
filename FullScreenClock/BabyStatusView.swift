@@ -73,7 +73,7 @@ struct BabyStatusView2: View {
             Text(babyState.diaperState.elapsedTimeFormatted)
                 .fontWeight(babyState.diaperState.shouldWarn ? .heavy : .regular)
                 .font(.title)
-                .foregroundStyle(babyState.diaperState.shouldWarn ? .red : .primary)
+                .foregroundStyle(babyState.diaperState.shouldWarn ? .yellow : .primary)
         }
         .onTapGesture {
             onDiaperTap()
