@@ -29,7 +29,7 @@ struct ProfileEditView: View {
     }
 
     private func save() {
-        viewModel.updateProfile(profile: profile, newName: name)
+        viewModel.updateProfileName(for: profile, to: name)
         dismiss()
     }
 }

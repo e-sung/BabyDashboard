@@ -1,8 +1,8 @@
-
 import AppIntents
 import Foundation
+import SwiftData
 
-private let suiteName = "group.sungdoo.fullscreenClock"
+// MARK: - App Entity & Query
 
 struct BabyProfileEntity: AppEntity {
     let id: UUID
@@ -17,34 +17,44 @@ struct BabyProfileEntity: AppEntity {
 }
 
 struct BabyProfileQuery: EntityQuery {
+    // Use the shared model container to fetch data.
+    @MainActor
+    private var modelContext: ModelContext {
+        SharedModelContainer.container.mainContext
+    }
+
+    @MainActor
     func entities(for identifiers: [UUID]) async throws -> [BabyProfileEntity] {
-        let profiles = loadProfiles()
-        return profiles.filter { identifiers.contains($0.id) }.map { BabyProfileEntity(id: $0.id, name: $0.name) }
+        let descriptor = FetchDescriptor<BabyProfile>(
+            predicate: #Predicate { identifiers.contains($0.id) }
+        )
+        let profiles = try? modelContext.fetch(descriptor)
+        return (profiles ?? []).map { BabyProfileEntity(id: $0.id, name: $0.name) }
     }
 
+    @MainActor
     func suggestedEntities() async throws -> [BabyProfileEntity] {
-        let profiles = loadProfiles()
-        return profiles.map { BabyProfileEntity(id: $0.id, name: $0.name) }
-    }
-    
-    func defaultResult() async -> BabyProfileEntity? {
-        return try? await suggestedEntities().first
-    }
-
-    private func loadProfiles() -> [BabyProfile] {
-        if let sharedDefaults = UserDefaults(suiteName: suiteName),
-           let data = sharedDefaults.data(forKey: "babyProfiles"),
-           let decodedProfiles = try? JSONDecoder().decode([BabyProfile].self, from: data) {
-            return decodedProfiles
-        } else {
-            return []
-        }
+        let descriptor = FetchDescriptor<BabyProfile>(sortBy: [SortDescriptor(\BabyProfile.name)])
+        let profiles = try? modelContext.fetch(descriptor)
+        return (profiles ?? []).map { BabyProfileEntity(id: $0.id, name: $0.name) }
     }
 }
 
-struct UpdateFeedingTimeIntent: AppIntent {
-    static var title: LocalizedStringResource = "Update Feeding Time"
-    static var description = IntentDescription("Records the last feeding time for a baby.")
+enum DiaperTypeAppEnum: String, AppEnum {
+    case pee, poo
+    
+    static var typeDisplayRepresentation: TypeDisplayRepresentation = "Diaper Type"
+    static var caseDisplayRepresentations: [DiaperTypeAppEnum: DisplayRepresentation] = [
+        .pee: "Pee",
+        .poo: "Poo"
+    ]
+}
+
+// MARK: - Intents
+
+struct StartFeedingIntent: AppIntent {
+    static var title: LocalizedStringResource = "Start Feeding"
+    static var description = IntentDescription("Starts a new feeding session for a baby.")
     static var openAppWhenRun: Bool = true
 
     @Parameter(title: "Baby")
@@ -52,9 +62,11 @@ struct UpdateFeedingTimeIntent: AppIntent {
 
     @MainActor
     func perform() async throws -> some IntentResult & ReturnsValue<String> {
-        ContentViewModel.shared.updateFeedTime(for: baby.id)
-        let timeString = Date().formatted(date: .omitted, time: .shortened)
-        return .result(value: "\(baby.name) feeding time updated to \(timeString)")
+        guard let profile = await fetchProfile(for: baby.id) else {
+            return .result(value: String(localized: "Could not find baby."))
+        }
+        ContentViewModel.shared.startFeeding(for: profile)
+        return .result(value: String(localized: "Started feeding \(baby.name)."))
     }
 }
 
@@ -65,24 +77,108 @@ struct UpdateDiaperTimeIntent: AppIntent {
 
     @Parameter(title: "Baby")
     var baby: BabyProfileEntity
+    
+    @Parameter(title: "Type", default: .pee)
+    var type: DiaperTypeAppEnum
 
     @MainActor
     func perform() async throws -> some IntentResult & ReturnsValue<String> {
-        ContentViewModel.shared.updateDiaperTime(for: baby.id)
+        guard let profile = await fetchProfile(for: baby.id) else {
+            return .result(value: String(localized: "Could not find baby."))
+        }
+        
+        let diaperType = DiaperType(rawValue: type.rawValue) ?? .pee
+        ContentViewModel.shared.logDiaperChange(for: profile, type: diaperType)
+        
         let timeString = Date().formatted(date: .omitted, time: .shortened)
-        return .result(value: "\(baby.name) diaper time updated to \(timeString)")
+        return .result(value: String(localized: "Logged \(type.rawValue) diaper for \(baby.name) at \(timeString)."))
     }
 }
+
+struct FinishFeedingIntent: AppIntent {
+    static var title: LocalizedStringResource = "Finish Feeding"
+    static var description = IntentDescription("Finishes an in-progress feeding session for a baby and records the amount.")
+    static var openAppWhenRun: Bool = true
+
+    @Parameter(title: "Baby")
+    var baby: BabyProfileEntity?
+
+    @Parameter(title: "Amount", requestValueDialog: "How much did you feed?")
+    var amount: Double
+
+    @MainActor
+    func perform() async throws -> some IntentResult & ReturnsValue<String> {
+        let targetProfile: BabyProfile
+
+        if let specifiedBaby = self.baby {
+            guard let profile = await fetchProfile(for: specifiedBaby.id) else {
+                return .result(value: String(localized: "Could not find baby."))
+            }
+            targetProfile = profile
+        } else {
+            let babiesWithInProgressSessions = await findBabiesWithInProgressSessions()
+            if babiesWithInProgressSessions.isEmpty {
+                return .result(value: String(localized: "No one is currently feeding."))
+            } else if babiesWithInProgressSessions.count == 1 {
+                targetProfile = babiesWithInProgressSessions.first!
+            } else {
+                throw $baby.needsDisambiguationError(among: babiesWithInProgressSessions.map {
+                    BabyProfileEntity(id: $0.id, name: $0.name)
+                }, dialog: "Which baby did you mean?")
+            }
+        }
+        
+        guard targetProfile.inProgressFeedSession != nil else {
+            return .result(value: String(localized: "No feeding session in progress for \(targetProfile.name)."))
+        }
+
+        let unit: UnitVolume = (Locale.current.measurementSystem == .us) ? .fluidOunces : .milliliters
+        let measurement = Measurement(value: amount, unit: unit)
+        ContentViewModel.shared.finishFeeding(for: targetProfile, amount: measurement)
+
+
+        return .result(value: "\(targetProfile.name), \(amount), \(unit.symbol)")
+    }
+}
+
+// MARK: - Helper Functions for Intents
+
+@MainActor
+private func fetchProfile(for id: UUID) async -> BabyProfile? {
+    let context = SharedModelContainer.container.mainContext
+    let descriptor = FetchDescriptor<BabyProfile>(predicate: #Predicate { $0.id == id })
+    return try? context.fetch(descriptor).first
+}
+
+@MainActor
+private func findBabiesWithInProgressSessions() async -> [BabyProfile] {
+    let descriptor = FetchDescriptor<BabyProfile>(
+        predicate: #Predicate { baby in
+            !baby.feedSessions.filter { $0.endTime == nil }.isEmpty
+        }
+    )
+    return (try? SharedModelContainer.container.mainContext.fetch(descriptor)) ?? []
+}
+
+// MARK: - Shortcuts Provider
 
 struct BabyMonitorShortcuts: AppShortcutsProvider {
     static var appShortcuts: [AppShortcut] {
         AppShortcut(
-            intent: UpdateFeedingTimeIntent(),
+            intent: StartFeedingIntent(),
             phrases: [
-                "Update feeding time for \(.applicationName)"
+                "Start feeding for \(.applicationName)"
             ],
-            shortTitle: "Log Feeding Time",
+            shortTitle: "Start Feeding",
             systemImageName: "baby.bottle.fill"
+        )
+        AppShortcut(
+            intent: FinishFeedingIntent(),
+            phrases: [
+                "Finish feeding for \(.applicationName)"
+            ],
+            shortTitle: "Finish Feeding",
+            systemImageName: "checkmark.circle.fill"
         )
         AppShortcut(
             intent: UpdateDiaperTimeIntent(),
@@ -94,4 +190,3 @@ struct BabyMonitorShortcuts: AppShortcutsProvider {
         )
     }
 }
-

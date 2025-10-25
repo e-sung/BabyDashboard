@@ -1,91 +1,108 @@
-
 import Foundation
+import SwiftData
 
-extension UUID: Identifiable {
-    public var id: UUID { self }
-}
-
-struct BabyProfile: Identifiable, Codable, Hashable {
-    let id: UUID
+@Model
+class BabyProfile {
+    @Attribute(.unique) var id: UUID
     var name: String
-    var feedingInterval: TimeInterval {
-        // TODO: should be configurable per baby
-        return 3600 * 3
+    var lastFeedAmountValue: Double?
+    var lastFeedAmountUnitSymbol: String?
+
+    @Relationship(deleteRule: .cascade, inverse: \FeedSession.profile)
+    var feedSessions: [FeedSession] = []
+
+    @Relationship(deleteRule: .cascade, inverse: \DiaperChange.profile)
+    var diaperChanges: [DiaperChange] = []
+
+    init(id: UUID, name: String) {
+        self.id = id
+        self.name = name
     }
 }
 
-class BabyState: ObservableObject, Identifiable {
-    @Published var profile: BabyProfile
-    @Published var feedState: FeedState
-    @Published var diaperState: DiaperState
+@Model
+class FeedSession {
+    var startTime: Date
+    var endTime: Date?
+    var amountValue: Double?
+    var amountUnitSymbol: String?
+    var profile: BabyProfile?
 
-    init(profile: BabyProfile, feedState: FeedState, diaperState: DiaperState) {
-        self.profile = profile
-        self.feedState = feedState
-        self.diaperState = diaperState
+    init(startTime: Date) {
+        self.startTime = startTime
+    }
+
+    // Map persisted symbols to canonical UnitVolume instances
+    private func canonicalUnit(from symbol: String) -> UnitVolume? {
+        let trimmed = symbol.trimmingCharacters(in: .whitespacesAndNewlines)
+        let lower = trimmed.lowercased()
+
+        switch lower {
+        case "ml", "mL".lowercased(), "milliliter", "milliliters":
+            return .milliliters
+        case "fl oz", "fl oz", "fl. oz", "fluid ounce", "fluid ounces":
+            return .fluidOunces
+        case "l", "liter", "liters":
+            return .liters
+        case "cup", "cups":
+            return .cups
+        default:
+            return nil
+        }
+    }
+
+    // Use canonical units everywhere
+    @Transient
+    var amount: Measurement<UnitVolume>? {
+        get {
+            guard let value = amountValue, let symbol = amountUnitSymbol else { return nil }
+            guard let unit = canonicalUnit(from: symbol) else {
+                // Fallback: if we can’t map, treat as milliliters to avoid crashes (but conversions may be wrong).
+                return Measurement(value: value, unit: .milliliters)
+            }
+            return Measurement(value: value, unit: unit)
+        }
+        set {
+            if let newValue {
+                // Normalize to a canonical unit (keep the provided unit if it’s one of the canonical ones)
+                let unit: UnitVolume = {
+                    // Try to map the provided unit’s symbol to a canonical unit
+                    if let mapped = canonicalUnit(from: newValue.unit.symbol) {
+                        return mapped
+                    }
+                    // Otherwise, if it’s already a known UnitVolume (e.g., .milliliters/.fluidOunces), keep it
+                    // Note: UnitVolume has many cases; we’ll preserve its symbol as-is.
+                    return newValue.unit
+                }()
+
+                self.amountValue = newValue.converted(to: unit).value
+                self.amountUnitSymbol = unit.symbol
+            } else {
+                self.amountValue = nil
+                self.amountUnitSymbol = nil
+            }
+        }
+    }
+
+    @Transient
+    var isInProgress: Bool {
+        endTime == nil
     }
 }
 
-struct FeedState {
-    var feededAt: Date?
-    var elapsedTimeFormatted: String {
-        if feededAt != nil {
-            return formatElapsedTime(from: elapsedTime)
-        }
-        return "--:--"
-    }
-    var elapsedTime: TimeInterval {
-        if let feededAt {
-            return Date().timeIntervalSince(feededAt)
-        }
-        return 0
-    }
-
-    var shouldWarn: Bool {
-        elapsedTime > (3 * 3600) // 3 hours
-    }
-
-    var progress: Double {
-        return elapsedTime / (3 * 3600)
-    }
+enum DiaperType: String, Codable {
+    case pee
+    case poo
 }
 
-struct DiaperState {
-    var diaperChangedAt: Date?
-    var elapsedTimeFormatted: String {
-        if diaperChangedAt != nil {
-            return formatElapsedTime(from: elapsedTime)
-        }
-        return "--:--"
-    }
-    var elapsedTime: TimeInterval {
-        if let diaperChangedAt {
-            return Date().timeIntervalSince(diaperChangedAt)
-        }
-        return 0
-    }
+@Model
+class DiaperChange {
+    var timestamp: Date
+    var type: DiaperType
+    var profile: BabyProfile?
 
-    var shouldWarn: Bool {
-        let hour = Calendar.current.component(.hour, from: Date())
-        if hour > 19 && hour < 7 {
-            return elapsedTime > (3 * 3600) // 3hour for night
-        }
-        return elapsedTime > (1 * 3600) // 1 hour for day
-    }
-}
-
-func formatElapsedTime(from interval: TimeInterval) -> String {
-    guard interval >= 0 else { return "" }
-    let hours = Int(interval) / 3600
-    let minutes = (Int(interval) % 3600) / 60
-    if hours > 0 {
-        if minutes == 0 {
-            return String(localized: "\(hours)시간 전")
-        }
-        return String(localized: "\(hours)시간 \(minutes)분 전", comment: "Elapsed time format: X hours Y minutes ago")
-    } else if minutes > 0 {
-        return String(localized: "\(minutes)분 전", comment: "Elapsed time format: Y minutes ago")
-    } else {
-        return String(localized: "방금 전", comment: "Elapsed time format: Just now")
+    init(timestamp: Date, type: DiaperType) {
+        self.timestamp = timestamp
+        self.type = type
     }
 }

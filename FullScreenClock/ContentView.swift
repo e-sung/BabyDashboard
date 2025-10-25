@@ -1,19 +1,18 @@
 import SwiftUI
 import Combine
+import SwiftData
 
-private let suiteName = "group.sungdoo.fullscreenClock"
+// MARK: - ContentViewModel (Business Logic)
 
+@MainActor
 class ContentViewModel: ObservableObject {
     @Published var hour: String = "00"
     @Published var minute: String = "00"
     @Published var showColon: Bool = true
     @Published var date: String = ""
-
-    @Published var babyStates: [BabyState] = []
-    @Published var profiles: [BabyProfile] = [] {
-        didSet {
-            saveProfiles()
-        }
+    
+    private var modelContext: ModelContext {
+        SharedModelContainer.container.mainContext
     }
 
     private var feedAnimationTimers: [UUID: Timer] = [:]
@@ -21,77 +20,17 @@ class ContentViewModel: ObservableObject {
     @Published var feedAnimationStates: [UUID: Bool] = [:]
     @Published var diaperAnimationStates: [UUID: Bool] = [:]
 
-    let timeScope: TimeInterval = 3 * 3600
-
     static var shared = ContentViewModel()
 
-    private var cancellables = Set<AnyCancellable>()
-    private let sharedDefaults = UserDefaults(suiteName: suiteName)
-    private let profilesKey = "babyProfiles"
-    private let diaperKeySuffix = "-diaper"
-
-    private let timeFormatter: DateFormatter = {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "HH:mm"
-        return formatter
-    }()
-
     init() {
-        loadProfiles()
-        setupBabyStates()
-        loadInitialStates()
-
         Timer.scheduledTimer(withTimeInterval: 1, repeats: true, block: { [weak self] _ in
-            self?.updateClockAndElapsedTimes()
+            DispatchQueue.main.async {
+                self?.updateClock()
+            }
         })
-
-        NotificationCenter.default.publisher(for: UserDefaults.didChangeNotification)
-            .sink { [weak self] _ in
-                DispatchQueue.main.async {
-                    self?.updateFromDefaults()
-                }
-            }
-            .store(in: &cancellables)
     }
 
-    private func loadProfiles() {
-        if let data = sharedDefaults?.data(forKey: profilesKey),
-           let decodedProfiles = try? JSONDecoder().decode([BabyProfile].self, from: data), decodedProfiles.count == 2 { // currently support only twin baby scenario
-            self.profiles = decodedProfiles
-        } else {
-            self.profiles = [
-                BabyProfile(id: UUID(), name: String(localized: "Baby 1", comment: "Default name for baby 1")),
-                BabyProfile(id: UUID(), name: String(localized: "Baby 2", comment: "Default name for baby 2"))
-            ]
-        }
-    }
-
-    private func saveProfiles() {
-        if let data = try? JSONEncoder().encode(profiles) {
-            sharedDefaults?.set(data, forKey: profilesKey)
-        }
-    }
-
-    private func setupBabyStates() {
-        babyStates = profiles.map { BabyState(profile: $0, feedState: FeedState(feededAt: nil), diaperState: DiaperState(diaperChangedAt: nil)) }
-        profiles.forEach { profile in
-            feedAnimationStates[profile.id] = false
-            diaperAnimationStates[profile.id] = false
-        }
-    }
-
-    private func loadInitialStates() {
-        for state in babyStates {
-            if let date = sharedDefaults?.object(forKey: state.profile.id.uuidString) as? Date {
-                state.feedState = FeedState(feededAt: date)
-            }
-            if let date = sharedDefaults?.object(forKey: state.profile.id.uuidString + diaperKeySuffix) as? Date {
-                state.diaperState = DiaperState(diaperChangedAt: date)
-            }
-        }
-    }
-
-    private func updateClockAndElapsedTimes() {
+    private func updateClock() {
         let now = Date()
         let calendar = Calendar.current
         let second = calendar.component(.second, from: now)
@@ -100,152 +39,207 @@ class ContentViewModel: ObservableObject {
         let components = calendar.dateComponents([.hour, .minute], from: now)
         hour = String(format: "%02d", components.hour ?? 0)
         minute = String(format: "%02d", components.minute ?? 0)
-        date = now.formatted(Date.FormatStyle(locale: Locale(identifier: "ko")).year(.defaultDigits).month(.abbreviated).day(.defaultDigits).weekday(.wide))
-
-        for state in babyStates {
-            if state.feedState.feededAt != nil {
-                state.feedState = FeedState(feededAt: state.feedState.feededAt)
-            }
-            if state.diaperState.diaperChangedAt != nil {
-                state.diaperState = DiaperState(diaperChangedAt: state.diaperState.diaperChangedAt)
-            }
+        date = now.formatted(Date.FormatStyle(locale: Locale.autoupdatingCurrent).year(.defaultDigits).month(.abbreviated).day(.defaultDigits).weekday(.wide))
+    }
+    
+    // MARK: - Intents
+    
+    func startFeeding(for baby: BabyProfile) {
+        if let ongoing = baby.inProgressFeedSession {
+            modelContext.delete(ongoing)
+        }
+        let newSession = FeedSession(startTime: Date())
+        newSession.profile = baby
+        modelContext.insert(newSession)
+        triggerAnimation(for: baby.id, type: .feed)
+    }
+    
+    func finishFeeding(for baby: BabyProfile, amount: Measurement<UnitVolume>) {
+        guard let session = baby.inProgressFeedSession else { return }
+        session.endTime = Date()
+        session.amount = amount
+        baby.lastFeedAmountValue = session.amount?.value
+        baby.lastFeedAmountUnitSymbol = session.amount?.unit.symbol
+        try? modelContext.save()
+    }
+    
+    func cancelFeeding(for baby: BabyProfile) {
+        guard let session = baby.inProgressFeedSession else { return }
+        modelContext.delete(session)
+        triggerAnimation(for: baby.id, type: .feed)
+    }
+    
+    func logDiaperChange(for baby: BabyProfile, type: DiaperType) {
+        let newDiaper = DiaperChange(timestamp: Date(), type: type)
+        newDiaper.profile = baby
+        modelContext.insert(newDiaper)
+        triggerAnimation(for: baby.id, type: .diaper)
+    }
+    
+    func setDiaperTime(for baby: BabyProfile, to date: Date) {
+        if let lastChange = baby.lastDiaperChange {
+            lastChange.timestamp = date
+        } else {
+            let newDiaper = DiaperChange(timestamp: date, type: .pee)
+            newDiaper.profile = baby
+            modelContext.insert(newDiaper)
         }
     }
-
-    @MainActor
-    private func updateFromDefaults() {
-        // This might need to be more specific if we have many things in UserDefaults
-        for state in babyStates {
-            if let date = sharedDefaults?.object(forKey: state.profile.id.uuidString) as? Date {
-                state.feedState = FeedState(feededAt: date)
-            }
-            if let date = sharedDefaults?.object(forKey: state.profile.id.uuidString + diaperKeySuffix) as? Date {
-                state.diaperState = DiaperState(diaperChangedAt: date)
-            }
-        }
+    
+    func updateProfileName(for baby: BabyProfile, to newName: String) {
+        baby.name = newName
+        try? modelContext.save()
     }
-
-    func updateFeedTime(for babyId: UUID) {
-        let now = Date()
-        if let babyState = babyStates.first(where: { $0.profile.id == babyId }) {
-            babyState.feedState = FeedState(feededAt: now)
-            sharedDefaults?.set(now, forKey: babyId.uuidString)
-            
-            // Animation
+    
+    // MARK: - Animation Helpers
+    private enum AnimationType { case feed, diaper }
+    
+    private func triggerAnimation(for babyId: UUID, type: AnimationType) {
+        if type == .feed {
             feedAnimationStates[babyId] = true
             feedAnimationTimers[babyId]?.invalidate()
             feedAnimationTimers[babyId] = Timer.scheduledTimer(withTimeInterval: 0.31, repeats: false) { [weak self] _ in
-                self?.feedAnimationStates[babyId] = false
+                DispatchQueue.main.async {
+                    self?.feedAnimationStates[babyId] = false
+                }
             }
-        }
-    }
-    
-    func updateDiaperTime(for babyId: UUID) {
-        let now = Date()
-        if let babyState = babyStates.first(where: { $0.profile.id == babyId }) {
-            babyState.diaperState = DiaperState(diaperChangedAt: now)
-            sharedDefaults?.set(now, forKey: babyId.uuidString + diaperKeySuffix)
-            
-            // Animation
+        } else {
             diaperAnimationStates[babyId] = true
             diaperAnimationTimers[babyId]?.invalidate()
             diaperAnimationTimers[babyId] = Timer.scheduledTimer(withTimeInterval: 0.31, repeats: false) { [weak self] _ in
-                self?.diaperAnimationStates[babyId] = false
-            }
-        }
-    }
-    
-    func setFeedTime(for babyId: UUID, to date: Date) {
-        if let babyState = babyStates.first(where: { $0.profile.id == babyId }) {
-            babyState.feedState = FeedState(feededAt: date)
-            sharedDefaults?.set(date, forKey: babyId.uuidString)
-        }
-    }
-
-    func updateProfile(profile: BabyProfile, newName: String) {
-        if let index = profiles.firstIndex(where: { $0.id == profile.id }) {
-            profiles[index].name = newName
-            if let stateIndex = babyStates.firstIndex(where: { $0.profile.id == profile.id }) {
-                babyStates[stateIndex].profile = profiles[index]
+                DispatchQueue.main.async {
+                    self?.diaperAnimationStates[babyId] = false
+                }
             }
         }
     }
 }
 
-
-
-
-private struct BabyStatusView: View {
-    @ObservedObject var babyState: BabyState
-    @Binding var isAnimating: Bool
-    let onFeedTimeTap: () -> Void
-    let onNameTap: () -> Void
-
-    private let timeFormatter: DateFormatter = {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "HH:mm"
-        return formatter
-    }()
-
-    private var feedingTime: String {
-        if let date = babyState.feedState.feededAt { return timeFormatter.string(from: date) }
-        return String(localized: "--:--")
-    }
-
-    var body: some View {
-        VStack(alignment: .center, spacing: 8) {
-            HStack {
-                Text("\(babyState.profile.name) ")
-                    .font(.system(size: 50))
-                    .onTapGesture(perform: onNameTap)
-                Text("\(feedingTime)")
-                    .fontWeight(.heavy)
-                    .onTapGesture(perform: onFeedTimeTap)
-            }
-            Text(babyState.feedState.elapsedTimeFormatted)
-                .font(.title)
-                .fontWeight(babyState.feedState.shouldWarn ? .bold : .regular)
-                .foregroundColor(babyState.feedState.shouldWarn ? .red : .primary)
-        }
-        .scaleEffect(isAnimating ? 0.9 : 1)
-        .animation(.easeInOut(duration: 0.3), value: isAnimating)
-    }
-}
+// MARK: - ContentView (UI)
 
 struct ContentView: View {
     @ObservedObject var viewModel: ContentViewModel
-    @State private var editingTarget: UUID?
-    @State private var editingProfile: BabyProfile? = nil
+    @Environment(\.modelContext) private var modelContext
+    @EnvironmentObject var settings: AppSettings
 
-    private var timeBinding: Binding<Date> {
-        Binding<Date>(
-            get: {
-                if let targetId = editingTarget,
-                   let babyState = viewModel.babyStates.first(where: { $0.profile.id == targetId }) {
-                    return babyState.feedState.feededAt ?? Date()
-                }
-                return Date()
-            },
-            set: { newTime in
-                if let targetId = editingTarget {
-                    viewModel.setFeedTime(for: targetId, to: newTime)
+    @Query(sort: [SortDescriptor(\BabyProfile.name)]) private var babies: [BabyProfile]
+
+    @State private var editingProfile: BabyProfile? = nil
+    @State private var editingDiaperTimeFor: BabyProfile? = nil
+    @State private var finishingFeedFor: BabyProfile? = nil
+    @State private var changingDiaperFor: BabyProfile? = nil
+    @State private var feedAmountString: String = ""
+    @State private var showingHistory = false
+    @State private var editingFeedSession: FeedSession? = nil
+
+    // New: analysis navigation
+    @State private var showingAnalysis = false
+    @State private var showingSettings = false
+
+    var body: some View {
+        NavigationView {
+            ZStack {
+                progressBarsView
+                mainVStack
+            }
+            .task(initialDataTask)
+            .sheet(item: $editingProfile) { ProfileEditView(viewModel: viewModel, profile: $0) }
+            .sheet(item: $editingDiaperTimeFor, content: diaperEditSheet)
+            .sheet(item: $finishingFeedFor, onDismiss: { feedAmountString = "" }, content: finishFeedSheet)
+            .sheet(isPresented: $showingHistory) { HistoryView() }
+            .sheet(item: $editingFeedSession) { session in
+                NavigationView {
+                    FeedSessionEditView(session: session)
+                        .navigationTitle("Edit Feed Session")
+                        .toolbar {
+                            ToolbarItem(placement: .cancellationAction) {
+                                Button("Cancel") { editingFeedSession = nil }
+                            }
+                            ToolbarItem(placement: .confirmationAction) {
+                                Button("Save") {
+                                    try? modelContext.save()
+                                    editingFeedSession = nil
+                                }
+                            }
+                        }
                 }
             }
-        )
+            // New: present analysis
+            .sheet(isPresented: $showingAnalysis) {
+                NavigationView {
+                    HistoryAnalysisView()
+                }
+            }
+            .sheet(isPresented: $showingSettings) {
+                SettingsView(settings: settings)
+            }
+            .toolbar(content: toolbarContent)
+            .navigationBarTitleDisplayMode(.inline)
+            .navigationTitle("")
+        }
+        .navigationViewStyle(.stack)
+        .confirmationDialog("Diaper Change", isPresented: .init(get: { changingDiaperFor != nil }, set: { if !$0 { changingDiaperFor = nil } }), titleVisibility: .visible) {
+            if let baby = changingDiaperFor {
+                Button("Pee") { viewModel.logDiaperChange(for: baby, type: .pee) }
+                Button("Poo") { viewModel.logDiaperChange(for: baby, type: .poo) }
+            }
+        }
     }
+}
 
+// MARK: - ContentView Subviews & Logic
+
+private extension ContentView {
+    
+    @MainActor
+    func initialDataTask() async {
+        if babies.isEmpty {
+            let baby1 = BabyProfile(id: UUID(), name: String(localized: "Baby 1"))
+            let baby2 = BabyProfile(id: UUID(), name: String(localized: "Baby 2"))
+            modelContext.insert(baby1)
+            modelContext.insert(baby2)
+        }
+    }
+    
+    var progressBarsView: some View {
+        HStack(spacing: 0) {
+            ForEach(babies) { baby in
+                let lastFeedTime = baby.lastFinishedFeedSession?.startTime
+                let progress = lastFeedTime == nil ? 0 : (Date().timeIntervalSince(lastFeedTime!) / (3 * 3600))
+                VerticalProgressView(progress: progress, timeScope: 3 * 3600)
+                    .frame(width: 20)
+                    .padding(.leading, baby.id == babies.first?.id ? 10 : 0)
+                    .padding(.trailing, baby.id == babies.last?.id ? 10 : 0)
+                if baby.id != babies.last?.id {
+                    Spacer()
+                }
+            }
+        }
+        .padding(.horizontal, 20)
+    }
+    
+    var mainVStack: some View {
+        VStack {
+            Spacer()
+            ZStack {
+                tappableArea
+                VStack {
+                    clockView
+                        .offset(x: 0, y: -70)
+                    Spacer()
+                    dashboardView
+                        .padding(.horizontal, 100)
+                }
+            }
+        }
+        .padding()
+    }
+    
     var clockView: some View {
         VStack {
             HStack(spacing: 16) {
                 Text(viewModel.hour)
-                ZStack {
-                    Text(":")
-                        .opacity(0)
-                    Text(":")
-                        .opacity(viewModel.showColon ? 1 : 0)
-                }
-                .offset(y: -10)
-                .font(.system(size: 200))
+                Text(":").opacity(viewModel.showColon ? 1 : 0)
                 Text(viewModel.minute)
             }
             .font(.system(size: 290))
@@ -256,105 +250,180 @@ struct ContentView: View {
             Text(viewModel.date)
                 .font(.largeTitle)
                 .fontWeight(.bold)
-                .monospacedDigit()
-                .offset(y: -30)
         }
     }
 
     var dashboardView: some View {
         HStack {
-            ForEach(viewModel.babyStates) { babyState in
-                let isFeedAnimating = Binding(
-                    get: { viewModel.feedAnimationStates[babyState.profile.id, default: false] },
-                    set: { viewModel.feedAnimationStates[babyState.profile.id] = $0 }
+            ForEach(babies) { baby in
+                BabyStatusView(
+                    baby: baby,
+                    isFeedAnimating: Binding(
+                        get: { viewModel.feedAnimationStates[baby.id, default: false] },
+                        set: { viewModel.feedAnimationStates[baby.id] = $0 }
+                    ),
+                    isDiaperAnimating: Binding(
+                        get: { viewModel.diaperAnimationStates[baby.id, default: false] },
+                        set: { viewModel.diaperAnimationStates[baby.id] = $0 }
+                    ),
+                    onFeedTap: { handleFeedTap(for: baby) },
+                    onFeedLongPress: { viewModel.cancelFeeding(for: baby) },
+                    onDiaperUpdateTap: { changingDiaperFor = baby },
+                    onDiaperEditTap: { editingDiaperTimeFor = baby },
+                    onNameTap: { editingProfile = baby },
+                    onLastFeedTap: { session in
+                        editingFeedSession = session
+                    }
                 )
-                let isDiaperAnimating = Binding(
-                    get: { viewModel.diaperAnimationStates[babyState.profile.id, default: false] },
-                    set: { viewModel.diaperAnimationStates[babyState.profile.id] = $0 }
-                )
-                BabyStatusView2(
-                    babyState: babyState,
-                    isFeedAnimating: isFeedAnimating,
-                    isDiaperAnimating: isDiaperAnimating,
-                    onFeedTimeTap: { self.editingTarget = babyState.profile.id },
-                    onDiaperTap: { viewModel.updateDiaperTime(for: babyState.profile.id) },
-                    onNameTap: { self.editingProfile = babyState.profile }
-                )
-                if babyState.id != viewModel.babyStates.last?.id {
+                if baby.id != babies.last?.id {
                     Spacer()
                 }
             }
         }
         .font(.system(size: 60))
-        .padding()
-        .padding([.leading, .trailing])
-        .sheet(item: $editingProfile) { profile in
-            ProfileEditView(viewModel: viewModel, profile: profile)
-        }
     }
 
     var tappableArea: some View {
         HStack(spacing: 0) {
-            ForEach(viewModel.babyStates) { babyState in
-                Color.clear.contentShape(Rectangle()).onTapGesture { viewModel.updateFeedTime(for: babyState.profile.id) }
+            ForEach(babies) { baby in
+                Color.clear.contentShape(Rectangle())
+                    .onTapGesture { handleFeedTap(for: baby) }
             }
         }.ignoresSafeArea()
     }
-
-    var body: some View {
-        ZStack {
-            HStack(spacing: 0) {
-                ForEach(viewModel.babyStates) { babyState in
-                    VerticalProgressView(progress: babyState.feedState.progress, timeScope: viewModel.timeScope)
-                        .frame(width: 20)
-                        .padding(.leading, babyState.id == viewModel.babyStates.first?.id ? 10 : 0)
-                        .padding(.trailing, babyState.id == viewModel.babyStates.last?.id ? 10 : 0)
-                    if babyState.id != viewModel.babyStates.last?.id {
-                        Spacer()
-                    }
-                }
-            }
-            .padding(.horizontal, 20)
-            VStack {
-                Spacer()
-                ZStack {
-                    tappableArea
-                    VStack {
-                        clockView
-                            .offset(y: 30)
-                        Spacer()
-                        dashboardView
-                            .padding(.leading, 100)
-                            .padding(.trailing, 100)
-                    }
-                    tappableArea
-                        .frame(height: 100)
-                }
-
+    
+    @ViewBuilder
+    func diaperEditSheet(baby: BabyProfile) -> some View {
+        VStack {
+            DatePicker("Select Time", selection: .init(
+                get: { baby.lastDiaperChange?.timestamp ?? Date() },
+                set: { viewModel.setDiaperTime(for: baby, to: $0) }
+            ), displayedComponents: [.date, .hourAndMinute])
+            .datePickerStyle(.wheel)
+            .labelsHidden()
+            
+            Button("Done") { editingDiaperTimeFor = nil }.padding()
+        }
+    }
+    
+    @ViewBuilder
+    func finishFeedSheet(baby: BabyProfile) -> some View {
+        VStack(spacing: 20) {
+            Text(String(localized: "How much did \(baby.name) eat?")).font(.largeTitle)
+            
+            HStack {
+                TextField("Amount", text: $feedAmountString)
+                    .font(.system(size: 60))
+                    .keyboardType(.decimalPad)
+                    .multilineTextAlignment(.center)
+                Text(currentVolumeUnitSymbol)
+                    .font(.title)
             }
             .padding()
-        }
-        .sheet(item: $editingTarget) { _ in
-            VStack {
-                DatePicker(String(localized: "시간 선택"), selection: timeBinding, displayedComponents: [.date, .hourAndMinute])
-                    .datePickerStyle(.wheel)
-                    .labelsHidden()
-                Button(String(localized: "완료")) {
-                    self.editingTarget = nil
+            
+            Button("Done") {
+                if let amountValue = Double(feedAmountString) {
+                    let unit: UnitVolume = (Locale.current.measurementSystem == .us) ? .fluidOunces : .milliliters
+                    let measurement = Measurement(value: amountValue, unit: unit)
+                    viewModel.finishFeeding(for: baby, amount: measurement)
+                    finishingFeedFor = nil
                 }
-                .padding()
             }
+            .font(.title)
+            .disabled(feedAmountString.isEmpty)
+            
+            Spacer()
+        }
+        .padding()
+        .onAppear {
+            if let lastAmount = baby.lastFeedAmountValue {
+                feedAmountString = String(lastAmount)
+            }
+        }
+    }
+    
+    @ViewBuilder
+    func confirmationDialogActions(baby: BabyProfile) -> some View {
+        Button("Pee") { viewModel.logDiaperChange(for: baby, type: .pee) }
+        Button("Poo") { viewModel.logDiaperChange(for: baby, type: .poo) }
+    }
+    
+    @ToolbarContentBuilder
+    func toolbarContent() -> some ToolbarContent {
+        ToolbarItem(placement: .navigationBarTrailing) {
+            Button(action: { showingHistory = true }) {
+                Image(systemName: "list.bullet.clipboard")
+                    .imageScale(.large)
+            }
+        }
+        ToolbarItem(placement: .navigationBarTrailing) {
+            Button(action: { showingSettings = true }) {
+                Image(systemName: "gear")
+                    .imageScale(.large)
+            }
+        }
+        ToolbarItem(placement: .navigationBarTrailing) {
+            Button(action: { showingAnalysis = true }) {
+                Image(systemName: "chart.xyaxis.line")
+                    .imageScale(.large)
+            }
+            .accessibilityLabel(Text("Analysis"))
+        }
+    }
+    
+    func handleFeedTap(for baby: BabyProfile) {
+        if baby.inProgressFeedSession != nil {
+            finishingFeedFor = baby
+        } else {
+            viewModel.startFeeding(for: baby)
         }
     }
 }
 
-struct ContentView_Previews: PreviewProvider {
-    static var previews: some View {
-        ContentView(viewModel: createMockViewModel())
-    }
+// MARK: - Preview
 
-    static func createMockViewModel() -> ContentViewModel {
-        let vm = ContentViewModel()
-        return vm
-    }
+#Preview("ContentView") {
+    // In-memory SwiftData container for previews
+    let schema = Schema([BabyProfile.self, FeedSession.self, DiaperChange.self])
+    let configuration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: true)
+    let container = try! ModelContainer(for: schema, configurations: [configuration])
+    let context = container.mainContext
+
+    // Seed sample data
+    let baby1 = BabyProfile(id: UUID(), name: "연두")
+    let baby2 = BabyProfile(id: UUID(), name: "초원")
+
+    // Baby 1: last finished feed 45 minutes ago, 120 ml, 15 min
+    let session1 = FeedSession(startTime: Date().addingTimeInterval(-60 * 60)) // 60 min ago
+    session1.endTime = Date().addingTimeInterval(-15 * 60) // ended 15 min after start => 45 min ago
+    session1.amount = Measurement(value: Locale.current.measurementSystem == .us ? 4.0 : 120.0,
+                                  unit: (Locale.current.measurementSystem == .us) ? .fluidOunces : .milliliters)
+    session1.profile = baby1
+    baby1.lastFeedAmountValue = session1.amount?.value
+    baby1.lastFeedAmountUnitSymbol = session1.amount?.unit.symbol
+
+    // Baby 1: last diaper 30 minutes ago
+    let diaper1 = DiaperChange(timestamp: Date().addingTimeInterval(-30 * 60), type: .pee)
+    diaper1.profile = baby1
+
+    // Baby 2: in-progress feed started 5 minutes ago
+    let session2 = FeedSession(startTime: Date().addingTimeInterval(-5 * 60))
+    session2.profile = baby2
+
+    // Baby 2: last diaper 10 minutes ago
+    let diaper2 = DiaperChange(timestamp: Date().addingTimeInterval(-10 * 60), type: .poo)
+    diaper2.profile = baby2
+
+    context.insert(baby1)
+    context.insert(baby2)
+    context.insert(session1)
+    context.insert(diaper1)
+    context.insert(session2)
+    context.insert(diaper2)
+
+    // Use a fresh view model instance for previews
+    let vm = ContentViewModel()
+
+    return ContentView(viewModel: vm)
+        .modelContainer(container)
 }
