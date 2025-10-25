@@ -204,7 +204,7 @@ private extension ContentView {
     var progressBarsView: some View {
         HStack(spacing: 0) {
             ForEach(babies) { baby in
-                let lastFeedTime = baby.lastFinishedFeedSession?.startTime
+                let lastFeedTime = baby.lastFeedSession?.startTime
                 let progress = lastFeedTime == nil ? 0 : (Date().timeIntervalSince(lastFeedTime!) / (3 * 3600))
                 VerticalProgressView(progress: progress, timeScope: 3 * 3600)
                     .frame(width: 20)

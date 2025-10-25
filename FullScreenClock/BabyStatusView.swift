@@ -231,7 +231,13 @@ extension BabyProfile {
             .sorted(by: { ($0.endTime ?? .distantPast) > ($1.endTime ?? .distantPast) })
             .first
     }
-    
+
+    var lastFeedSession: FeedSession? {
+        feedSessions
+            .sorted(by: { ($0.startTime ) > ($1.startTime ) })
+            .first
+    }
+
     var lastDiaperChange: DiaperChange? {
         diaperChanges.sorted(by: { $0.timestamp > $1.timestamp }).first
     }
