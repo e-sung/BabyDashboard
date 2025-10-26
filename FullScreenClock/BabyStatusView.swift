@@ -124,8 +124,8 @@ struct BabyStatusView: View {
                         .fontWeight(.heavy)
                         .foregroundColor(shouldWarn ? .red : .primary)
                     HStack {
-                        if let endTime = baby.lastFinishedFeedSession?.endTime {
-                            Text(formatElapsedTime(from: now.timeIntervalSince(endTime)))
+                        if let time = baby.lastFinishedFeedSession?.startTime {
+                            Text(formatElapsedTime(from: now.timeIntervalSince(time)))
                                 .font(.title)
                         }
                         if let amount = lastFeedAmountString, let duration = lastFeedDurationString, let session = baby.lastFinishedFeedSession {
