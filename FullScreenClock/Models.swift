@@ -3,17 +3,20 @@ import SwiftData
 
 @Model
 class BabyProfile {
-    @Attribute(.unique) var id: UUID
-    var name: String
+    // CloudKit: attributes must be optional or have defaults; remove unique constraint.
+    var id: UUID = UUID()
+    var name: String = ""
     var lastFeedAmountValue: Double?
     var lastFeedAmountUnitSymbol: String?
 
-    @Relationship(deleteRule: .cascade, inverse: \FeedSession.profile)
-    var feedSessions: [FeedSession] = []
+    // Keep history: when a BabyProfile is deleted, nullify its relationships so events remain as orphans.
+    @Relationship(deleteRule: .nullify, inverse: \FeedSession.profile)
+    var feedSessions: [FeedSession]? = []
 
-    @Relationship(deleteRule: .cascade, inverse: \DiaperChange.profile)
-    var diaperChanges: [DiaperChange] = []
+    @Relationship(deleteRule: .nullify, inverse: \DiaperChange.profile)
+    var diaperChanges: [DiaperChange]? = []
 
+    // Keep convenience initializer used across the codebase/tests
     init(id: UUID, name: String) {
         self.id = id
         self.name = name
@@ -22,7 +25,8 @@ class BabyProfile {
 
 @Model
 class FeedSession {
-    var startTime: Date
+    // Provide defaults for non-optional attributes
+    var startTime: Date = Date()
     var endTime: Date?
     var amountValue: Double?
     var amountUnitSymbol: String?
@@ -57,24 +61,14 @@ class FeedSession {
         get {
             guard let value = amountValue, let symbol = amountUnitSymbol else { return nil }
             guard let unit = canonicalUnit(from: symbol) else {
-                // Fallback: if we can’t map, treat as milliliters to avoid crashes (but conversions may be wrong).
+                // Fallback: treat as milliliters to avoid crashes (conversion may be off)
                 return Measurement(value: value, unit: .milliliters)
             }
             return Measurement(value: value, unit: unit)
         }
         set {
             if let newValue {
-                // Normalize to a canonical unit (keep the provided unit if it’s one of the canonical ones)
-                let unit: UnitVolume = {
-                    // Try to map the provided unit’s symbol to a canonical unit
-                    if let mapped = canonicalUnit(from: newValue.unit.symbol) {
-                        return mapped
-                    }
-                    // Otherwise, if it’s already a known UnitVolume (e.g., .milliliters/.fluidOunces), keep it
-                    // Note: UnitVolume has many cases; we’ll preserve its symbol as-is.
-                    return newValue.unit
-                }()
-
+                let unit: UnitVolume = canonicalUnit(from: newValue.unit.symbol) ?? newValue.unit
                 self.amountValue = newValue.converted(to: unit).value
                 self.amountUnitSymbol = unit.symbol
             } else {
@@ -97,8 +91,9 @@ enum DiaperType: String, Codable {
 
 @Model
 class DiaperChange {
-    var timestamp: Date
-    var type: DiaperType
+    // Provide defaults for non-optional attributes
+    var timestamp: Date = Date()
+    var type: DiaperType = DiaperType.pee
     var profile: BabyProfile?
 
     init(timestamp: Date, type: DiaperType) {

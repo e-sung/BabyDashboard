@@ -260,6 +260,7 @@ struct HistoryView: View {
                         loadedDiaperChanges.insert(change, at: 0)
                     }
                     try? modelContext.save()
+                    NearbySyncManager.shared.sendPing()
                     isShowingAddSheet = false
                 } onCancel: {
                     isShowingAddSheet = false
@@ -397,6 +398,7 @@ struct HistoryView: View {
             }
         }
         try? modelContext.save()
+        NearbySyncManager.shared.sendPing()
     }
 
     // MARK: - Paging

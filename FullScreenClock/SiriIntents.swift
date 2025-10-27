@@ -136,7 +136,6 @@ struct FinishFeedingIntent: AppIntent {
         let measurement = Measurement(value: amount, unit: unit)
         ContentViewModel.shared.finishFeeding(for: targetProfile, amount: measurement)
 
-
         return .result(value: "\(targetProfile.name), \(amount), \(unit.symbol)")
     }
 }
@@ -152,12 +151,20 @@ private func fetchProfile(for id: UUID) async -> BabyProfile? {
 
 @MainActor
 private func findBabiesWithInProgressSessions() async -> [BabyProfile] {
-    let descriptor = FetchDescriptor<BabyProfile>(
-        predicate: #Predicate { baby in
-            !baby.feedSessions.filter { $0.endTime == nil }.isEmpty
+    // Query FeedSession directly to avoid complex to-many relationship predicates.
+    let context = SharedModelContainer.container.mainContext
+    let descriptor = FetchDescriptor<FeedSession>(predicate: #Predicate { $0.endTime == nil })
+    guard let sessions = try? context.fetch(descriptor) else { return [] }
+
+    var seen = Set<UUID>()
+    var result: [BabyProfile] = []
+    for session in sessions {
+        if let baby = session.profile, !seen.contains(baby.id) {
+            seen.insert(baby.id)
+            result.append(baby)
         }
-    )
-    return (try? SharedModelContainer.container.mainContext.fetch(descriptor)) ?? []
+    }
+    return result
 }
 
 // MARK: - Shortcuts Provider

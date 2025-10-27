@@ -51,6 +51,7 @@ class ContentViewModel: ObservableObject {
         let newSession = FeedSession(startTime: Date())
         newSession.profile = baby
         modelContext.insert(newSession)
+        saveAndPing()
         triggerAnimation(for: baby.id, type: .feed)
     }
     
@@ -60,12 +61,13 @@ class ContentViewModel: ObservableObject {
         session.amount = amount
         baby.lastFeedAmountValue = session.amount?.value
         baby.lastFeedAmountUnitSymbol = session.amount?.unit.symbol
-        try? modelContext.save()
+        saveAndPing()
     }
     
     func cancelFeeding(for baby: BabyProfile) {
         guard let session = baby.inProgressFeedSession else { return }
         modelContext.delete(session)
+        saveAndPing()
         triggerAnimation(for: baby.id, type: .feed)
     }
     
@@ -73,6 +75,7 @@ class ContentViewModel: ObservableObject {
         let newDiaper = DiaperChange(timestamp: Date(), type: type)
         newDiaper.profile = baby
         modelContext.insert(newDiaper)
+        saveAndPing()
         triggerAnimation(for: baby.id, type: .diaper)
     }
     
@@ -84,11 +87,12 @@ class ContentViewModel: ObservableObject {
             newDiaper.profile = baby
             modelContext.insert(newDiaper)
         }
+        saveAndPing()
     }
     
     func updateProfileName(for baby: BabyProfile, to newName: String) {
         baby.name = newName
-        try? modelContext.save()
+        saveAndPing()
     }
     
     // MARK: - Animation Helpers
@@ -113,6 +117,13 @@ class ContentViewModel: ObservableObject {
             }
         }
     }
+
+    // MARK: - Save + Nudge
+
+    private func saveAndPing() {
+        try? modelContext.save()
+        NearbySyncManager.shared.sendPing()
+    }
 }
 
 // MARK: - ContentView (UI)
@@ -121,6 +132,10 @@ struct ContentView: View {
     @ObservedObject var viewModel: ContentViewModel
     @Environment(\.modelContext) private var modelContext
     @EnvironmentObject var settings: AppSettings
+
+    // Size class environment for conditional UI
+    @Environment(\.horizontalSizeClass) private var hSizeClass
+    @Environment(\.verticalSizeClass) private var vSizeClass
 
     @Query(sort: [SortDescriptor(\BabyProfile.name)]) private var babies: [BabyProfile]
 
@@ -136,13 +151,30 @@ struct ContentView: View {
     @State private var showingAnalysis = false
     @State private var showingSettings = false
 
+    // Onboarding/add flow
+    @State private var isShowingAddBaby = false
+
+    private let maxBabySlots = 2
+
+    // Detect iPhone to tailor safe area handling
+    private var isIPhone: Bool {
+        #if canImport(UIKit)
+        return UIDevice.current.userInterfaceIdiom == .phone
+        #else
+        return false
+        #endif
+    }
+
     var body: some View {
         NavigationView {
             ZStack {
                 progressBarsView
                 mainVStack
             }
-            .task(initialDataTask)
+            // Add Baby sheet to allow adding one or two babies
+            .sheet(isPresented: $isShowingAddBaby) {
+                addBabySheet()
+            }
             .sheet(item: $editingProfile) { ProfileEditView(viewModel: viewModel, profile: $0) }
             .sheet(item: $editingDiaperTimeFor, content: diaperEditSheet)
             .sheet(item: $finishingFeedFor, onDismiss: { feedAmountString = "" }, content: finishFeedSheet)
@@ -158,6 +190,7 @@ struct ContentView: View {
                             ToolbarItem(placement: .confirmationAction) {
                                 Button("Save") {
                                     try? modelContext.save()
+                                    NearbySyncManager.shared.sendPing()
                                     editingFeedSession = nil
                                 }
                             }
@@ -190,32 +223,31 @@ struct ContentView: View {
 // MARK: - ContentView Subviews & Logic
 
 private extension ContentView {
-    
-    @MainActor
-    func initialDataTask() async {
-        if babies.isEmpty {
-            let baby1 = BabyProfile(id: UUID(), name: String(localized: "Baby 1"))
-            let baby2 = BabyProfile(id: UUID(), name: String(localized: "Baby 2"))
-            modelContext.insert(baby1)
-            modelContext.insert(baby2)
-        }
+    // Treat the UI as "compact" if either size class is compact.
+    var isCompact: Bool {
+        (hSizeClass == .compact) || (vSizeClass == .compact)
     }
-    
+
     var progressBarsView: some View {
         HStack(spacing: 0) {
+            // Draw progress bars only for existing babies
             ForEach(babies) { baby in
                 let lastFeedTime = baby.lastFeedSession?.startTime
                 let progress = lastFeedTime == nil ? 0 : (Date().timeIntervalSince(lastFeedTime!) / (3 * 3600))
                 VerticalProgressView(progress: progress, timeScope: 3 * 3600)
                     .frame(width: 20)
                     .padding(.leading, baby.id == babies.first?.id ? 10 : 0)
-                    .padding(.trailing, baby.id == babies.last?.id ? 10 : 0)
+                    // On iPhone, let the trailing bar extend to/under the safe area by removing extra padding
+                    .padding(.trailing, baby.id == babies.last?.id ? (isIPhone ? 0 : 10) : 0)
                 if baby.id != babies.last?.id {
                     Spacer()
                 }
             }
         }
-        .padding(.horizontal, 20)
+        // Keep left margin the same; on iPhone, remove trailing margin and ignore trailing safe area.
+        .padding(.leading, isIPhone ? -20 : 20)
+        .padding(.trailing, isIPhone ? 0 : 20)
+        .modifier(IgnoreTrailingSafeArea(isIPhone: isIPhone))
     }
     
     var mainVStack: some View {
@@ -224,15 +256,21 @@ private extension ContentView {
             ZStack {
                 tappableArea
                 VStack {
-                    clockView
-                        .offset(x: 0, y: -70)
+                    if !isCompact {
+                        clockView
+                            .offset(x: 0, y: -70)
+                    }
                     Spacer()
+                    // On iPhone, reduce horizontal padding so the trailing tile can reach the edge
                     dashboardView
-                        .padding(.horizontal, 100)
+                        .padding(.horizontal, isIPhone ? 0 : 100)
                 }
             }
         }
-        .padding()
+        // Remove trailing padding on iPhone so trailing child can extend under the safe area
+        .padding(.leading, 16)
+        .padding(.trailing, isIPhone ? 0 : 16)
+        .padding(.vertical, 16)
     }
     
     var clockView: some View {
@@ -253,34 +291,67 @@ private extension ContentView {
         }
     }
 
+    // Show up to two slots: existing babies first, then "Add Baby" placeholders
     var dashboardView: some View {
         HStack {
-            ForEach(babies) { baby in
-                BabyStatusView(
-                    baby: baby,
-                    isFeedAnimating: Binding(
-                        get: { viewModel.feedAnimationStates[baby.id, default: false] },
-                        set: { viewModel.feedAnimationStates[baby.id] = $0 }
-                    ),
-                    isDiaperAnimating: Binding(
-                        get: { viewModel.diaperAnimationStates[baby.id, default: false] },
-                        set: { viewModel.diaperAnimationStates[baby.id] = $0 }
-                    ),
-                    onFeedTap: { handleFeedTap(for: baby) },
-                    onFeedLongPress: { viewModel.cancelFeeding(for: baby) },
-                    onDiaperUpdateTap: { changingDiaperFor = baby },
-                    onDiaperEditTap: { editingDiaperTimeFor = baby },
-                    onNameTap: { editingProfile = baby },
-                    onLastFeedTap: { session in
-                        editingFeedSession = session
+            ForEach(0..<maxBabySlots, id: \.self) { index in
+                if index < babies.count {
+                    let baby = babies[index]
+                    let tile = BabyStatusView(
+                        baby: baby,
+                        isFeedAnimating: Binding(
+                            get: { viewModel.feedAnimationStates[baby.id, default: false] },
+                            set: { viewModel.feedAnimationStates[baby.id] = $0 }
+                        ),
+                        isDiaperAnimating: Binding(
+                            get: { viewModel.diaperAnimationStates[baby.id, default: false] },
+                            set: { viewModel.diaperAnimationStates[baby.id] = $0 }
+                        ),
+                        onFeedTap: { handleFeedTap(for: baby) },
+                        onFeedLongPress: { viewModel.cancelFeeding(for: baby) },
+                        onDiaperUpdateTap: { changingDiaperFor = baby },
+                        onDiaperEditTap: { editingDiaperTimeFor = baby },
+                        onNameTap: { editingProfile = baby },
+                        onLastFeedTap: { session in
+                            editingFeedSession = session
+                        }
+                    )
+                    // If this is the trailing baby tile, let it extend under the trailing safe area on iPhone
+                    if index == min(babies.count, maxBabySlots) - 1 {
+                        tile
+                            .modifier(IgnoreTrailingSafeArea(isIPhone: isIPhone))
+                    } else {
+                        tile
+                            .modifier(IgnoreTrailingSafeArea(isIPhone: isIPhone))
                     }
-                )
-                if baby.id != babies.last?.id {
+                } else {
+                    addBabyPlaceholder()
+                        .onTapGesture { isShowingAddBaby = true }
+                }
+                if index < maxBabySlots - 1 {
                     Spacer()
                 }
             }
         }
         .font(.system(size: 60))
+    }
+
+    // A simple placeholder tile acting as an Add Baby button
+    func addBabyPlaceholder() -> some View {
+        VStack(spacing: 12) {
+            Image(systemName: "person.crop.circle.badge.plus")
+                .font(.system(size: 60, weight: .regular))
+                .foregroundStyle(.secondary)
+            Text(String(localized: "Add Baby"))
+                .font(.title3)
+                .foregroundStyle(.secondary)
+        }
+        .frame(maxWidth: 100)
+        .padding()
+        .background(.thinMaterial)
+        .clipShape(RoundedRectangle(cornerRadius: 16))
+        .contentShape(RoundedRectangle(cornerRadius: 16))
+        .accessibilityAddTraits(.isButton)
     }
 
     var tappableArea: some View {
@@ -376,6 +447,73 @@ private extension ContentView {
             finishingFeedFor = baby
         } else {
             viewModel.startFeeding(for: baby)
+        }
+    }
+
+    // MARK: - Add Baby Sheet
+
+    @ViewBuilder
+    func addBabySheet() -> some View {
+        NavigationView {
+            AddBabyForm { name in
+                let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+                guard !trimmed.isEmpty else { return }
+                let baby = BabyProfile(id: UUID(), name: trimmed)
+                modelContext.insert(baby)
+                try? modelContext.save()
+                NearbySyncManager.shared.sendPing()
+                isShowingAddBaby = false
+            } onCancel: {
+                isShowingAddBaby = false
+            }
+        }
+    }
+}
+
+// Helper modifier to conditionally ignore only the trailing safe area
+private struct IgnoreTrailingSafeArea: ViewModifier {
+    let isIPhone: Bool
+    func body(content: Content) -> some View {
+        if isIPhone {
+            content
+                .ignoresSafeArea(.container, edges: [.trailing])
+        } else {
+            content
+        }
+    }
+}
+
+// MARK: - AddBabyForm (inline helper view)
+
+private struct AddBabyForm: View {
+    let onSave: (String) -> Void
+    let onCancel: () -> Void
+    @Environment(\.dismiss) private var dismiss
+    @State private var name: String = ""
+
+    var body: some View {
+        Form {
+            Section(String(localized: "Baby")) {
+                TextField(String(localized: "Name"), text: $name)
+                    .textInputAutocapitalization(.words)
+            }
+        }
+        .navigationTitle(String(localized: "Add Baby"))
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .cancellationAction) {
+                Button(String(localized: "Cancel")) {
+                    onCancel()
+                    dismiss()
+                }
+            }
+            ToolbarItem(placement: .confirmationAction) {
+                Button(String(localized: "Save")) {
+                    onSave(name)
+                    dismiss()
+                }
+                .disabled(name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+            }
         }
     }
 }

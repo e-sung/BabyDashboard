@@ -1,5 +1,8 @@
 import SwiftUI
 import SwiftData
+#if canImport(UIKit)
+import UIKit
+#endif
 
 struct BabyStatusView: View {
     // The source of truth is now the SwiftData model.
@@ -17,13 +20,21 @@ struct BabyStatusView: View {
     let onNameTap: () -> Void
     let onLastFeedTap: ((FeedSession) -> Void)?
 
-
     // A date formatter for HH:mm format.
     private let timeFormatter: DateFormatter = {
         let formatter = DateFormatter()
         formatter.dateFormat = "HH:mm"
         return formatter
     }()
+
+    // Device idiom: default is iPad, adjust only for iPhone
+    private var isIPhone: Bool {
+        #if canImport(UIKit)
+        return UIDevice.current.userInterfaceIdiom == .phone
+        #else
+        return false
+        #endif
+    }
 
     // MARK: - Computed Properties for Display
 
@@ -84,7 +95,7 @@ struct BabyStatusView: View {
 
             VStack(alignment: .leading) {
                 Text(baby.name)
-                    .font(.system(size: 40))
+                    .font(isIPhone ? .largeTitle : .system(size: 40))
                     .fontWeight(.bold)
                     .onTapGesture(perform: onNameTap)
                 
@@ -92,7 +103,7 @@ struct BabyStatusView: View {
                     feedStateView(now: now, shouldWarn: shouldWarnFeed)
                     diaperStateView(now: now, shouldWarn: shouldWarnDiaper)
                 }
-                .font(.system(size: 60))
+                .font(isIPhone ? .title : .system(size: 60)) // iPad keeps 60, iPhone uses semantic .title
             }
         }
     }
@@ -104,7 +115,7 @@ struct BabyStatusView: View {
         HStack(alignment: .center) {
             ZStack(alignment: .topTrailing) {
                 Text("🍼")
-                    .font(.system(size: 50))
+                    .font(isIPhone ? .title : .system(size: 50))
                 if shouldWarn {
                     warningBadge()
                         .offset(x: 6, y: -6)
@@ -222,24 +233,24 @@ struct BabyStatusView: View {
 // Add convenience computed properties to the SwiftData model.
 extension BabyProfile {
     var inProgressFeedSession: FeedSession? {
-        feedSessions.first(where: { $0.isInProgress })
+        (feedSessions ?? []).first(where: { $0.isInProgress })
     }
     
     var lastFinishedFeedSession: FeedSession? {
-        feedSessions
+        (feedSessions ?? [])
             .filter { !$0.isInProgress && $0.endTime != nil }
             .sorted(by: { ($0.endTime ?? .distantPast) > ($1.endTime ?? .distantPast) })
             .first
     }
 
     var lastFeedSession: FeedSession? {
-        feedSessions
+        feedSessions?
             .sorted(by: { ($0.startTime ) > ($1.startTime ) })
             .first
     }
 
     var lastDiaperChange: DiaperChange? {
-        diaperChanges.sorted(by: { $0.timestamp > $1.timestamp }).first
+        (diaperChanges ?? []).sorted(by: { $0.timestamp > $1.timestamp }).first
     }
 }
 
