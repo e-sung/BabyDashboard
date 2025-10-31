@@ -257,18 +257,15 @@ private extension ContentView {
     var mainVStack: some View {
         VStack {
             Spacer()
-            ZStack {
-                tappableArea
-                VStack {
-                    if !isCompact {
-                        clockView
-                            .offset(x: 0, y: -70)
-                    }
-                    Spacer()
-                    // On iPhone, reduce horizontal padding so the trailing tile can reach the edge
-                    dashboardView
-                        .padding(.horizontal, isIPhone ? 0 : 100)
+            VStack {
+                if !isCompact {
+                    clockView
+                        .offset(x: 0, y: -70)
                 }
+                Spacer()
+                // On iPhone, reduce horizontal padding so the trailing tile can reach the edge
+                dashboardView
+                    .padding(.horizontal, isIPhone ? 0 : 100)
             }
         }
         // Remove trailing padding on iPhone so trailing child can extend under the safe area
@@ -358,15 +355,6 @@ private extension ContentView {
         .accessibilityAddTraits(.isButton)
     }
 
-    var tappableArea: some View {
-        HStack(spacing: 0) {
-            ForEach(babies) { baby in
-                Color.clear.contentShape(Rectangle())
-                    .onTapGesture { handleFeedTap(for: baby) }
-            }
-        }.ignoresSafeArea()
-    }
-    
     @ViewBuilder
     func diaperEditSheet(baby: BabyProfile) -> some View {
         VStack {
