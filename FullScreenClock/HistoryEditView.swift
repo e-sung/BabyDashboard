@@ -38,13 +38,24 @@ struct HistoryEditView: View {
             HStack {
                 TextField("Amount", text: $amountString)
                     .keyboardType(.decimalPad)
-                Text(session.amount?.unit.symbol ?? currentVolumeUnitSymbol)
+                Text(session.amountUnitSymbol ?? currentVolumeUnitSymbol)
             }
         }
         .onChange(of: amountString) { _, newValue in
             if let value = Double(newValue) {
-                let unit = session.amount?.unit ?? ((Locale.current.measurementSystem == .us) ? .fluidOunces : .milliliters)
-                session.amount = Measurement(value: value, unit: unit)
+                // Use existing unit if present; otherwise infer from locale
+                let unit: UnitVolume = {
+                    if let symbol = session.amountUnitSymbol, let u = unitVolume(from: symbol) {
+                        return u
+                    }
+                    return (Locale.current.measurementSystem == .us) ? .fluidOunces : .milliliters
+                }()
+                // Write to stored fields so SwiftData publishes changes
+                session.amountValue = value
+                session.amountUnitSymbol = unit.symbol
+            } else {
+                session.amountValue = nil
+                session.amountUnitSymbol = nil
             }
         }
     }
@@ -65,9 +76,29 @@ struct HistoryEditView: View {
     
     private func setupInitialState() {
         if let session = model as? FeedSession {
-            if let amount = session.amount {
-                amountString = String(format: "%.1f", amount.value)
+            if let value = session.amountValue {
+                // Preserve a single decimal like before
+                amountString = String(format: "%.1f", value)
             }
         }
     }
 }
+
+// Local helper to decode a UnitVolume from a symbol/name
+private func unitVolume(from symbolOrName: String) -> UnitVolume? {
+    let trimmed = symbolOrName.trimmingCharacters(in: .whitespacesAndNewlines)
+    let lower = trimmed.lowercased()
+    switch lower {
+    case "ml", "mL".lowercased(), "milliliter", "milliliters":
+        return .milliliters
+    case "fl oz", "fl oz", "fl. oz", "fluid ounce", "fluid ounces", "floz":
+        return .fluidOunces
+    case "l", "liter", "liters":
+        return .liters
+    case "cup", "cups":
+        return .cups
+    default:
+        return nil
+    }
+}
+

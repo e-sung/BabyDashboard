@@ -4,17 +4,16 @@ import SwiftData
 // A view-specific wrapper to unify different event models for display in a single list.
 public enum HistoryEventType { case feed, diaper }
 
-public struct HistoryEvent: Identifiable, Hashable {
+public struct HistoryEvent: Identifiable, Hashable, Equatable {
     public let id: UUID
     public let date: Date
     public let babyName: String
     public let type: HistoryEventType
     public let details: String
-    public let diaperType: DiaperType? // New property
+    public let diaperType: DiaperType?
 
     // A reference to the underlying SwiftData object for editing/deleting.
-    // Note: Hashable conformance requires a stable hash value.
-    // Make this optional so previews can pass nil without constructing a PersistentIdentifier.
+    // Optional so previews can pass nil.
     public let underlyingObjectId: PersistentIdentifier?
 
     public init(id: UUID, date: Date, babyName: String, type: HistoryEventType, details: String, diaperType: DiaperType?, underlyingObjectId: PersistentIdentifier?) {
@@ -25,10 +24,6 @@ public struct HistoryEvent: Identifiable, Hashable {
         self.details = details
         self.diaperType = diaperType
         self.underlyingObjectId = underlyingObjectId
-    }
-
-    public static func == (lhs: HistoryEvent, rhs: HistoryEvent) -> Bool {
-        lhs.id == rhs.id
     }
 
     public func hash(into hasher: inout Hasher) {
@@ -43,17 +38,19 @@ public extension HistoryEvent {
         self.date = session.startTime
         self.babyName = session.profile?.name ?? "Unknown"
         self.type = .feed
-        self.diaperType = nil // Not a diaper event
-        
+        self.diaperType = nil
+
         let duration = session.endTime?.timeIntervalSince(session.startTime) ?? 0
         let durationMinutes = Int(duration / 60)
-        
-        if let amount = session.amount {
-            let formattedAmount = String(format: "%.1f", amount.value)
-            self.details = "\(formattedAmount) \(amount.unit.symbol) over \(durationMinutes) min"
+
+        if let value = session.amountValue {
+            let unit: UnitVolume = unitVolume(from: session.amountUnitSymbol) ?? ((Locale.current.measurementSystem == .us) ? .fluidOunces : .milliliters)
+            let formattedAmount = String(format: "%.1f", value)
+            self.details = "\(formattedAmount) \(unit.symbol) over \(durationMinutes) min"
         } else {
             self.details = "In progress for \(durationMinutes) min"
         }
+
         self.underlyingObjectId = session.persistentModelID
     }
     
@@ -62,13 +59,12 @@ public extension HistoryEvent {
         self.date = diaperChange.timestamp
         self.babyName = diaperChange.profile?.name ?? "Unknown"
         self.type = .diaper
-        self.diaperType = diaperChange.type // Set the diaper type
+        self.diaperType = diaperChange.type
         if diaperType == .pee {
             self.details = String(localized: "Pee")
         } else {
             self.details = String(localized: "Poo")
         }
-
         self.underlyingObjectId = diaperChange.persistentModelID
     }
 }
@@ -85,5 +81,24 @@ public extension DiaperChange {
 public extension Int {
     var uuid: UUID {
         return UUID(uuidString: "00000000-0000-0000-0000-\(String(format: "%012x", self))") ?? UUID()
+    }
+}
+
+// Decode a UnitVolume from a symbol/name
+private func unitVolume(from symbolOrName: String?) -> UnitVolume? {
+    guard let s = symbolOrName else { return nil }
+    let trimmed = s.trimmingCharacters(in: .whitespacesAndNewlines)
+    let lower = trimmed.lowercased()
+    switch lower {
+    case "ml", "mL".lowercased(), "milliliter", "milliliters":
+        return .milliliters
+    case "fl oz", "fl oz", "fl. oz", "fluid ounce", "fluid ounces", "floz":
+        return .fluidOunces
+    case "l", "liter", "liters":
+        return .liters
+    case "cup", "cups":
+        return .cups
+    default:
+        return nil
     }
 }

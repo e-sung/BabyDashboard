@@ -43,13 +43,13 @@ func makeDaySummaries(
         if let feeds = groupedFeeds[day] {
             for session in feeds {
                 guard let babyName = session.profile?.name else { continue }
-                if let amount = session.amount {
-                    let converted = amount.converted(to: targetUnit)
-                    if let existing = feedTotals[babyName] {
-                        feedTotals[babyName] = Measurement(value: existing.value + converted.value, unit: targetUnit)
-                    } else {
-                        feedTotals[babyName] = Measurement(value: converted.value, unit: targetUnit)
-                    }
+                guard let value = session.amountValue else { continue }
+                let unit = unitVolume(from: session.amountUnitSymbol) ?? ((Locale.current.measurementSystem == .us) ? .fluidOunces : .milliliters)
+                let convertedValue = Measurement(value: value, unit: unit).converted(to: targetUnit).value
+                if let existing = feedTotals[babyName] {
+                    feedTotals[babyName] = Measurement(value: existing.value + convertedValue, unit: targetUnit)
+                } else {
+                    feedTotals[babyName] = Measurement(value: convertedValue, unit: targetUnit)
                 }
             }
         }
@@ -74,5 +74,24 @@ func makeDaySummaries(
 
     // Sort sections by day descending (newest first)
     return summaries.sorted(by: { $0.date > $1.date })
+}
+
+// Local helper to decode a UnitVolume from a symbol/name
+private func unitVolume(from symbolOrName: String?) -> UnitVolume? {
+    guard let s = symbolOrName else { return nil }
+    let trimmed = s.trimmingCharacters(in: .whitespacesAndNewlines)
+    let lower = trimmed.lowercased()
+    switch lower {
+    case "ml", "mL".lowercased(), "milliliter", "milliliters":
+        return .milliliters
+    case "fl oz", "fl oz", "fl. oz", "fluid ounce", "fluid ounces", "floz":
+        return .fluidOunces
+    case "l", "liter", "liters":
+        return .liters
+    case "cup", "cups":
+        return .cups
+    default:
+        return nil
+    }
 }
 
