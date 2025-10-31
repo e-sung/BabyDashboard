@@ -32,10 +32,17 @@ func aggregateForChart(
     startOfDayMinute: Int
 ) -> [DailyFeedPoint] {
 
+    // Compute the current logical "today" and omit it from aggregation
+    let logicalToday = calendar.logicalStartOfDay(for: Date(), startOfDayHour: startOfDayHour, startOfDayMinute: startOfDayMinute)
+
     var feedTotals: [FeedKey: Double] = [:]
     for s in feeds {
         guard let baby = s.profile, let amount = s.amount else { continue }
         let day = calendar.logicalStartOfDay(for: s.startTime, startOfDayHour: startOfDayHour, startOfDayMinute: startOfDayMinute)
+
+        // Omit any feeds that fall on the current logical day
+        if day == logicalToday { continue }
+
         let key = FeedKey(day: day, babyID: baby.id, babyName: baby.name)
         let value = amount.converted(to: unit).value
         feedTotals[key, default: 0] += value
