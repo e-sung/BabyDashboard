@@ -7,6 +7,7 @@
 
 import SwiftUI
 import SwiftData
+import Model
 
 @main
 struct FullScreenClockApp: App {

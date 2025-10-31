@@ -1,7 +1,7 @@
 
 import Foundation
 
-extension Calendar {
+public extension Calendar {
     func logicalStartOfDay(for date: Date, startOfDayHour: Int, startOfDayMinute: Int) -> Date {
         let calendarDayStart = self.startOfDay(for: date)
         

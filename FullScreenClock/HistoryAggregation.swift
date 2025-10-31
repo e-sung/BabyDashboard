@@ -1,5 +1,6 @@
 import Foundation
 import SwiftData
+import Model
 
 struct DaySummary: Identifiable, Equatable {
     public let id: Date // startOfDay

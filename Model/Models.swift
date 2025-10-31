@@ -2,37 +2,57 @@ import Foundation
 import SwiftData
 
 @Model
-class BabyProfile {
-    // CloudKit: attributes must be optional or have defaults; remove unique constraint.
-    var id: UUID = UUID()
-    var name: String = ""
-    var lastFeedAmountValue: Double?
-    var lastFeedAmountUnitSymbol: String?
+public class BabyProfile {
+    public var id: UUID = UUID()
+    public var name: String = ""
+    public var lastFeedAmountValue: Double?
+    public var lastFeedAmountUnitSymbol: String?
 
     // Keep history: when a BabyProfile is deleted, nullify its relationships so events remain as orphans.
     @Relationship(deleteRule: .nullify, inverse: \FeedSession.profile)
-    var feedSessions: [FeedSession]? = []
+    public var feedSessions: [FeedSession]? = []
 
     @Relationship(deleteRule: .nullify, inverse: \DiaperChange.profile)
-    var diaperChanges: [DiaperChange]? = []
+    public var diaperChanges: [DiaperChange]? = []
 
     // Keep convenience initializer used across the codebase/tests
-    init(id: UUID, name: String) {
+    public init(id: UUID, name: String) {
         self.id = id
         self.name = name
+    }
+
+    public var inProgressFeedSession: FeedSession? {
+        (feedSessions ?? []).first(where: { $0.isInProgress })
+    }
+
+    public var lastFinishedFeedSession: FeedSession? {
+        (feedSessions ?? [])
+            .filter { !$0.isInProgress && $0.endTime != nil }
+            .sorted(by: { ($0.endTime ?? .distantPast) > ($1.endTime ?? .distantPast) })
+            .first
+    }
+
+    public var lastFeedSession: FeedSession? {
+        feedSessions?
+            .sorted(by: { ($0.startTime ) > ($1.startTime ) })
+            .first
+    }
+
+    public var lastDiaperChange: DiaperChange? {
+        (diaperChanges ?? []).sorted(by: { $0.timestamp > $1.timestamp }).first
     }
 }
 
 @Model
-class FeedSession {
+public class FeedSession {
     // Provide defaults for non-optional attributes
-    var startTime: Date = Date()
-    var endTime: Date?
-    var amountValue: Double?
-    var amountUnitSymbol: String?
-    var profile: BabyProfile?
+    public var startTime: Date = Date()
+    public var endTime: Date?
+    public var amountValue: Double?
+    public var amountUnitSymbol: String?
+    public var profile: BabyProfile?
 
-    init(startTime: Date) {
+    public init(startTime: Date) {
         self.startTime = startTime
     }
 
@@ -57,7 +77,7 @@ class FeedSession {
 
     // Use canonical units everywhere
     @Transient
-    var amount: Measurement<UnitVolume>? {
+    public var amount: Measurement<UnitVolume>? {
         get {
             guard let value = amountValue, let symbol = amountUnitSymbol else { return nil }
             guard let unit = canonicalUnit(from: symbol) else {
@@ -79,24 +99,24 @@ class FeedSession {
     }
 
     @Transient
-    var isInProgress: Bool {
+    public var isInProgress: Bool {
         endTime == nil
     }
 }
 
-enum DiaperType: String, Codable {
+public enum DiaperType: String, Codable {
     case pee
     case poo
 }
 
 @Model
-class DiaperChange {
+public class DiaperChange {
     // Provide defaults for non-optional attributes
-    var timestamp: Date = Date()
-    var type: DiaperType = DiaperType.pee
-    var profile: BabyProfile?
+    public var timestamp: Date = Date()
+    public var type: DiaperType = DiaperType.pee
+    public var profile: BabyProfile?
 
-    init(timestamp: Date, type: DiaperType) {
+    public init(timestamp: Date, type: DiaperType) {
         self.timestamp = timestamp
         self.type = type
     }

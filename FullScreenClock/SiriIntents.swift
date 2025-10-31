@@ -1,6 +1,7 @@
 import AppIntents
 import Foundation
 import SwiftData
+import Model
 
 // MARK: - App Entity & Query
 

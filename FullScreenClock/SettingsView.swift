@@ -1,6 +1,7 @@
 import SwiftUI
 import UniformTypeIdentifiers
 import SwiftData
+import Model
 
 struct SettingsView: View {
     @ObservedObject var settings: AppSettings

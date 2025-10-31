@@ -1,8 +1,8 @@
 import Foundation
 import SwiftData
 
-struct SharedModelContainer {
-    static let container: ModelContainer = {
+public struct SharedModelContainer {
+    public static let container: ModelContainer = {
         let schema = Schema([
             BabyProfile.self,
             FeedSession.self,

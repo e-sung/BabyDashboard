@@ -1,5 +1,6 @@
 import SwiftUI
 import SwiftData
+import Model
 import Charts
 
 struct HistoryAnalysisView: View {

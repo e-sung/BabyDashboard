@@ -1,5 +1,6 @@
 import SwiftUI
 import SwiftData
+import Model
 
 struct HistoryEditView: View {
     @Environment(\.dismiss) private var dismiss

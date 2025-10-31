@@ -7,7 +7,9 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		0848F0162E9EB7B6002DA66A /* Then in Frameworks */ = {isa = PBXBuildFile; productRef = 0848F0152E9EB7B6002DA66A /* Then */; };
+		08E6BBC12EAFF5D100DD237C /* Model.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 08E6BBB82EAFF5D100DD237C /* Model.framework */; };
+		08E6BBCB2EAFF5D100DD237C /* Model.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 08E6BBB82EAFF5D100DD237C /* Model.framework */; };
+		08E6BBCC2EAFF5D100DD237C /* Model.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 08E6BBB82EAFF5D100DD237C /* Model.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -25,12 +27,85 @@
 			remoteGlobalIDString = 0814D46D2E8D4E7E0073412C;
 			remoteInfo = FullScreenClock;
 		};
+		081CCAF32EB505590095A859 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 0814D4662E8D4E7E0073412C /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 08E6BC122EB00D6500DD237C;
+			remoteInfo = BabyDashboardWatchWidgetExtension;
+		};
+		081CCAF52EB505750095A859 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 0814D4662E8D4E7E0073412C /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 08E6BC122EB00D6500DD237C;
+			remoteInfo = BabyDashboardWatchWidgetExtension;
+		};
+		08E6BBC22EAFF5D100DD237C /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 0814D4662E8D4E7E0073412C /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 08E6BBB72EAFF5D100DD237C;
+			remoteInfo = Model;
+		};
+		08E6BBC42EAFF5D100DD237C /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 0814D4662E8D4E7E0073412C /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 0814D46D2E8D4E7E0073412C;
+			remoteInfo = FullScreenClock;
+		};
+		08E6BBC92EAFF5D100DD237C /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 0814D4662E8D4E7E0073412C /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 08E6BBB72EAFF5D100DD237C;
+			remoteInfo = Model;
+		};
 /* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		081CCAF22EB5054E0095A859 /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		08E6BBD02EAFF5D100DD237C /* Embed Frameworks */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 10;
+			files = (
+				08E6BBCC2EAFF5D100DD237C /* Model.framework in Embed Frameworks */,
+			);
+			name = "Embed Frameworks";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		08E6BC082EAFF8E200DD237C /* Embed Watch Content */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "$(CONTENTS_FOLDER_PATH)/Watch";
+			dstSubfolderSpec = 16;
+			files = (
+			);
+			name = "Embed Watch Content";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
 		0814D46E2E8D4E7E0073412C /* FullScreenClock.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = FullScreenClock.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		0814D47C2E8D4E7F0073412C /* FullScreenClockTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = FullScreenClockTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		0814D4862E8D4E7F0073412C /* FullScreenClockUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = FullScreenClockUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		08E6BBB82EAFF5D100DD237C /* Model.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Model.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+		08E6BBC02EAFF5D100DD237C /* ModelTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = ModelTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		08E6BC152EB00D6500DD237C /* WidgetKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WidgetKit.framework; path = System/Library/Frameworks/WidgetKit.framework; sourceTree = SDKROOT; };
+		08E6BC172EB00D6500DD237C /* SwiftUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SwiftUI.framework; path = System/Library/Frameworks/SwiftUI.framework; sourceTree = SDKROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -62,6 +137,16 @@
 			path = FullScreenClockUITests;
 			sourceTree = "<group>";
 		};
+		08E6BBB92EAFF5D100DD237C /* Model */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = Model;
+			sourceTree = "<group>";
+		};
+		08E6BBC62EAFF5D100DD237C /* ModelTests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = ModelTests;
+			sourceTree = "<group>";
+		};
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -69,7 +154,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				0848F0162E9EB7B6002DA66A /* Then in Frameworks */,
+				08E6BBCB2EAFF5D100DD237C /* Model.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -87,6 +172,21 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		08E6BBB52EAFF5D100DD237C /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		08E6BBBD2EAFF5D100DD237C /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				08E6BBC12EAFF5D100DD237C /* Model.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -96,6 +196,9 @@
 				0814D4702E8D4E7E0073412C /* FullScreenClock */,
 				0814D47F2E8D4E7F0073412C /* FullScreenClockTests */,
 				0814D4892E8D4E7F0073412C /* FullScreenClockUITests */,
+				08E6BBB92EAFF5D100DD237C /* Model */,
+				08E6BBC62EAFF5D100DD237C /* ModelTests */,
+				08E6BC142EB00D6500DD237C /* Frameworks */,
 				0814D46F2E8D4E7E0073412C /* Products */,
 			);
 			sourceTree = "<group>";
@@ -106,11 +209,32 @@
 				0814D46E2E8D4E7E0073412C /* FullScreenClock.app */,
 				0814D47C2E8D4E7F0073412C /* FullScreenClockTests.xctest */,
 				0814D4862E8D4E7F0073412C /* FullScreenClockUITests.xctest */,
+				08E6BBB82EAFF5D100DD237C /* Model.framework */,
+				08E6BBC02EAFF5D100DD237C /* ModelTests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
 		};
+		08E6BC142EB00D6500DD237C /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				08E6BC152EB00D6500DD237C /* WidgetKit.framework */,
+				08E6BC172EB00D6500DD237C /* SwiftUI.framework */,
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
 /* End PBXGroup section */
+
+/* Begin PBXHeadersBuildPhase section */
+		08E6BBB32EAFF5D100DD237C /* Headers */ = {
+			isa = PBXHeadersBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXHeadersBuildPhase section */
 
 /* Begin PBXNativeTarget section */
 		0814D46D2E8D4E7E0073412C /* FullScreenClock */ = {
@@ -120,17 +244,22 @@
 				0814D46A2E8D4E7E0073412C /* Sources */,
 				0814D46B2E8D4E7E0073412C /* Frameworks */,
 				0814D46C2E8D4E7E0073412C /* Resources */,
+				08E6BBD02EAFF5D100DD237C /* Embed Frameworks */,
+				08E6BC082EAFF8E200DD237C /* Embed Watch Content */,
+				081CCAF22EB5054E0095A859 /* Embed Foundation Extensions */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				08E6BBCA2EAFF5D100DD237C /* PBXTargetDependency */,
+				081CCAF42EB505590095A859 /* PBXTargetDependency */,
+				081CCAF62EB505750095A859 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				0814D4702E8D4E7E0073412C /* FullScreenClock */,
 			);
 			name = FullScreenClock;
 			packageProductDependencies = (
-				0848F0152E9EB7B6002DA66A /* Then */,
 			);
 			productName = FullScreenClock;
 			productReference = 0814D46E2E8D4E7E0073412C /* FullScreenClock.app */;
@@ -182,6 +311,53 @@
 			productReference = 0814D4862E8D4E7F0073412C /* FullScreenClockUITests.xctest */;
 			productType = "com.apple.product-type.bundle.ui-testing";
 		};
+		08E6BBB72EAFF5D100DD237C /* Model */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 08E6BBCD2EAFF5D100DD237C /* Build configuration list for PBXNativeTarget "Model" */;
+			buildPhases = (
+				08E6BBB32EAFF5D100DD237C /* Headers */,
+				08E6BBB42EAFF5D100DD237C /* Sources */,
+				08E6BBB52EAFF5D100DD237C /* Frameworks */,
+				08E6BBB62EAFF5D100DD237C /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				08E6BBB92EAFF5D100DD237C /* Model */,
+			);
+			name = Model;
+			packageProductDependencies = (
+			);
+			productName = Model;
+			productReference = 08E6BBB82EAFF5D100DD237C /* Model.framework */;
+			productType = "com.apple.product-type.framework";
+		};
+		08E6BBBF2EAFF5D100DD237C /* ModelTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 08E6BBD12EAFF5D100DD237C /* Build configuration list for PBXNativeTarget "ModelTests" */;
+			buildPhases = (
+				08E6BBBC2EAFF5D100DD237C /* Sources */,
+				08E6BBBD2EAFF5D100DD237C /* Frameworks */,
+				08E6BBBE2EAFF5D100DD237C /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				08E6BBC32EAFF5D100DD237C /* PBXTargetDependency */,
+				08E6BBC52EAFF5D100DD237C /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				08E6BBC62EAFF5D100DD237C /* ModelTests */,
+			);
+			name = ModelTests;
+			packageProductDependencies = (
+			);
+			productName = ModelTests;
+			productReference = 08E6BBC02EAFF5D100DD237C /* ModelTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -189,8 +365,8 @@
 			isa = PBXProject;
 			attributes = {
 				BuildIndependentTargetsInParallel = 1;
-				LastSwiftUpdateCheck = 1640;
-				LastUpgradeCheck = 1640;
+				LastSwiftUpdateCheck = 2600;
+				LastUpgradeCheck = 2600;
 				TargetAttributes = {
 					0814D46D2E8D4E7E0073412C = {
 						CreatedOnToolsVersion = 16.4;
@@ -201,6 +377,13 @@
 					};
 					0814D4852E8D4E7F0073412C = {
 						CreatedOnToolsVersion = 16.4;
+						TestTargetID = 0814D46D2E8D4E7E0073412C;
+					};
+					08E6BBB72EAFF5D100DD237C = {
+						CreatedOnToolsVersion = 26.0.1;
+					};
+					08E6BBBF2EAFF5D100DD237C = {
+						CreatedOnToolsVersion = 26.0.1;
 						TestTargetID = 0814D46D2E8D4E7E0073412C;
 					};
 				};
@@ -216,7 +399,6 @@
 			mainGroup = 0814D4652E8D4E7E0073412C;
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
-				0848F0142E9EB7B6002DA66A /* XCRemoteSwiftPackageReference "Then" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 0814D46F2E8D4E7E0073412C /* Products */;
@@ -226,6 +408,8 @@
 				0814D46D2E8D4E7E0073412C /* FullScreenClock */,
 				0814D47B2E8D4E7F0073412C /* FullScreenClockTests */,
 				0814D4852E8D4E7F0073412C /* FullScreenClockUITests */,
+				08E6BBB72EAFF5D100DD237C /* Model */,
+				08E6BBBF2EAFF5D100DD237C /* ModelTests */,
 			);
 		};
 /* End PBXProject section */
@@ -246,6 +430,20 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		0814D4842E8D4E7F0073412C /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		08E6BBB62EAFF5D100DD237C /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		08E6BBBE2EAFF5D100DD237C /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -276,6 +474,20 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		08E6BBB42EAFF5D100DD237C /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		08E6BBBC2EAFF5D100DD237C /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
@@ -289,6 +501,29 @@
 			target = 0814D46D2E8D4E7E0073412C /* FullScreenClock */;
 			targetProxy = 0814D4872E8D4E7F0073412C /* PBXContainerItemProxy */;
 		};
+		081CCAF42EB505590095A859 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			targetProxy = 081CCAF32EB505590095A859 /* PBXContainerItemProxy */;
+		};
+		081CCAF62EB505750095A859 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			targetProxy = 081CCAF52EB505750095A859 /* PBXContainerItemProxy */;
+		};
+		08E6BBC32EAFF5D100DD237C /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 08E6BBB72EAFF5D100DD237C /* Model */;
+			targetProxy = 08E6BBC22EAFF5D100DD237C /* PBXContainerItemProxy */;
+		};
+		08E6BBC52EAFF5D100DD237C /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 0814D46D2E8D4E7E0073412C /* FullScreenClock */;
+			targetProxy = 08E6BBC42EAFF5D100DD237C /* PBXContainerItemProxy */;
+		};
+		08E6BBCA2EAFF5D100DD237C /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 08E6BBB72EAFF5D100DD237C /* Model */;
+			targetProxy = 08E6BBC92EAFF5D100DD237C /* PBXContainerItemProxy */;
+		};
 /* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
@@ -297,6 +532,7 @@
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_LOCALIZABILITY_NONLOCALIZED = YES;
 				CLANG_ANALYZER_NONNULL = YES;
 				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
 				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
@@ -326,6 +562,7 @@
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				COPY_PHASE_STRIP = NO;
+				DEAD_CODE_STRIPPING = YES;
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				DEVELOPMENT_TEAM = 7KT5X239S9;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
@@ -349,6 +586,7 @@
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
@@ -360,6 +598,7 @@
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_LOCALIZABILITY_NONLOCALIZED = YES;
 				CLANG_ANALYZER_NONNULL = YES;
 				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
 				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
@@ -389,6 +628,7 @@
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				COPY_PHASE_STRIP = NO;
+				DEAD_CODE_STRIPPING = YES;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				DEVELOPMENT_TEAM = 7KT5X239S9;
 				ENABLE_NS_ASSERTIONS = NO;
@@ -405,6 +645,7 @@
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_COMPILATION_MODE = wholemodule;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 			};
@@ -418,9 +659,12 @@
 				CODE_SIGN_ENTITLEMENTS = FullScreenClock/FullScreenClock.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
+				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_TEAM = 7KT5X239S9;
+				ENABLE_APP_SANDBOX = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
+				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = FullScreenClock/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "쌍둥이 대시보드";
@@ -434,6 +678,7 @@
 				"INFOPLIST_KEY_UIStatusBarStyle[sdk=iphoneos*]" = UIStatusBarStyleDefault;
 				"INFOPLIST_KEY_UIStatusBarStyle[sdk=iphonesimulator*]" = UIStatusBarStyleDefault;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
 				IPHONEOS_DEPLOYMENT_TARGET = 18.5;
 				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
 				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = "@executable_path/../Frameworks";
@@ -460,9 +705,12 @@
 				CODE_SIGN_ENTITLEMENTS = FullScreenClock/FullScreenClock.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
+				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_TEAM = 7KT5X239S9;
+				ENABLE_APP_SANDBOX = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
+				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = FullScreenClock/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "쌍둥이 대시보드";
@@ -476,12 +724,14 @@
 				"INFOPLIST_KEY_UIStatusBarStyle[sdk=iphoneos*]" = UIStatusBarStyleDefault;
 				"INFOPLIST_KEY_UIStatusBarStyle[sdk=iphonesimulator*]" = UIStatusBarStyleDefault;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
 				IPHONEOS_DEPLOYMENT_TARGET = 18.5;
 				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
 				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = "@executable_path/../Frameworks";
 				MACOSX_DEPLOYMENT_TARGET = 15.5;
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.sungdoo.babyDashboard;
+				"PRODUCT_BUNDLE_IDENTIFIER[sdk=iphoneos*]" = com.sungdoo.babyDashboard2;
 				"PRODUCT_BUNDLE_IDENTIFIER[sdk=xros*]" = com.sungdoo.babyDashboard2;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				REGISTER_APP_GROUPS = YES;
@@ -501,6 +751,7 @@
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
+				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_TEAM = 7KT5X239S9;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 18.5;
@@ -524,6 +775,7 @@
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
+				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_TEAM = 7KT5X239S9;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 18.5;
@@ -546,6 +798,7 @@
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
+				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_TEAM = 7KT5X239S9;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 18.5;
@@ -568,6 +821,7 @@
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
+				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_TEAM = 7KT5X239S9;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 18.5;
@@ -582,6 +836,156 @@
 				TARGETED_DEVICE_FAMILY = "1,2,7";
 				TEST_TARGET_NAME = FullScreenClock;
 				XROS_DEPLOYMENT_TARGET = 2.5;
+			};
+			name = Release;
+		};
+		08E6BBCE2EAFF5D100DD237C /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALLOW_TARGET_PLATFORM_SPECIALIZATION = YES;
+				BUILD_LIBRARY_FOR_DISTRIBUTION = YES;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 7KT5X239S9;
+				DYLIB_COMPATIBILITY_VERSION = 1;
+				DYLIB_CURRENT_VERSION = 1;
+				DYLIB_INSTALL_NAME_BASE = "@rpath";
+				ENABLE_MODULE_VERIFIER = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Frameworks";
+				IPHONEOS_DEPLOYMENT_TARGET = 18.5;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = (
+					"@executable_path/../Frameworks",
+					"@loader_path/Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 15.6;
+				MARKETING_VERSION = 1.0;
+				MODULE_VERIFIER_SUPPORTED_LANGUAGES = "objective-c objective-c++";
+				MODULE_VERIFIER_SUPPORTED_LANGUAGE_STANDARDS = "gnu17 gnu++20";
+				PRODUCT_BUNDLE_IDENTIFIER = com.sungdoo.babyDashboard2.Model;
+				PRODUCT_NAME = "$(TARGET_NAME:c99extidentifier)";
+				SDKROOT = auto;
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx watchos watchsimulator xros xrsimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_INSTALL_MODULE = YES;
+				SWIFT_INSTALL_OBJC_HEADER = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2,4,7";
+				VERSIONING_SYSTEM = "apple-generic";
+				VERSION_INFO_PREFIX = "";
+				WATCHOS_DEPLOYMENT_TARGET = 10.6;
+				XROS_DEPLOYMENT_TARGET = 2.6;
+			};
+			name = Debug;
+		};
+		08E6BBCF2EAFF5D100DD237C /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALLOW_TARGET_PLATFORM_SPECIALIZATION = YES;
+				BUILD_LIBRARY_FOR_DISTRIBUTION = YES;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 7KT5X239S9;
+				DYLIB_COMPATIBILITY_VERSION = 1;
+				DYLIB_CURRENT_VERSION = 1;
+				DYLIB_INSTALL_NAME_BASE = "@rpath";
+				ENABLE_MODULE_VERIFIER = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Frameworks";
+				IPHONEOS_DEPLOYMENT_TARGET = 18.5;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = (
+					"@executable_path/../Frameworks",
+					"@loader_path/Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 15.6;
+				MARKETING_VERSION = 1.0;
+				MODULE_VERIFIER_SUPPORTED_LANGUAGES = "objective-c objective-c++";
+				MODULE_VERIFIER_SUPPORTED_LANGUAGE_STANDARDS = "gnu17 gnu++20";
+				PRODUCT_BUNDLE_IDENTIFIER = com.sungdoo.babyDashboard2.Model;
+				PRODUCT_NAME = "$(TARGET_NAME:c99extidentifier)";
+				SDKROOT = auto;
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx watchos watchsimulator xros xrsimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_INSTALL_MODULE = YES;
+				SWIFT_INSTALL_OBJC_HEADER = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2,4,7";
+				VERSIONING_SYSTEM = "apple-generic";
+				VERSION_INFO_PREFIX = "";
+				WATCHOS_DEPLOYMENT_TARGET = 10.6;
+				XROS_DEPLOYMENT_TARGET = 2.6;
+			};
+			name = Release;
+		};
+		08E6BBD22EAFF5D100DD237C /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALLOW_TARGET_PLATFORM_SPECIALIZATION = YES;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 7KT5X239S9;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.5;
+				MACOSX_DEPLOYMENT_TARGET = 26.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.sungdoo.babyDashboard.watchkitapp.ModelTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = auto;
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx xros xrsimulator";
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2,7";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/FullScreenClock.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/FullScreenClock";
+				XROS_DEPLOYMENT_TARGET = 26.0;
+			};
+			name = Debug;
+		};
+		08E6BBD32EAFF5D100DD237C /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALLOW_TARGET_PLATFORM_SPECIALIZATION = YES;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 7KT5X239S9;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.5;
+				MACOSX_DEPLOYMENT_TARGET = 26.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.sungdoo.babyDashboard.watchkitapp.ModelTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = auto;
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx xros xrsimulator";
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2,7";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/FullScreenClock.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/FullScreenClock";
+				XROS_DEPLOYMENT_TARGET = 26.0;
 			};
 			name = Release;
 		};
@@ -624,26 +1028,25 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
+		08E6BBCD2EAFF5D100DD237C /* Build configuration list for PBXNativeTarget "Model" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				08E6BBCE2EAFF5D100DD237C /* Debug */,
+				08E6BBCF2EAFF5D100DD237C /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		08E6BBD12EAFF5D100DD237C /* Build configuration list for PBXNativeTarget "ModelTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				08E6BBD22EAFF5D100DD237C /* Debug */,
+				08E6BBD32EAFF5D100DD237C /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 /* End XCConfigurationList section */
-
-/* Begin XCRemoteSwiftPackageReference section */
-		0848F0142E9EB7B6002DA66A /* XCRemoteSwiftPackageReference "Then" */ = {
-			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/devxoul/Then";
-			requirement = {
-				kind = upToNextMajorVersion;
-				minimumVersion = 3.0.0;
-			};
-		};
-/* End XCRemoteSwiftPackageReference section */
-
-/* Begin XCSwiftPackageProductDependency section */
-		0848F0152E9EB7B6002DA66A /* Then */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = 0848F0142E9EB7B6002DA66A /* XCRemoteSwiftPackageReference "Then" */;
-			productName = Then;
-		};
-/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 0814D4662E8D4E7E0073412C /* Project object */;
 }

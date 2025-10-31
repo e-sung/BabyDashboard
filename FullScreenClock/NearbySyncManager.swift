@@ -1,6 +1,7 @@
 import Foundation
 import MultipeerConnectivity
 import SwiftData
+import Model
 import UIKit
 
 final class NearbySyncManager: NSObject {

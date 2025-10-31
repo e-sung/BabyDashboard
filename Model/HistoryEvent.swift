@@ -2,32 +2,42 @@ import Foundation
 import SwiftData
 
 // A view-specific wrapper to unify different event models for display in a single list.
-enum HistoryEventType { case feed, diaper }
+public enum HistoryEventType { case feed, diaper }
 
-struct HistoryEvent: Identifiable, Hashable {
-    let id: UUID
-    let date: Date
-    let babyName: String
-    let type: HistoryEventType
-    let details: String
-    let diaperType: DiaperType? // New property
-    
+public struct HistoryEvent: Identifiable, Hashable {
+    public let id: UUID
+    public let date: Date
+    public let babyName: String
+    public let type: HistoryEventType
+    public let details: String
+    public let diaperType: DiaperType? // New property
+
     // A reference to the underlying SwiftData object for editing/deleting.
     // Note: Hashable conformance requires a stable hash value.
     // Make this optional so previews can pass nil without constructing a PersistentIdentifier.
-    let underlyingObjectId: PersistentIdentifier?
+    public let underlyingObjectId: PersistentIdentifier?
 
-    static func == (lhs: HistoryEvent, rhs: HistoryEvent) -> Bool {
+    public init(id: UUID, date: Date, babyName: String, type: HistoryEventType, details: String, diaperType: DiaperType?, underlyingObjectId: PersistentIdentifier?) {
+        self.id = id
+        self.date = date
+        self.babyName = babyName
+        self.type = type
+        self.details = details
+        self.diaperType = diaperType
+        self.underlyingObjectId = underlyingObjectId
+    }
+
+    public static func == (lhs: HistoryEvent, rhs: HistoryEvent) -> Bool {
         lhs.id == rhs.id
     }
 
-    func hash(into hasher: inout Hasher) {
+    public func hash(into hasher: inout Hasher) {
         hasher.combine(id)
     }
 }
 
 // Add initializers to easily convert from our SwiftData models.
-extension HistoryEvent {
+public extension HistoryEvent {
     init(from session: FeedSession) {
         self.id = session.id
         self.date = session.startTime
@@ -64,15 +74,15 @@ extension HistoryEvent {
 }
 
 // Add an ID to our models to make them Identifiable for the wrapper.
-extension FeedSession {
+public extension FeedSession {
     var id: UUID { return self.startTime.hashValue.uuid } // Simple identifiable conformance
 }
-extension DiaperChange {
+public extension DiaperChange {
     var id: UUID { return self.timestamp.hashValue.uuid } // Simple identifiable conformance
 }
 
 // Helper for creating a UUID from a hash value for Identifiable conformance.
-extension Int {
+public extension Int {
     var uuid: UUID {
         return UUID(uuidString: "00000000-0000-0000-0000-\(String(format: "%012x", self))") ?? UUID()
     }

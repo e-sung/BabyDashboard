@@ -1,5 +1,6 @@
 import SwiftUI
 import SwiftData
+import Model
 
 struct FeedSessionEditView: View {
     @Environment(\.dismiss) var dismiss

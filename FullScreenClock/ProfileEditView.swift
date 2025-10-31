@@ -1,5 +1,6 @@
 import SwiftUI
 import SwiftData
+import Model
 
 struct ProfileEditView: View {
     @ObservedObject var viewModel: ContentViewModel

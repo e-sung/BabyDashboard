@@ -1,5 +1,6 @@
 import SwiftUI
 import SwiftData
+import Model
 #if canImport(UIKit)
 import UIKit
 #endif
@@ -227,30 +228,6 @@ struct BabyStatusView: View {
         } else {
             return String(localized: "Just now")
         }
-    }
-}
-
-// Add convenience computed properties to the SwiftData model.
-extension BabyProfile {
-    var inProgressFeedSession: FeedSession? {
-        (feedSessions ?? []).first(where: { $0.isInProgress })
-    }
-    
-    var lastFinishedFeedSession: FeedSession? {
-        (feedSessions ?? [])
-            .filter { !$0.isInProgress && $0.endTime != nil }
-            .sorted(by: { ($0.endTime ?? .distantPast) > ($1.endTime ?? .distantPast) })
-            .first
-    }
-
-    var lastFeedSession: FeedSession? {
-        feedSessions?
-            .sorted(by: { ($0.startTime ) > ($1.startTime ) })
-            .first
-    }
-
-    var lastDiaperChange: DiaperChange? {
-        (diaperChanges ?? []).sorted(by: { $0.timestamp > $1.timestamp }).first
     }
 }
 

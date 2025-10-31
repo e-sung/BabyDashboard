@@ -1,6 +1,7 @@
 
 import Foundation
 import SwiftData
+import Model
 
 // MARK: - Chart Models
 

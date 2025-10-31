@@ -1,5 +1,6 @@
 import SwiftUI
 import SwiftData
+import Model
 
 private let pageSize = 30
 
@@ -74,6 +75,8 @@ struct HistoryView: View {
                     if let model = loadedDiaperChanges.first(where: { $0.persistentModelID == event.underlyingObjectId }) {
                         return model.profile?.id == selectedBabyID
                     }
+                    return false
+                @unknown default:
                     return false
                 }
             }()
@@ -373,6 +376,8 @@ struct HistoryView: View {
             return loadedFeedSessions.first { $0.persistentModelID == event.underlyingObjectId }
         case .diaper:
             return loadedDiaperChanges.first { $0.persistentModelID == event.underlyingObjectId }
+        @unknown default:
+            return nil
         }
     }
 

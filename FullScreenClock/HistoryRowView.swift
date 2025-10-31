@@ -1,5 +1,6 @@
 import SwiftUI
 import SwiftData
+import Model
 
 struct HistoryRowView: View {
     let event: HistoryEvent
@@ -40,6 +41,8 @@ struct HistoryRowView: View {
             return "baby.bottle.fill"
         case .diaper:
             return "person.fill"
+        @unknown default:
+            return "questionmark.circle"
         }
     }
     
@@ -49,6 +52,8 @@ struct HistoryRowView: View {
             return .blue
         case .diaper:
             return event.diaperType == .poo ? .brown : .green
+        @unknown default:
+            return .gray
         }
     }
 }

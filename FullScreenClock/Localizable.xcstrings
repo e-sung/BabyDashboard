@@ -123,28 +123,6 @@
         }
       }
     },
-    "Baby 1" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "아기 1"
-          }
-        }
-      }
-    },
-    "Baby 2" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "아기 2"
-          }
-        }
-      }
-    },
     "Baby's Name" : {
       "localizations" : {
         "ko" : {
@@ -340,17 +318,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "수유 종료"
-          }
-        }
-      }
-    },
-    "Finished feeding %@." : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%@수유 종료"
           }
         }
       }
