@@ -31,14 +31,30 @@ struct HistoryAnalysisView: View {
         }
     }
 
+    // Chart mode: daily totals vs per feed (non-aggregated)
+    enum ChartMode: String, CaseIterable, Identifiable {
+        case daily
+        case perFeed
+
+        var id: String { rawValue }
+        var title: String {
+            switch self {
+            case .daily: return String(localized: "Daily")
+            case .perFeed: return String(localized: "Per Feed")
+            }
+        }
+    }
+
     // Selected preset (default to 30 days)
     @State private var selectedPreset: RangePreset = .days30
+    @State private var mode: ChartMode = .daily
 
     @State private var availableBabies: [BabyProfile] = []
     @State private var selectedBabyID: UUID? = nil
 
     // Data
     @State private var feedPoints: [DailyFeedPoint] = []
+    @State private var perFeedPoints: [FeedSessionPoint] = []
 
     // Axis labels cache (avoid formatting inside AxisValueLabel closure)
     @State private var yAxisFormatter: (Double) -> String = { value in String(format: "%.0f", value) }
@@ -52,8 +68,15 @@ struct HistoryAnalysisView: View {
             controls
 
             Chart {
-                ForEach(feedPoints, id: \.id) { point in
-                    feedMark(for: point)
+                switch mode {
+                case .daily:
+                    ForEach(feedPoints, id: \.id) { point in
+                        feedMark(for: point)
+                    }
+                case .perFeed:
+                    ForEach(perFeedPoints, id: \.id) { point in
+                        perFeedMark(for: point)
+                    }
                 }
             }
             .chartYAxis {
@@ -69,7 +92,8 @@ struct HistoryAnalysisView: View {
             .padding(.horizontal)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .overlay {
-                if feedPoints.isEmpty {
+                let isEmpty = (mode == .daily) ? feedPoints.isEmpty : perFeedPoints.isEmpty
+                if isEmpty {
                     ContentUnavailableView(
                         "No Data",
                         systemImage: "chart.xyaxis.line",
@@ -85,6 +109,9 @@ struct HistoryAnalysisView: View {
         }
         .onChange(of: selectedPreset) { _, _ in Task { await refreshData() } }
         .onChange(of: selectedBabyID) { _, _ in Task { await refreshData() } }
+        .onChange(of: mode) { _, _ in
+            // No fetch required; we already build both datasets in refreshData.
+        }
     }
 
     // Split mark creation to tiny helpers to keep type checking simple.
@@ -100,6 +127,18 @@ struct HistoryAnalysisView: View {
         .symbolSize(60)
     }
 
+    private func perFeedMark(for point: FeedSessionPoint) -> some ChartContent {
+        LineMark(
+            x: .value("Time", point.timestamp),
+            y: .value("Feed", point.feedValue),
+            series: .value("Baby", point.babyName)
+        )
+        .foregroundStyle(by: .value("Baby", point.babyName))
+        .interpolationMethod(.catmullRom)
+        .symbol(Circle())
+        .symbolSize(50)
+    }
+
     // MARK: - Controls
 
     private var controls: some View {
@@ -113,7 +152,15 @@ struct HistoryAnalysisView: View {
             .pickerStyle(.segmented)
             .padding(.horizontal)
 
+            // Mode + Baby filters
             HStack {
+                Picker("Mode", selection: $mode) {
+                    ForEach(ChartMode.allCases) { m in
+                        Text(m.title).tag(m)
+                    }
+                }
+                .pickerStyle(.segmented)
+
                 Picker("Baby", selection: Binding<UUID?>(
                     get: { selectedBabyID },
                     set: { selectedBabyID = $0 }
@@ -155,6 +202,7 @@ struct HistoryAnalysisView: View {
             return feeds.filter { $0.profile?.id == selectedBabyID }
         }()
 
+        // Daily totals (omit current logical day to avoid partial day)
         let feedPts = aggregateForChart(
             feeds: filteredFeeds,
             unit: targetUnit,
@@ -162,8 +210,18 @@ struct HistoryAnalysisView: View {
             startOfDayHour: settings.startOfDayHour,
             startOfDayMinute: settings.startOfDayMinute
         )
-
         self.feedPoints = feedPts
+
+        // Per-feed (include current logical day so latest finished sessions appear)
+        let sessionPts = makePerSessionPoints(
+            feeds: filteredFeeds,
+            unit: targetUnit,
+            calendar: calendar,
+            startOfDayHour: settings.startOfDayHour,
+            startOfDayMinute: settings.startOfDayMinute,
+            omitLogicalToday: false
+        )
+        self.perFeedPoints = sessionPts
 
         rebuildYAxisFormatter()
     }
@@ -188,3 +246,4 @@ struct HistoryAnalysisView: View {
         }
     }
 }
+
