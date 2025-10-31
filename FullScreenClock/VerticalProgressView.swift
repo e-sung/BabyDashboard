@@ -4,6 +4,11 @@ struct VerticalProgressView: View {
     let progress: Double
     let timeScope: TimeInterval
 
+    // New: allow caller to customize the fill color (defaults to green).
+    var progressColor: Color = .green
+    // New: allow hiding track and background indicators (for overlays).
+    var drawTrackAndBackground: Bool = true
+
     private var indicatorInterval: TimeInterval { 30 * 60 } // 30 minutes
 
     var body: some View {
@@ -12,14 +17,18 @@ struct VerticalProgressView: View {
                 // Determine colors and progress based on overflow
                 let isOverdue = progress > 1.0
                 let trackColor = isOverdue ? Color.green.opacity(0.5) : Color.gray.opacity(0.3)
-                let fillColor = isOverdue ? Color.red : Color.green
+                let fillColor = isOverdue ? Color.red : progressColor
                 let displayProgress = isOverdue ? progress - 1.0 : progress
 
-                // Background track
-                Capsule().fill(trackColor)
+                // Background track (optional)
+                if drawTrackAndBackground {
+                    Capsule().fill(trackColor)
+                }
 
-                // Background Indicators
-                indicators(geometry: geometry, color: Color.primary.opacity(0.8))
+                // Background Indicators (optional)
+                if drawTrackAndBackground {
+                    indicators(geometry: geometry, color: Color.primary.opacity(0.8))
+                }
 
                 // Filled progress
                 let filledHeight = geometry.size.height * CGFloat(min(max(0, displayProgress), 1))
@@ -27,7 +36,7 @@ struct VerticalProgressView: View {
                     .fill(fillColor)
                     .frame(height: filledHeight)
                 
-                // Foreground Indicators
+                // Foreground Indicators masked into the filled area
                 indicators(geometry: geometry, color: Color.black)
                     .mask(
                         VStack {
@@ -74,6 +83,10 @@ struct VerticalProgressView: View {
         VStack {
             Text("2 Hours")
             VerticalProgressView(progress: 2/3, timeScope: 3 * 3600)
+        }
+        VStack {
+            Text("Blue only (no track)")
+            VerticalProgressView(progress: 0.4, timeScope: 3 * 3600, progressColor: .blue, drawTrackAndBackground: false)
         }
     }
     .padding()
