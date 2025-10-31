@@ -164,6 +164,9 @@ struct HistoryView: View {
                             Section {
                                 ForEach(section.events) { event in
                                     HistoryRowView(event: event)
+                                        // Ensure the entire row rectangle is the hit target
+                                        .frame(maxWidth: .infinity, alignment: .leading)
+                                        .contentShape(Rectangle())
                                         .onTapGesture { eventToEdit = event }
                                         .onAppear {
                                             // If this is the last row overall, try to load more
