@@ -2,32 +2,25 @@ import SwiftUI
 import SwiftData
 import Model
 
-private let pageSize = 30
-
 struct HistoryView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
     @EnvironmentObject var settings: AppSettings
 
-    // Remove eager @Query to avoid loading everything at once.
-    // We'll load pages manually.
-    @State private var loadedFeedSessions: [FeedSession] = []
-    @State private var loadedDiaperChanges: [DiaperChange] = []
+    // Load all data via @Query (sorted newest first)
+    @Query(sort: [SortDescriptor(\FeedSession.startTime, order: .reverse)])
+    private var feedSessions: [FeedSession]
 
-    // Cursors track the oldest loaded date per model type.
-    @State private var oldestFeedDate: Date? = nil
-    @State private var oldestDiaperDate: Date? = nil
+    @Query(sort: [SortDescriptor(\DiaperChange.timestamp, order: .reverse)])
+    private var diaperChanges: [DiaperChange]
 
-    // Loading state
-    @State private var isInitialLoad = true
-    @State private var isLoadingMore = false
-    @State private var hasMoreFeed = true
-    @State private var hasMoreDiaper = true
+    @Query(sort: [SortDescriptor(\BabyProfile.name, order: .forward)])
+    private var babies: [BabyProfile]
 
     // Editing
     @State private var eventToEdit: HistoryEvent?
 
-    // Filters: make this enum internal (remove private) so nested views can see it.
+    // Filters
     enum EventFilter: String, CaseIterable, Identifiable {
         case all
         case feed
@@ -49,13 +42,12 @@ struct HistoryView: View {
     @State private var selectedBabyID: UUID? = nil // nil == All babies
     @State private var selectedEventFilter: EventFilter = .all
     @State private var isShowingFilters = false
-    @State private var availableBabies: [BabyProfile] = []
     @State private var isShowingAddSheet = false
 
     // Merge and sort for display (raw, unfiltered)
     private var historyEvents: [HistoryEvent] {
-        let feeds = loadedFeedSessions.map { HistoryEvent(from: $0) }
-        let diapers = loadedDiaperChanges.map { HistoryEvent(from: $0) }
+        let feeds = feedSessions.map { HistoryEvent(from: $0) }
+        let diapers = diaperChanges.map { HistoryEvent(from: $0) }
         return (feeds + diapers).sorted(by: { $0.date > $1.date })
     }
     
@@ -67,12 +59,12 @@ struct HistoryView: View {
                 guard let selectedBabyID else { return true }
                 switch event.type {
                 case .feed:
-                    if let model = loadedFeedSessions.first(where: { $0.persistentModelID == event.underlyingObjectId }) {
+                    if let model = feedSessions.first(where: { $0.persistentModelID == event.underlyingObjectId }) {
                         return model.profile?.id == selectedBabyID
                     }
                     return false
                 case .diaper:
-                    if let model = loadedDiaperChanges.first(where: { $0.persistentModelID == event.underlyingObjectId }) {
+                    if let model = diaperChanges.first(where: { $0.persistentModelID == event.underlyingObjectId }) {
                         return model.profile?.id == selectedBabyID
                     }
                     return false
@@ -111,8 +103,8 @@ struct HistoryView: View {
     private var daySections: [DaySection] {
         let summaries = makeDaySummaries(
             events: filteredEvents,
-            feedSessions: loadedFeedSessions,
-            diaperChanges: loadedDiaperChanges,
+            feedSessions: feedSessions,
+            diaperChanges: diaperChanges,
             targetUnit: (Locale.current.measurementSystem == .us) ? .fluidOunces : .milliliters,
             calendar: Calendar.current,
             startOfDayHour: settings.startOfDayHour,
@@ -168,12 +160,6 @@ struct HistoryView: View {
                                         .frame(maxWidth: .infinity, alignment: .leading)
                                         .contentShape(Rectangle())
                                         .onTapGesture { eventToEdit = event }
-                                        .onAppear {
-                                            // If this is the last row overall, try to load more
-                                            if event.id == filteredEvents.last?.id {
-                                                loadMoreIfNeeded()
-                                            }
-                                        }
                                 }
                                 .onDelete(perform: deleteEvent)
                             } header: {
@@ -184,26 +170,9 @@ struct HistoryView: View {
                         monthHeaderView(for: month)
                     }
                 }
-                
-                if isLoadingMore {
-                    HStack {
-                        Spacer()
-                        ProgressView()
-                        Spacer()
-                    }
-                } else if !(hasMoreFeed || hasMoreDiaper) && !filteredEvents.isEmpty {
-                    HStack {
-                        Spacer()
-                        Text("No more history")
-                            .foregroundColor(.secondary)
-                        Spacer()
-                    }
-                }
             }
             .overlay {
-                if isInitialLoad && filteredEvents.isEmpty {
-                    ProgressView()
-                } else if !isInitialLoad && filteredEvents.isEmpty {
+                if filteredEvents.isEmpty {
                     ContentUnavailableView("No History", systemImage: "clock", description: Text("Events will appear here."))
                 }
             }
@@ -229,16 +198,9 @@ struct HistoryView: View {
                     .accessibilityLabel(Text("Add Event"))
                 }
             }
-            .refreshable { await refresh() }
-            .onAppear {
-                if isInitialLoad {
-                    Task { await loadInitial() }
-                }
-                loadAvailableBabies()
-            }
             .sheet(isPresented: $isShowingFilters) {
                 FilterSheet(
-                    babies: availableBabies,
+                    babies: babies,
                     selectedBabyID: $selectedBabyID,
                     selectedEventFilter: $selectedEventFilter
                 )
@@ -253,17 +215,15 @@ struct HistoryView: View {
             }
             .sheet(isPresented: $isShowingAddSheet) {
                 AddHistorySheet(
-                    babies: availableBabies,
+                    babies: babies,
                     defaultSelectedBabyID: selectedBabyID
                 ) { result in
-                    // Insert into SwiftData and update in-memory arrays
+                    // Insert into SwiftData; @Query will update automatically
                     switch result {
                     case .feed(let session):
                         modelContext.insert(session)
-                        loadedFeedSessions.insert(session, at: 0) // newest likely at top
                     case .diaper(let change):
                         modelContext.insert(change)
-                        loadedDiaperChanges.insert(change, at: 0)
                     }
                     try? modelContext.save()
                     NearbySyncManager.shared.sendPing()
@@ -376,9 +336,9 @@ struct HistoryView: View {
     private func findModel(for event: HistoryEvent) -> (any PersistentModel)? {
         switch event.type {
         case .feed:
-            return loadedFeedSessions.first { $0.persistentModelID == event.underlyingObjectId }
+            return feedSessions.first { $0.persistentModelID == event.underlyingObjectId }
         case .diaper:
-            return loadedDiaperChanges.first { $0.persistentModelID == event.underlyingObjectId }
+            return diaperChanges.first { $0.persistentModelID == event.underlyingObjectId }
         @unknown default:
             return nil
         }
@@ -392,143 +352,15 @@ struct HistoryView: View {
         for index in offsets {
             let event = current[index]
             if event.type == .feed,
-               let session = loadedFeedSessions.first(where: { $0.persistentModelID == event.underlyingObjectId }) {
+               let session = feedSessions.first(where: { $0.persistentModelID == event.underlyingObjectId }) {
                 modelContext.delete(session)
-                if let idx = loadedFeedSessions.firstIndex(where: { $0.persistentModelID == session.persistentModelID }) {
-                    loadedFeedSessions.remove(at: idx)
-                }
             } else if event.type == .diaper,
-                      let diaper = loadedDiaperChanges.first(where: { $0.persistentModelID == event.underlyingObjectId }) {
+                      let diaper = diaperChanges.first(where: { $0.persistentModelID == event.underlyingObjectId }) {
                 modelContext.delete(diaper)
-                if let idx = loadedDiaperChanges.firstIndex(where: { $0.persistentModelID == diaper.persistentModelID }) {
-                    loadedDiaperChanges.remove(at: idx)
-                }
             }
         }
         try? modelContext.save()
         NearbySyncManager.shared.sendPing()
-    }
-
-    // MARK: - Paging
-
-    @MainActor
-    private func loadInitial() async {
-        isInitialLoad = true
-        defer { isInitialLoad = false }
-
-        // Reset state
-        loadedFeedSessions.removeAll()
-        loadedDiaperChanges.removeAll()
-        oldestFeedDate = nil
-        oldestDiaperDate = nil
-        hasMoreFeed = true
-        hasMoreDiaper = true
-
-        // Load first pages (newest items) for both types
-        async let feeds = fetchFeedSessions(before: nil, limit: pageSize)
-        async let diapers = fetchDiaperChanges(before: nil, limit: pageSize)
-        let (feedResult, diaperResult) = await (feeds, diapers)
-
-        loadedFeedSessions = feedResult
-        loadedDiaperChanges = diaperResult
-        oldestFeedDate = feedResult.last?.startTime
-        oldestDiaperDate = diaperResult.last?.timestamp
-
-        // Determine if there might be more
-        hasMoreFeed = feedResult.count == pageSize
-        hasMoreDiaper = diaperResult.count == pageSize
-    }
-
-    @MainActor
-    private func refresh() async {
-        await loadInitial()
-    }
-
-    private func loadMoreIfNeeded() {
-        guard !isLoadingMore else { return }
-        guard hasMoreFeed || hasMoreDiaper else { return }
-
-        isLoadingMore = true
-        Task {
-            // Fetch next page for each type if needed
-            async let moreFeedsTask: [FeedSession] = hasMoreFeed ? fetchFeedSessions(before: oldestFeedDate, limit: pageSize) : []
-            async let moreDiapersTask: [DiaperChange] = hasMoreDiaper ? fetchDiaperChanges(before: oldestDiaperDate, limit: pageSize) : []
-
-            let (moreFeeds, moreDiapers) = await (moreFeedsTask, moreDiapersTask)
-
-            if !moreFeeds.isEmpty {
-                loadedFeedSessions.append(contentsOf: moreFeeds)
-                oldestFeedDate = moreFeeds.last?.startTime
-            }
-            if !moreDiapers.isEmpty {
-                loadedDiaperChanges.append(contentsOf: moreDiapers)
-                oldestDiaperDate = moreDiapers.last?.timestamp
-            }
-
-            hasMoreFeed = hasMoreFeed && moreFeeds.count == pageSize
-            hasMoreDiaper = hasMoreDiaper && moreDiapers.count == pageSize
-
-            isLoadingMore = false
-        }
-    }
-
-    // MARK: - Fetch helpers
-
-    @MainActor
-    private func fetchFeedSessions(before date: Date?, limit: Int) async -> [FeedSession] {
-        // If no cursor, don’t create a predicate; just sort and limit.
-        let predicate: Predicate<FeedSession>? = {
-            if let cursor = date {
-                return #Predicate { session in
-                    session.startTime < cursor
-                }
-            } else {
-                return nil
-            }
-        }()
-
-        var descriptor = FetchDescriptor<FeedSession>(
-            predicate: predicate,
-            sortBy: [SortDescriptor(\FeedSession.startTime, order: .reverse)]
-        )
-        descriptor.fetchLimit = limit
-        return (try? modelContext.fetch(descriptor)) ?? []
-    }
-
-    @MainActor
-    private func fetchDiaperChanges(before date: Date?, limit: Int) async -> [DiaperChange] {
-        // If no cursor, don’t create a predicate; just sort and limit.
-        let predicate: Predicate<DiaperChange>? = {
-            if let cursor = date {
-                return #Predicate { change in
-                    change.timestamp < cursor
-                }
-            } else {
-                return nil
-            }
-        }()
-
-        var descriptor = FetchDescriptor<DiaperChange>(
-            predicate: predicate,
-            sortBy: [SortDescriptor(\DiaperChange.timestamp, order: .reverse)]
-        )
-        descriptor.fetchLimit = limit
-        return (try? modelContext.fetch(descriptor)) ?? []
-    }
-
-    // MARK: - Filter helpers
-
-    private func loadAvailableBabies() {
-        let descriptor = FetchDescriptor<BabyProfile>(
-            sortBy: [SortDescriptor(\BabyProfile.name, order: .forward)]
-        )
-        if let babies = try? modelContext.fetch(descriptor) {
-            availableBabies = babies
-            // If the currently selected baby no longer exists, reset to All.
-            if let selected = selectedBabyID, babies.first(where: { $0.id == selected }) == nil {
-                selectedBabyID = nil
-            }
-        }
     }
 }
 

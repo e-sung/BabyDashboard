@@ -12,11 +12,24 @@ public struct HistoryEvent: Identifiable, Hashable, Equatable {
     public let details: String
     public let diaperType: DiaperType?
 
+    // New: hashtags extracted from the underlying model (feed memo), kept as strings with leading '#'
+    public let hashtags: [String]
+
     // A reference to the underlying SwiftData object for editing/deleting.
     // Optional so previews can pass nil.
     public let underlyingObjectId: PersistentIdentifier?
 
-    public init(id: UUID, date: Date, babyName: String, type: HistoryEventType, details: String, diaperType: DiaperType?, underlyingObjectId: PersistentIdentifier?) {
+    // Keep the public initializer usable for previews/tests; default hashtags to empty.
+    public init(
+        id: UUID,
+        date: Date,
+        babyName: String,
+        type: HistoryEventType,
+        details: String,
+        diaperType: DiaperType?,
+        underlyingObjectId: PersistentIdentifier?,
+        hashtags: [String] = []
+    ) {
         self.id = id
         self.date = date
         self.babyName = babyName
@@ -24,6 +37,7 @@ public struct HistoryEvent: Identifiable, Hashable, Equatable {
         self.details = details
         self.diaperType = diaperType
         self.underlyingObjectId = underlyingObjectId
+        self.hashtags = hashtags
     }
 
     public func hash(into hasher: inout Hasher) {
@@ -52,6 +66,8 @@ public extension HistoryEvent {
         }
 
         self.underlyingObjectId = session.persistentModelID
+        // Pull hashtags from the model’s memo
+        self.hashtags = session.hashtags
     }
     
     init(from diaperChange: DiaperChange) {
@@ -66,6 +82,7 @@ public extension HistoryEvent {
             self.details = String(localized: "Poo")
         }
         self.underlyingObjectId = diaperChange.persistentModelID
+        self.hashtags = [] // no hashtags for diaper events
     }
 }
 
@@ -102,3 +119,4 @@ private func unitVolume(from symbolOrName: String?) -> UnitVolume? {
         return nil
     }
 }
+

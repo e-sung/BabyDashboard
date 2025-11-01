@@ -52,6 +52,8 @@ public class FeedSession {
     public var amountUnitSymbol: String?
     public var profile: BabyProfile?
 
+    public var memoText: String?
+
     public init(startTime: Date) {
         self.startTime = startTime
     }
@@ -102,6 +104,26 @@ public class FeedSession {
     public var isInProgress: Bool {
         endTime == nil
     }
+
+    // Extract hashtags (words beginning with '#', stopping at whitespace or punctuation)
+    @Transient
+    public var hashtags: [String] {
+        guard let memoText, !memoText.isEmpty else { return [] }
+        // Regex matches # followed by letters/numbers/underscore in most scripts
+        let pattern = #"(?<!\w)#([\p{L}\p{N}_]+)"#
+        guard let regex = try? NSRegularExpression(pattern: pattern, options: []) else { return [] }
+        let ns = memoText as NSString
+        let matches = regex.matches(in: memoText, options: [], range: NSRange(location: 0, length: ns.length))
+        // Return with the leading '#'
+        var tags: [String] = matches.map {
+            let fullRange = $0.range(at: 0)
+            return ns.substring(with: fullRange)
+        }
+        // Deduplicate while preserving order
+        var seen = Set<String>()
+        tags = tags.filter { seen.insert($0.lowercased()).inserted }
+        return tags
+    }
 }
 
 public enum DiaperType: String, Codable {
@@ -121,3 +143,4 @@ public class DiaperChange {
         self.type = type
     }
 }
+

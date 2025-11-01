@@ -59,6 +59,10 @@ struct HistoryAnalysisView: View {
     // Axis labels cache (avoid formatting inside AxisValueLabel closure)
     @State private var yAxisFormatter: (Double) -> String = { value in String(format: "%.0f", value) }
 
+    // Selection for memo popover (per-feed mode)
+    @State private var selectedPointForMemo: FeedSessionPoint? = nil
+    @State private var selectedMemoText: String = ""
+
     private var targetUnit: UnitVolume {
         (Locale.current.measurementSystem == .us) ? .fluidOunces : .milliliters
     }
@@ -66,41 +70,7 @@ struct HistoryAnalysisView: View {
     var body: some View {
         VStack {
             controls
-
-            Chart {
-                switch mode {
-                case .daily:
-                    ForEach(feedPoints, id: \.id) { point in
-                        feedMark(for: point)
-                    }
-                case .perFeed:
-                    ForEach(perFeedPoints, id: \.id) { point in
-                        perFeedMark(for: point)
-                    }
-                }
-            }
-            .chartYAxis {
-                AxisMarks(position: .leading) { value in
-                    AxisGridLine()
-                    AxisTick()
-                    if let d = value.as(Double.self) {
-                        AxisValueLabel(yAxisFormatter(d))
-                    }
-                }
-            }
-            .chartLegend(position: .automatic)
-            .padding(.horizontal)
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .overlay {
-                let isEmpty = (mode == .daily) ? feedPoints.isEmpty : perFeedPoints.isEmpty
-                if isEmpty {
-                    ContentUnavailableView(
-                        "No Data",
-                        systemImage: "chart.xyaxis.line",
-                        description: Text("Adjust the range or filters.")
-                    )
-                }
-            }
+            chartView
         }
         .navigationTitle("Analysis")
         .task {
@@ -137,6 +107,119 @@ struct HistoryAnalysisView: View {
         .interpolationMethod(.catmullRom)
         .symbol(Circle())
         .symbolSize(50)
+    }
+
+    // MARK: - Chart branches
+
+    @ViewBuilder
+    private var chartView: some View {
+        switch mode {
+        case .daily:
+            dailyChart
+        case .perFeed:
+            perFeedChart
+        }
+    }
+
+    private var dailyChart: some View {
+        Chart {
+            ForEach(feedPoints, id: \.id) { point in
+                feedMark(for: point)
+            }
+        }
+        .chartYAxis {
+            AxisMarks(position: .leading) { value in
+                AxisGridLine()
+                AxisTick()
+                if let d = value.as(Double.self) {
+                    AxisValueLabel(yAxisFormatter(d))
+                }
+            }
+        }
+        .chartLegend(position: .automatic)
+        .padding(.horizontal)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .overlay {
+            if feedPoints.isEmpty {
+                ContentUnavailableView(
+                    "No Data",
+                    systemImage: "chart.xyaxis.line",
+                    description: Text("Adjust the range or filters.")
+                )
+            }
+        }
+    }
+
+    private var perFeedChart: some View {
+        Chart {
+            ForEach(perFeedPoints, id: \.id) { point in
+                perFeedMark(for: point)
+            }
+        }
+        .chartYAxis {
+            AxisMarks(position: .leading) { value in
+                AxisGridLine()
+                AxisTick()
+                if let d = value.as(Double.self) {
+                    AxisValueLabel(yAxisFormatter(d))
+                }
+            }
+        }
+        .chartLegend(position: .automatic)
+        .padding(.horizontal)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .overlay {
+            if perFeedPoints.isEmpty {
+                ContentUnavailableView(
+                    "No Data",
+                    systemImage: "chart.xyaxis.line",
+                    description: Text("Adjust the range or filters.")
+                )
+            }
+        }
+        // Tap handling only in per-feed chart
+        .chartOverlay { proxy in
+            GeometryReader { geo in
+                Rectangle()
+                    .fill(.clear)
+                    .contentShape(Rectangle())
+                    .onTapGesture { location in
+                        // Convert tap to plot area coordinates
+                        let plotFrame = proxy.plotAreaFrame
+                        let origin = geo[plotFrame].origin
+                        let pointInPlot = CGPoint(x: location.x - origin.x, y: location.y - origin.y)
+
+                        // Read the nearest x/y values at the tap with explicit axis types
+                        if let date: Date = proxy.value(atX: pointInPlot.x, as: Date.self) {
+                            let yDouble: Double? = proxy.value(atY: pointInPlot.y, as: Double.self)
+                            if let nearest = nearestPoint(to: date, y: yDouble) {
+                                Task { await presentMemo(for: nearest) }
+                            }
+                        }
+                    }
+            }
+        }
+        // Popover for memo (appears when a per-feed point is selected)
+        .popover(item: $selectedPointForMemo) { point in
+            VStack(alignment: .leading, spacing: 8) {
+                Text(point.babyName)
+                    .font(.headline)
+                Text(point.timestamp.formatted(date: .abbreviated, time: .shortened))
+                    .foregroundColor(.secondary)
+                    .font(.subheadline)
+                Divider()
+                if selectedMemoText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    Text(String(localized: "No memo"))
+                        .foregroundColor(.secondary)
+                } else {
+                    Text(selectedMemoText)
+                        .font(.body)
+                        .textSelection(.enabled)
+                }
+            }
+            .padding()
+            .frame(minWidth: 240)
+        }
     }
 
     // MARK: - Controls
@@ -245,5 +328,38 @@ struct HistoryAnalysisView: View {
             }
         }
     }
-}
 
+    // MARK: - Tap -> nearest point -> memo
+
+    private func nearestPoint(to date: Date, y: Double?) -> FeedSessionPoint? {
+        guard !perFeedPoints.isEmpty else { return nil }
+        var best: (FeedSessionPoint, Double)? = nil
+        for p in perFeedPoints {
+            let dx = abs(p.timestamp.timeIntervalSince(date))
+            let dy = y.map { abs(p.feedValue - $0) } ?? 0
+            // Simple combined distance; dx is in seconds, dy is in unit values.
+            // We can scale dx to minutes to keep magnitudes comparable.
+            let score = (dx / 60.0) + dy
+            if best == nil || score < best!.1 {
+                best = (p, score)
+            }
+        }
+        return best?.0
+    }
+
+    @MainActor
+    private func presentMemo(for point: FeedSessionPoint) async {
+        // Capture values as plain constants and match optionality to the model
+        let ts: Date = point.timestamp
+        let babyIDOpt: UUID? = point.babyID
+
+        let predicate: Predicate<FeedSession> = #Predicate { s in
+            s.startTime == ts && s.profile?.id == babyIDOpt
+        }
+        let descriptor = FetchDescriptor<FeedSession>(predicate: predicate, sortBy: [])
+        let session = try? modelContext.fetch(descriptor).first
+
+        selectedMemoText = session?.memoText ?? ""
+        selectedPointForMemo = point
+    }
+}

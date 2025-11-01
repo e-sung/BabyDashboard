@@ -4,27 +4,65 @@ import Model
 
 struct HistoryEditView: View {
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.modelContext) private var modelContext
+    @EnvironmentObject var settings: AppSettings
+
     let model: any PersistentModel
     
     // State for the amount text field
     @State private var amountString: String = ""
 
+    // Memo editing
+    @State private var memoText: String = ""
+    @State private var pendingInsertion: String? = nil
+
+    // Keyboard handling
+    private let memoSectionID = "MemoSection"
+
+    // Styling for hashtags in the memo editor
+    private var hashtagAttributes: [NSAttributedString.Key: Any] {
+        [
+            .foregroundColor: UIColor.systemBlue,
+            .font: UIFont.preferredFont(forTextStyle: .body).bold()
+        ]
+    }
+
     var body: some View {
         NavigationView {
-            Form {
-                if let session = model as? FeedSession {
-                    feedEditor(for: session)
-                } else if let diaper = model as? DiaperChange {
-                    diaperEditor(for: diaper)
+            ScrollViewReader { proxy in
+                Form {
+                    if let session = model as? FeedSession {
+                        feedEditor(for: session)
+                        memoEditor(for: session)
+                            .id(memoSectionID)
+                    } else if let diaper = model as? DiaperChange {
+                        diaperEditor(for: diaper)
+                    }
+                }
+                .navigationTitle("Edit Event")
+                .toolbar {
+                    ToolbarItem(placement: .confirmationAction) {
+                        Button("Done") {
+                            saveAndDismiss()
+                        }
+                        .keyboardShortcut(.defaultAction)
+                    }
+                    // Note: The hashtag bar is now provided by the UITextView's inputAccessoryView,
+                    // not by SwiftUI's keyboard toolbar.
+                }
+                .onAppear(perform: setupInitialState)
+                // When the keyboard appears or changes frame, scroll the memo section into view
+                .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillShowNotification)) { _ in
+                    withAnimation {
+                        proxy.scrollTo(memoSectionID, anchor: .bottom)
+                    }
+                }
+                .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillChangeFrameNotification)) { _ in
+                    withAnimation {
+                        proxy.scrollTo(memoSectionID, anchor: .bottom)
+                    }
                 }
             }
-            .navigationTitle("Edit Event")
-            .toolbar {
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Done") { dismiss() }
-                }
-            }
-            .onAppear(perform: setupInitialState)
         }
     }
 
@@ -61,6 +99,24 @@ struct HistoryEditView: View {
     }
 
     @ViewBuilder
+    private func memoEditor(for session: FeedSession) -> some View {
+        Section("Memo") {
+            HashtagTextView(
+                text: $memoText,
+                pendingInsertion: $pendingInsertion,
+                hashtagAttributes: hashtagAttributes,
+                recentHashtags: settings.recentHashtags
+            )
+            .frame(minHeight: 120)
+            .accessibilityLabel(Text("Memo"))
+            .onChange(of: memoText) { _, newText in
+                // Keep session memo live-updated
+                session.memoText = newText
+            }
+        }
+    }
+
+    @ViewBuilder
     private func diaperEditor(for diaper: DiaperChange) -> some View {
         Section("Time") {
             DatePicker("Time", selection: .init(get: { diaper.timestamp }, set: { diaper.timestamp = $0 }))
@@ -80,7 +136,20 @@ struct HistoryEditView: View {
                 // Preserve a single decimal like before
                 amountString = String(format: "%.1f", value)
             }
+            memoText = session.memoText ?? ""
         }
+    }
+
+    private func saveAndDismiss() {
+        if let session = model as? FeedSession {
+            // Persist memo text
+            session.memoText = memoText
+            // Update MRU hashtags
+            settings.addRecentHashtags(from: memoText)
+        }
+        try? modelContext.save()
+        NearbySyncManager.shared.sendPing()
+        dismiss()
     }
 }
 
@@ -102,3 +171,10 @@ private func unitVolume(from symbolOrName: String) -> UnitVolume? {
     }
 }
 
+// UIKit font helper
+private extension UIFont {
+    func bold() -> UIFont {
+        guard let descriptor = fontDescriptor.withSymbolicTraits(.traitBold) else { return self }
+        return UIFont(descriptor: descriptor, size: pointSize)
+    }
+}
