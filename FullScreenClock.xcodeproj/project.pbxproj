@@ -10,6 +10,10 @@
 		08E6BBC12EAFF5D100DD237C /* Model.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 08E6BBB82EAFF5D100DD237C /* Model.framework */; };
 		08E6BBCB2EAFF5D100DD237C /* Model.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 08E6BBB82EAFF5D100DD237C /* Model.framework */; };
 		08E6BBCC2EAFF5D100DD237C /* Model.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 08E6BBB82EAFF5D100DD237C /* Model.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		08F230C32EB7B817007CB56A /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 08E6BC152EB00D6500DD237C /* WidgetKit.framework */; };
+		08F230C42EB7B817007CB56A /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 08E6BC172EB00D6500DD237C /* SwiftUI.framework */; };
+		08F230D12EB7B818007CB56A /* DashboardWidgetExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 08F230C22EB7B817007CB56A /* DashboardWidgetExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		08F230D62EB7B831007CB56A /* Model.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 08E6BBB82EAFF5D100DD237C /* Model.framework */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -62,6 +66,20 @@
 			remoteGlobalIDString = 08E6BBB72EAFF5D100DD237C;
 			remoteInfo = Model;
 		};
+		08F230CF2EB7B818007CB56A /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 0814D4662E8D4E7E0073412C /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 08F230C12EB7B817007CB56A;
+			remoteInfo = DashboardWidgetExtension;
+		};
+		08F230D82EB7B831007CB56A /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 0814D4662E8D4E7E0073412C /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 08E6BBB72EAFF5D100DD237C;
+			remoteInfo = Model;
+		};
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -71,6 +89,7 @@
 			dstPath = "";
 			dstSubfolderSpec = 13;
 			files = (
+				08F230D12EB7B818007CB56A /* DashboardWidgetExtension.appex in Embed Foundation Extensions */,
 			);
 			name = "Embed Foundation Extensions";
 			runOnlyForDeploymentPostprocessing = 0;
@@ -106,6 +125,8 @@
 		08E6BBC02EAFF5D100DD237C /* ModelTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = ModelTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		08E6BC152EB00D6500DD237C /* WidgetKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WidgetKit.framework; path = System/Library/Frameworks/WidgetKit.framework; sourceTree = SDKROOT; };
 		08E6BC172EB00D6500DD237C /* SwiftUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SwiftUI.framework; path = System/Library/Frameworks/SwiftUI.framework; sourceTree = SDKROOT; };
+		08F230C22EB7B817007CB56A /* DashboardWidgetExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = DashboardWidgetExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		08F230DB2EB7B85C007CB56A /* DashboardWidgetExtension.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = DashboardWidgetExtension.entitlements; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -115,6 +136,34 @@
 				Info.plist,
 			);
 			target = 0814D46D2E8D4E7E0073412C /* FullScreenClock */;
+		};
+		08F230D52EB7B818007CB56A /* Exceptions for "DashboardWidget" folder in "DashboardWidgetExtension" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 08F230C12EB7B817007CB56A /* DashboardWidgetExtension */;
+		};
+		08F230EB2EB7CB5B007CB56A /* Exceptions for "Model" folder in "FullScreenClock" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				AppEntity.swift,
+			);
+			target = 0814D46D2E8D4E7E0073412C /* FullScreenClock */;
+		};
+		08F230EC2EB7CB5B007CB56A /* Exceptions for "Model" folder in "DashboardWidgetExtension" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				AppEntity.swift,
+			);
+			target = 08F230C12EB7B817007CB56A /* DashboardWidgetExtension */;
+		};
+		08F230ED2EB7CB84007CB56A /* Exceptions for "Model" folder in "Model" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				AppEntity.swift,
+			);
+			target = 08E6BBB72EAFF5D100DD237C /* Model */;
 		};
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
@@ -139,12 +188,25 @@
 		};
 		08E6BBB92EAFF5D100DD237C /* Model */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				08F230EB2EB7CB5B007CB56A /* Exceptions for "Model" folder in "FullScreenClock" target */,
+				08F230ED2EB7CB84007CB56A /* Exceptions for "Model" folder in "Model" target */,
+				08F230EC2EB7CB5B007CB56A /* Exceptions for "Model" folder in "DashboardWidgetExtension" target */,
+			);
 			path = Model;
 			sourceTree = "<group>";
 		};
 		08E6BBC62EAFF5D100DD237C /* ModelTests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = ModelTests;
+			sourceTree = "<group>";
+		};
+		08F230C52EB7B817007CB56A /* DashboardWidget */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				08F230D52EB7B818007CB56A /* Exceptions for "DashboardWidget" folder in "DashboardWidgetExtension" target */,
+			);
+			path = DashboardWidget;
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -187,17 +249,29 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		08F230BF2EB7B817007CB56A /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				08F230C42EB7B817007CB56A /* SwiftUI.framework in Frameworks */,
+				08F230D62EB7B831007CB56A /* Model.framework in Frameworks */,
+				08F230C32EB7B817007CB56A /* WidgetKit.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
 		0814D4652E8D4E7E0073412C = {
 			isa = PBXGroup;
 			children = (
+				08F230DB2EB7B85C007CB56A /* DashboardWidgetExtension.entitlements */,
 				0814D4702E8D4E7E0073412C /* FullScreenClock */,
 				0814D47F2E8D4E7F0073412C /* FullScreenClockTests */,
 				0814D4892E8D4E7F0073412C /* FullScreenClockUITests */,
 				08E6BBB92EAFF5D100DD237C /* Model */,
 				08E6BBC62EAFF5D100DD237C /* ModelTests */,
+				08F230C52EB7B817007CB56A /* DashboardWidget */,
 				08E6BC142EB00D6500DD237C /* Frameworks */,
 				0814D46F2E8D4E7E0073412C /* Products */,
 			);
@@ -211,6 +285,7 @@
 				0814D4862E8D4E7F0073412C /* FullScreenClockUITests.xctest */,
 				08E6BBB82EAFF5D100DD237C /* Model.framework */,
 				08E6BBC02EAFF5D100DD237C /* ModelTests.xctest */,
+				08F230C22EB7B817007CB56A /* DashboardWidgetExtension.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -254,6 +329,7 @@
 				08E6BBCA2EAFF5D100DD237C /* PBXTargetDependency */,
 				081CCAF42EB505590095A859 /* PBXTargetDependency */,
 				081CCAF62EB505750095A859 /* PBXTargetDependency */,
+				08F230D02EB7B818007CB56A /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				0814D4702E8D4E7E0073412C /* FullScreenClock */,
@@ -358,6 +434,29 @@
 			productReference = 08E6BBC02EAFF5D100DD237C /* ModelTests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
 		};
+		08F230C12EB7B817007CB56A /* DashboardWidgetExtension */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 08F230D22EB7B818007CB56A /* Build configuration list for PBXNativeTarget "DashboardWidgetExtension" */;
+			buildPhases = (
+				08F230BE2EB7B817007CB56A /* Sources */,
+				08F230BF2EB7B817007CB56A /* Frameworks */,
+				08F230C02EB7B817007CB56A /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				08F230D92EB7B831007CB56A /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				08F230C52EB7B817007CB56A /* DashboardWidget */,
+			);
+			name = DashboardWidgetExtension;
+			packageProductDependencies = (
+			);
+			productName = DashboardWidgetExtension;
+			productReference = 08F230C22EB7B817007CB56A /* DashboardWidgetExtension.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -386,6 +485,9 @@
 						CreatedOnToolsVersion = 26.0.1;
 						TestTargetID = 0814D46D2E8D4E7E0073412C;
 					};
+					08F230C12EB7B817007CB56A = {
+						CreatedOnToolsVersion = 26.0.1;
+					};
 				};
 			};
 			buildConfigurationList = 0814D4692E8D4E7E0073412C /* Build configuration list for PBXProject "FullScreenClock" */;
@@ -410,6 +512,7 @@
 				0814D4852E8D4E7F0073412C /* FullScreenClockUITests */,
 				08E6BBB72EAFF5D100DD237C /* Model */,
 				08E6BBBF2EAFF5D100DD237C /* ModelTests */,
+				08F230C12EB7B817007CB56A /* DashboardWidgetExtension */,
 			);
 		};
 /* End PBXProject section */
@@ -444,6 +547,13 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		08E6BBBE2EAFF5D100DD237C /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		08F230C02EB7B817007CB56A /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -488,6 +598,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		08F230BE2EB7B817007CB56A /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
@@ -523,6 +640,16 @@
 			isa = PBXTargetDependency;
 			target = 08E6BBB72EAFF5D100DD237C /* Model */;
 			targetProxy = 08E6BBC92EAFF5D100DD237C /* PBXContainerItemProxy */;
+		};
+		08F230D02EB7B818007CB56A /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 08F230C12EB7B817007CB56A /* DashboardWidgetExtension */;
+			targetProxy = 08F230CF2EB7B818007CB56A /* PBXContainerItemProxy */;
+		};
+		08F230D92EB7B831007CB56A /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 08E6BBB72EAFF5D100DD237C /* Model */;
+			targetProxy = 08F230D82EB7B831007CB56A /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -987,6 +1114,94 @@
 			};
 			name = Release;
 		};
+		08F230D32EB7B818007CB56A /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
+				CODE_SIGN_ENTITLEMENTS = DashboardWidgetExtension.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 7KT5X239S9;
+				ENABLE_APP_SANDBOX = YES;
+				ENABLE_HARDENED_RUNTIME = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = DashboardWidget/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = DashboardWidget;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 18.5;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@executable_path/../../../../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 26.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.sungdoo.babyDashboard2.DashboardWidget;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				REGISTER_APP_GROUPS = YES;
+				SDKROOT = auto;
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx xros xrsimulator";
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2,7";
+				XROS_DEPLOYMENT_TARGET = 26.0;
+			};
+			name = Debug;
+		};
+		08F230D42EB7B818007CB56A /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
+				CODE_SIGN_ENTITLEMENTS = DashboardWidgetExtension.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 7KT5X239S9;
+				ENABLE_APP_SANDBOX = YES;
+				ENABLE_HARDENED_RUNTIME = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = DashboardWidget/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = DashboardWidget;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 18.5;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@executable_path/../../../../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 26.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.sungdoo.babyDashboard2.DashboardWidget;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				REGISTER_APP_GROUPS = YES;
+				SDKROOT = auto;
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx xros xrsimulator";
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2,7";
+				XROS_DEPLOYMENT_TARGET = 26.0;
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -1040,6 +1255,15 @@
 			buildConfigurations = (
 				08E6BBD22EAFF5D100DD237C /* Debug */,
 				08E6BBD32EAFF5D100DD237C /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		08F230D22EB7B818007CB56A /* Build configuration list for PBXNativeTarget "DashboardWidgetExtension" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				08F230D32EB7B818007CB56A /* Debug */,
+				08F230D42EB7B818007CB56A /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

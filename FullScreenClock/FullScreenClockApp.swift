@@ -8,9 +8,12 @@
 import SwiftUI
 import SwiftData
 import Model
+import CoreData // for NSPersistentStoreRemoteChange
 
 @main
 struct FullScreenClockApp: App {
+    @UIApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
+
     @StateObject private var settings = AppSettings()
     @Environment(\.scenePhase) private var scenePhase
 
@@ -24,16 +27,31 @@ struct FullScreenClockApp: App {
             .task {
                 // Start nearby sync on launch
                 NearbySyncManager.shared.start()
+
+                // Build initial widget snapshots at launch
+                let context = SharedModelContainer.container.mainContext
+                refreshBabyWidgetSnapshots(using: context)
+
+                // Observe remote-change imports from CloudKit mirroring
+                NotificationCenter.default.addObserver(
+                    forName: .NSPersistentStoreRemoteChange,
+                    object: nil,
+                    queue: .main
+                ) { _ in
+                    // When SwiftData/Core Data imports from CloudKit, refresh widget cache
+                    refreshBabyWidgetSnapshots(using: context)
+                }
             }
         }
         .modelContainer(SharedModelContainer.container)
         .onChange(of: scenePhase) { _, newPhase in
             if newPhase == .active {
-                // When app becomes active, keep the model layer warm
                 let context = SharedModelContainer.container.mainContext
                 try? context.save()
-                // Optionally ping peers to wake them
                 NearbySyncManager.shared.sendPing()
+
+                // Refresh widget snapshots on foreground
+                refreshBabyWidgetSnapshots(using: context)
             }
         }
     }

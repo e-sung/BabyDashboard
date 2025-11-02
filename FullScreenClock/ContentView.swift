@@ -125,8 +125,8 @@ class ContentViewModel: ObservableObject {
     private func saveAndPing() {
         try? modelContext.save()
         NearbySyncManager.shared.sendPing()
-        // Optional: refresh any iOS widgets you may add later.
-        WidgetCenter.shared.reloadAllTimelines()
+        // Update widget cache and reload timelines (using shared helper)
+        refreshBabyWidgetSnapshots(using: modelContext)
     }
 }
 
@@ -555,4 +555,3 @@ private struct AddBabyForm: View {
     return ContentView(viewModel: vm)
         .modelContainer(container)
 }
-
