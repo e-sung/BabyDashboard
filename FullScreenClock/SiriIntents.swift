@@ -2,6 +2,7 @@ import AppIntents
 import Foundation
 import SwiftData
 import Model
+import Playgrounds
 
 // MARK: - App Entity & Query
 
@@ -151,7 +152,7 @@ struct FinishFeedingIntent: AppIntent {
         let measurement = Measurement(value: amount, unit: unit)
         ContentViewModel.shared.finishFeeding(for: targetProfile, amount: measurement)
 
-        let dialog: LocalizedStringResource = "Fed \(targetProfile.name) \(amount)."
+        let dialog: LocalizedStringResource = "Fed \(targetProfile.name) \(amount.formatted())."
         return .result(
             value: "\(targetProfile.name), \(amount), \(unit.symbol)",
             dialog: IntentDialog(dialog)
