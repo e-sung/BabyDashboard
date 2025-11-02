@@ -62,12 +62,14 @@ struct StartFeedingIntent: AppIntent {
     var baby: BabyProfileEntity
 
     @MainActor
-    func perform() async throws -> some IntentResult & ReturnsValue<String> {
+    func perform() async throws -> some IntentResult & ReturnsValue<String> & ProvidesDialog {
         guard let profile = await fetchProfile(for: baby.id) else {
-            return .result(value: String(localized: "Could not find baby."))
+            let dialog: LocalizedStringResource = "Could not find baby."
+            return .result(value: String(localized: dialog), dialog: IntentDialog(dialog))
         }
         ContentViewModel.shared.startFeeding(for: profile)
-        return .result(value: String(localized: "Started feeding \(baby.name)."))
+        let dialog: LocalizedStringResource = "Started feeding \(baby.name)."
+        return .result(value: String(localized: dialog), dialog: IntentDialog(dialog))
     }
 }
 
@@ -83,16 +85,25 @@ struct UpdateDiaperTimeIntent: AppIntent {
     var type: DiaperTypeAppEnum
 
     @MainActor
-    func perform() async throws -> some IntentResult & ReturnsValue<String> {
+    func perform() async throws -> some IntentResult & ReturnsValue<String> & ProvidesDialog {
         guard let profile = await fetchProfile(for: baby.id) else {
-            return .result(value: String(localized: "Could not find baby."))
+            let dialog: LocalizedStringResource = "Could not find baby."
+            return .result(value: String(localized: dialog), dialog: IntentDialog(dialog))
         }
         
         let diaperType = DiaperType(rawValue: type.rawValue) ?? .pee
         ContentViewModel.shared.logDiaperChange(for: profile, type: diaperType)
         
-        let timeString = Date().formatted(date: .omitted, time: .shortened)
-        return .result(value: String(localized: "Logged \(type.rawValue) diaper for \(baby.name) at \(timeString)."))
+        // Localized diaper type name for interpolation
+        let localizedTypeName: LocalizedStringResource = {
+            switch type {
+            case .pee: return "Pee"
+            case .poo: return "Poo"
+            }
+        }()
+        
+        let dialog: LocalizedStringResource = "Logged \(localizedTypeName) diaper for \(baby.name)"
+        return .result(value: String(localized: dialog), dialog: IntentDialog(dialog))
     }
 }
 
@@ -108,18 +119,20 @@ struct FinishFeedingIntent: AppIntent {
     var amount: Double
 
     @MainActor
-    func perform() async throws -> some IntentResult & ReturnsValue<String> {
+    func perform() async throws -> some IntentResult & ReturnsValue<String> & ProvidesDialog {
         let targetProfile: BabyProfile
 
         if let specifiedBaby = self.baby {
             guard let profile = await fetchProfile(for: specifiedBaby.id) else {
-                return .result(value: String(localized: "Could not find baby."))
+                let dialog: LocalizedStringResource = "Could not find baby."
+                return .result(value: String(localized: dialog), dialog: IntentDialog(dialog))
             }
             targetProfile = profile
         } else {
             let babiesWithInProgressSessions = await findBabiesWithInProgressSessions()
             if babiesWithInProgressSessions.isEmpty {
-                return .result(value: String(localized: "No one is currently feeding."))
+                let dialog: LocalizedStringResource = "No one is currently feeding."
+                return .result(value: String(localized: dialog), dialog: IntentDialog(dialog))
             } else if babiesWithInProgressSessions.count == 1 {
                 targetProfile = babiesWithInProgressSessions.first!
             } else {
@@ -130,14 +143,19 @@ struct FinishFeedingIntent: AppIntent {
         }
         
         guard targetProfile.inProgressFeedSession != nil else {
-            return .result(value: String(localized: "No feeding session in progress for \(targetProfile.name)."))
+            let dialog: LocalizedStringResource = "No feeding session in progress for \(targetProfile.name)."
+            return .result(value: String(localized: dialog), dialog: IntentDialog(dialog))
         }
 
         let unit: UnitVolume = (Locale.current.measurementSystem == .us) ? .fluidOunces : .milliliters
         let measurement = Measurement(value: amount, unit: unit)
         ContentViewModel.shared.finishFeeding(for: targetProfile, amount: measurement)
 
-        return .result(value: "\(targetProfile.name), \(amount), \(unit.symbol)")
+        let dialog: LocalizedStringResource = "Fed \(targetProfile.name) \(amount)."
+        return .result(
+            value: "\(targetProfile.name), \(amount), \(unit.symbol)",
+            dialog: IntentDialog(dialog)
+        )
     }
 }
 
