@@ -1,60 +1,91 @@
 import SwiftUI
 import Model
 
-struct BabyProgressView: View {
+@MainActor
+class BabyProgressViewModel: ObservableObject {
+
     let baby: BabyProfile
     let timeScope: TimeInterval
-    var feedingColor: Color = .blue
+
+    @Published var totalProgress: Double = 0
+    @Published var feedingProgress: Double = 0
+
+    private var totalTimer: Timer?
+    private var blueTimer: Timer?
 
     private var lastStart: Date? {
         baby.lastFeedSession?.startTime
     }
 
-    // Total progress since last session start (drives the base VerticalProgressView)
-    private var totalProgress: Double {
-        guard let start = lastStart else { return 0 }
-        let elapsed = Date().timeIntervalSince(start)
-        return elapsed / timeScope
+    init (baby: BabyProfile, timeScope: TimeInterval) {
+        self.baby = baby
+        self.timeScope = timeScope
+
+        totalTimer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in
+            guard let self = self else { return }
+            DispatchQueue.main.async {
+                guard let start = self.lastStart else { return }
+                let elapsed = Date().timeIntervalSince(start)
+                self.totalProgress = elapsed / timeScope
+            }
+
+        }
+
+        blueTimer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in
+            guard let self = self else { return }
+            DispatchQueue.main.async {
+                if self.baby.inProgressFeedSession != nil {
+                    self.feedingProgress = self.totalProgress
+                } else if let finished = self.baby.lastFinishedFeedSession, let end = finished.endTime {
+                    let duration = max(0, end.timeIntervalSince(finished.startTime))
+                    self.feedingProgress = duration / timeScope
+                }
+            }
+        }
     }
 
-    // Blue segment height ratio: duration of the latest feed session.
-    // - If feeding now: grows live (now - start).
-    // - If last session finished: fixed at (end - start).
-    // - If no session: 0.
-    private var blueProgress: Double {
-        if let inProgress = baby.inProgressFeedSession {
-            let elapsed = Date().timeIntervalSince(inProgress.startTime)
-            return max(0, elapsed / timeScope)
-        }
-        if let finished = baby.lastFinishedFeedSession, let end = finished.endTime {
-            let duration = max(0, end.timeIntervalSince(finished.startTime))
-            return duration / timeScope
-        }
-        return 0
+    deinit {
+        totalTimer?.invalidate()
+        blueTimer?.invalidate()
+    }
+}
+
+struct BabyProgressView: View {
+    let baby: BabyProfile
+    let timeScope: TimeInterval
+    var feedingColor: Color = .blue
+    @StateObject var viewModel: BabyProgressViewModel
+
+    init(baby: BabyProfile, timeScope: TimeInterval, feedingColor: Color) {
+        self.baby = baby
+        self.timeScope = timeScope
+        self.feedingColor = feedingColor
+        _viewModel = .init(wrappedValue: .init(baby: baby, timeScope: timeScope))
     }
 
     var body: some View {
         ZStack(alignment: .bottom) {
-            // Base: existing behavior (green fill; red on overdue; indicators)
-            VerticalProgressView(progress: totalProgress, timeScope: timeScope)
-
-            // Blue overlay: show only when not overdue and there is something to show
-            if totalProgress <= 1.0, blueProgress > 0 {
+            VerticalProgressView(
+                progress: viewModel.totalProgress,
+                timeScope: timeScope
+            )
+            // 수유 기간을 표시하는 프로그레스 바
+            if viewModel.totalProgress <= 1 {
                 VerticalProgressView(
-                    progress: blueProgress,
+                    progress: viewModel.feedingProgress,
                     timeScope: timeScope,
                     progressColor: feedingColor,
-                    drawTrackAndBackground: false
+                    drawTrackAndBackground: true
                 )
-                .allowsHitTesting(false)
             }
+
         }
     }
 }
 
 #Preview("BabyProgressView Scenarios") {
     // timeScope: 3 hours
-    let scope: TimeInterval = 3 * 3600
+    let scope: TimeInterval = 60
     let now = Date()
 
     // Scenario 1: Feeding just started (in-progress)

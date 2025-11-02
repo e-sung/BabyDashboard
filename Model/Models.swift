@@ -8,6 +8,9 @@ public class BabyProfile {
     public var lastFeedAmountValue: Double?
     public var lastFeedAmountUnitSymbol: String?
 
+    // New: per-baby configurable feeding interval (seconds). Default: 3 hours.
+    public var feedTerm: TimeInterval = 3 * 3600
+
     // Keep history: when a BabyProfile is deleted, nullify its relationships so events remain as orphans.
     @Relationship(deleteRule: .nullify, inverse: \FeedSession.profile)
     public var feedSessions: [FeedSession]? = []

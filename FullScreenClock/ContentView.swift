@@ -236,7 +236,7 @@ private extension ContentView {
         HStack(spacing: 0) {
             // Draw progress bars only for existing babies
             ForEach(babies) { baby in
-                BabyProgressView(baby: baby, timeScope: 3 * 3600, feedingColor: .blue)
+                BabyProgressView(baby: baby, timeScope: baby.feedTerm, feedingColor: .blue)
                     .frame(width: 20)
                     .padding(.leading, baby.id == babies.first?.id ? 10 : 0)
                     // On iPhone, let the trailing bar extend to/under the safe area by removing extra padding
@@ -555,3 +555,4 @@ private struct AddBabyForm: View {
     return ContentView(viewModel: vm)
         .modelContainer(container)
 }
+

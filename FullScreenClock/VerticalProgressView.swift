@@ -16,7 +16,7 @@ struct VerticalProgressView: View {
             ZStack(alignment: .bottom) {
                 // Determine colors and progress based on overflow
                 let isOverdue = progress > 1.0
-                let trackColor = isOverdue ? Color.green.opacity(0.5) : Color.gray.opacity(0.3)
+                let trackColor = isOverdue ? Color.green : Color.gray.opacity(0.3)
                 let fillColor = isOverdue ? Color.red : progressColor
                 let displayProgress = isOverdue ? progress - 1.0 : progress
 

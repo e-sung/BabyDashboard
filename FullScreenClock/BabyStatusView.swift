@@ -71,8 +71,7 @@ struct BabyStatusView: View {
         return 50
     }
 
-    // Static thresholds for warnings (in seconds). Later, read from user settings.
-    private let feedWarningThreshold: TimeInterval = 3 * 60 * 60
+    // Static threshold for diaper warning (in seconds). Feed warning uses per-baby feedTerm.
     private let diaperWarningThreshold: TimeInterval = 1 * 60 * 60
 
     // MARK: - Body
@@ -85,7 +84,7 @@ struct BabyStatusView: View {
                 now: now,
                 startOfLastFeed: baby.lastFinishedFeedSession?.startTime,
                 inProgress: baby.inProgressFeedSession != nil,
-                threshold: feedWarningThreshold
+                threshold: baby.feedTerm
             )
 
             let shouldWarnDiaper = WarningLogic.shouldWarnDiaper(
@@ -454,3 +453,4 @@ struct BabyStatusView: View {
     return Wrapper(baby: baby)
         .modelContainer(container)
 }
+

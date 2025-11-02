@@ -12,12 +12,39 @@ struct ProfileEditView: View {
     @State private var name: String = ""
     @State private var showingDeleteConfirm = false
 
+    // New: editable feeding interval in minutes (backed by profile.feedTerm seconds)
+    @State private var feedTermMinutes: Int = 180
+
+    // Reusable localized formatter for hours/minutes
+    private static let intervalFormatter: DateComponentsFormatter = {
+        let f = DateComponentsFormatter()
+        f.allowedUnits = [.hour, .minute]
+        f.unitsStyle = .short
+        f.zeroFormattingBehavior = [.dropAll]
+        return f
+    }()
+
     var body: some View {
         NavigationView {
             Form {
                 Section(String(localized: "Profile")) {
                     TextField(String(localized: "Baby's Name"), text: $name)
                         .textInputAutocapitalization(.words)
+                }
+
+                Section(String(localized: "Feeding Interval")) {
+                    Stepper(
+                        value: $feedTermMinutes,
+                        in: 30...480,
+                        step: 15
+                    ) {
+                        Text(formattedInterval(minutes: feedTermMinutes))
+                    }
+                    .accessibilityLabel(Text("Feeding Interval"))
+                    .accessibilityValue(Text(formattedInterval(minutes: feedTermMinutes)))
+                    Text("Choose how long between feeds to use for progress and warnings.")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
                 }
 
                 Section {
@@ -32,6 +59,7 @@ struct ProfileEditView: View {
             .navigationBarTitleDisplayMode(.inline)
             .onAppear {
                 name = profile.name
+                feedTermMinutes = max(1, Int(profile.feedTerm / 60)) // default to current value; guard minimum
             }
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
@@ -56,9 +84,28 @@ struct ProfileEditView: View {
         }
     }
 
+    private func formattedInterval(minutes: Int) -> String {
+        let seconds = TimeInterval(minutes * 60)
+        if let s = Self.intervalFormatter.string(from: seconds) {
+            return s
+        }
+        // Fallback (rare)
+        let hours = minutes / 60
+        let mins = minutes % 60
+        if mins == 0 {
+            return String(localized: "\(hours) hr")
+        } else {
+            return String(localized: "\(hours) hr \(mins) min")
+        }
+    }
+
     private func save() {
         let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return }
+
+        // Update feed term first so the save in updateProfileName persists both changes.
+        profile.feedTerm = TimeInterval(feedTermMinutes * 60)
+
         viewModel.updateProfileName(for: profile, to: trimmed)
         // updateProfileName already saves and pings
         dismiss()
