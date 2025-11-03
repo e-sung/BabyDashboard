@@ -21,8 +21,9 @@ public func refreshBabyWidgetSnapshots(using modelContext: ModelContext) {
         }()
 
         // feedingProgress: in-progress mirrors totalProgress; else last finished duration / scope
+        let inProgress = (baby.inProgressFeedSession != nil)
         let feedingProgress: Double = {
-            if baby.inProgressFeedSession != nil { return totalProgress }
+            if inProgress { return totalProgress }
             if let finished = baby.lastFinishedFeedSession, let end = finished.endTime {
                 let duration = max(0, end.timeIntervalSince(finished.startTime))
                 return duration / timeScope
@@ -35,7 +36,9 @@ public func refreshBabyWidgetSnapshots(using modelContext: ModelContext) {
             name: baby.name,
             totalProgress: totalProgress,
             feedingProgress: feedingProgress,
-            updatedAt: now
+            updatedAt: now,
+            feedTerm: timeScope,
+            isFeeding: inProgress
         )
         WidgetCache.writeSnapshot(snapshot)
     }

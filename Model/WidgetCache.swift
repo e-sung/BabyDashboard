@@ -9,12 +9,54 @@ public struct WidgetBabySnapshot: Codable, Sendable {
     public let feedingProgress: Double
     public let updatedAt: Date
 
-    public init(id: UUID, name: String, totalProgress: Double, feedingProgress: Double, updatedAt: Date) {
+    // New: fields to allow static projection in the widget
+    public let feedTerm: TimeInterval
+    public let isFeeding: Bool
+
+    public init(
+        id: UUID,
+        name: String,
+        totalProgress: Double,
+        feedingProgress: Double,
+        updatedAt: Date,
+        feedTerm: TimeInterval = 3 * 3600,
+        isFeeding: Bool = false
+    ) {
         self.id = id
         self.name = name
         self.totalProgress = totalProgress
         self.feedingProgress = feedingProgress
         self.updatedAt = updatedAt
+        self.feedTerm = max(1, feedTerm) // guard divide-by-zero
+        self.isFeeding = isFeeding
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case id, name, totalProgress, feedingProgress, updatedAt, feedTerm, isFeeding
+    }
+
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        self.id = try c.decode(UUID.self, forKey: .id)
+        self.name = try c.decode(String.self, forKey: .name)
+        self.totalProgress = try c.decode(Double.self, forKey: .totalProgress)
+        self.feedingProgress = try c.decode(Double.self, forKey: .feedingProgress)
+        self.updatedAt = try c.decode(Date.self, forKey: .updatedAt)
+        // Backward compatibility: default to 3h and false if older cache file
+        let decodedFeedTerm = try c.decodeIfPresent(TimeInterval.self, forKey: .feedTerm) ?? (3 * 3600)
+        self.feedTerm = max(1, decodedFeedTerm)
+        self.isFeeding = try c.decodeIfPresent(Bool.self, forKey: .isFeeding) ?? false
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: CodingKeys.self)
+        try c.encode(id, forKey: .id)
+        try c.encode(name, forKey: .name)
+        try c.encode(totalProgress, forKey: .totalProgress)
+        try c.encode(feedingProgress, forKey: .feedingProgress)
+        try c.encode(updatedAt, forKey: .updatedAt)
+        try c.encode(feedTerm, forKey: .feedTerm)
+        try c.encode(isFeeding, forKey: .isFeeding)
     }
 }
 
@@ -60,3 +102,4 @@ public enum WidgetCache {
         return try? JSONDecoder().decode(WidgetBabySnapshot.self, from: data)
     }
 }
+
