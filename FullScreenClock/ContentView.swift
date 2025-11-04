@@ -181,7 +181,11 @@ struct ContentView: View {
             }
             .sheet(item: $editingProfile) { ProfileEditView(viewModel: viewModel, profile: $0) }
             .sheet(item: $editingDiaperTimeFor, content: diaperEditSheet)
-            .sheet(item: $finishingFeedFor, onDismiss: { feedAmountString = "" }, content: finishFeedSheet)
+            .sheet(item: $finishingFeedFor, onDismiss: { feedAmountString = "" }) { baby in
+                finishFeedSheet(baby: baby)
+                    .presentationDetents([.medium, .large]) // allow half-height, expandable to full
+                    .presentationDragIndicator(.visible)
+            }
             .sheet(isPresented: $showingHistory) { HistoryView() }
             .sheet(item: $editingFeedSession) { session in
                 NavigationView {
@@ -369,6 +373,18 @@ private extension ContentView {
     
     @ViewBuilder
     func finishFeedSheet(baby: BabyProfile) -> some View {
+        // Bridge the string to a numeric binding for the Stepper
+        let amountBinding = Binding<Double>(
+            get: {
+                Double(feedAmountString) ?? 0
+            },
+            set: { newValue in
+                let clamped = max(0, newValue)
+                // Format as integer string
+                feedAmountString = clamped.formatted(.number.precision(.fractionLength(0)))
+            }
+        )
+
         VStack(spacing: 20) {
             Text(String(localized: "How much did \(baby.name) eat?")).font(.largeTitle)
             
@@ -382,6 +398,11 @@ private extension ContentView {
             }
             .padding()
             
+            // Stepper to increment/decrement by 10
+            Stepper(value: amountBinding, in: 0...10_000, step: 10) {
+                Text(String(localized: "Adjust by 10"))
+            }
+
             Button("Done") {
                 if let amountValue = Double(feedAmountString) {
                     let unit: UnitVolume = (Locale.current.measurementSystem == .us) ? .fluidOunces : .milliliters
@@ -392,13 +413,11 @@ private extension ContentView {
             }
             .font(.title)
             .disabled(feedAmountString.isEmpty)
-            
-            Spacer()
         }
         .padding()
         .onAppear {
             if let lastAmount = baby.lastFeedAmountValue {
-                feedAmountString = String(lastAmount)
+                feedAmountString = lastAmount.formatted(.number.precision(.fractionLength(0)))
             }
         }
     }
