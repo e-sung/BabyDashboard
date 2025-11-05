@@ -61,7 +61,13 @@ public struct WidgetBabySnapshot: Codable, Sendable {
 }
 
 public enum WidgetCache {
-    static let appGroupID = "group.sungdoo.babyDashboard"
+    private static var appGroupID: String {
+        #if DEBUG
+            return "group.sungdoo.babyDashboard.dev"
+        #else
+            return "group.sungdoo.babyDashboard"
+        #endif
+    }
     static let directoryName = "WidgetCache"
 
     private static func baseURL() -> URL? {
@@ -102,4 +108,3 @@ public enum WidgetCache {
         return try? JSONDecoder().decode(WidgetBabySnapshot.self, from: data)
     }
 }
-

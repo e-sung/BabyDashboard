@@ -14,10 +14,15 @@
 			<key>orderHint</key>
 			<integer>0</integer>
 		</dict>
-		<key>Model.xcscheme_^#shared#^_</key>
+		<key>FullScreenClockRelease.xcscheme_^#shared#^_</key>
 		<dict>
 			<key>orderHint</key>
 			<integer>2</integer>
+		</dict>
+		<key>Model.xcscheme_^#shared#^_</key>
+		<dict>
+			<key>orderHint</key>
+			<integer>3</integer>
 		</dict>
 	</dict>
 	<key>SuppressBuildableAutocreation</key>
@@ -33,6 +38,16 @@
 			<true/>
 		</dict>
 		<key>0814D4852E8D4E7F0073412C</key>
+		<dict>
+			<key>primary</key>
+			<true/>
+		</dict>
+		<key>087DCDD42EBB3BC500487EC1</key>
+		<dict>
+			<key>primary</key>
+			<true/>
+		</dict>
+		<key>087DCDEC2EBB41EB00487EC1</key>
 		<dict>
 			<key>primary</key>
 			<true/>

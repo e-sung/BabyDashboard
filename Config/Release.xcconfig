@@ -1,0 +1,23 @@
+//
+//  Release.xcconfig
+//  FullScreenClock
+//
+//  Created by 류성두 on 11/5/25.
+//
+
+// Configuration settings file format documentation can be found at:
+// https://developer.apple.com/documentation/xcode/adding-a-build-configuration-file-to-your-project
+#include "Base.xcconfig"
+
+PRODUCT_BUNDLE_IDENTIFIER = com.sungdoo.babyDashboard2
+
+// Production (Release) identifiers
+ICLOUD_CONTAINER_ID = iCloud.sungdoo.babyDashboard
+APP_GROUP_ID = group.sungdoo.babyDashboard
+
+// Use clean display name in Release
+INFOPLIST_KEY_CFBundleDisplayName = $(APP_NAME)
+BUNDLE_DISPLAY_NAME = $(APP_NAME)
+
+// No DEBUG flag in Release by default
+SWIFT_ACTIVE_COMPILATION_CONDITIONS =

@@ -1,0 +1,23 @@
+//
+//  base.xcconfig
+//  FullScreenClock
+//
+//  Created by 류성두 on 11/5/25.
+//
+
+// Configuration settings file format documentation can be found at:
+// https://developer.apple.com/documentation/xcode/adding-a-build-configuration-file-to-your-project
+
+// Let Xcode generate the Info.plist so CFBundleExecutable is present.
+GENERATE_INFOPLIST_FILE = YES
+
+// Ensure Info.plist pulls from build setting values.
+INFOPLIST_KEY_CFBundleIdentifier = $(PRODUCT_BUNDLE_IDENTIFIER)
+
+// Inject environment-specific IDs into Info.plist so Swift can read them at runtime.
+INFOPLIST_KEY_ICLOUD_CONTAINER_ID = $(ICLOUD_CONTAINER_ID)
+INFOPLIST_KEY_APP_GROUP_ID = $(APP_GROUP_ID)
+
+// Set the user-visible app name shown on the Home screen / Finder.
+APP_NAME = 쌍둥이 대시보드
+INFOPLIST_KEY_CFBundleDisplayName = $(BUNDLE_DISPLAY_NAME)

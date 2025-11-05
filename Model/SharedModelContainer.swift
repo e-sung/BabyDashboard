@@ -9,7 +9,13 @@ public struct SharedModelContainer {
             DiaperChange.self,
         ])
 
-        let appGroupID = "group.sungdoo.babyDashboard"
+        #if DEBUG
+            let appGroupID = "group.sungdoo.babyDashboard.dev"
+            let containerID = "iCloud.sungdoo.babyDashboard.dev"
+        #else
+            let appGroupID = "group.sungdoo.babyDashboard"
+            let containerID = "iCloud.sungdoo.babyDashboard"
+        #endif
         guard let url = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: appGroupID) else {
             fatalError("Failed to get container URL for app group: \(appGroupID)")
         }
@@ -21,7 +27,7 @@ public struct SharedModelContainer {
         let configuration = ModelConfiguration(
             schema: schema,
             url: storeURL,
-            cloudKitDatabase: .private("iCloud.sungdoo.babyDashboard")
+            cloudKitDatabase: .private(containerID)
         )
 
         do {

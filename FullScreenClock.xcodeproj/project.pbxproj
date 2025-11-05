@@ -121,6 +121,8 @@
 		0814D46E2E8D4E7E0073412C /* FullScreenClock.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = FullScreenClock.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		0814D47C2E8D4E7F0073412C /* FullScreenClockTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = FullScreenClockTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		0814D4862E8D4E7F0073412C /* FullScreenClockUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = FullScreenClockUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		087DCDEB2EBB3BC500487EC1 /* FullScreenClock copy-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; name = "FullScreenClock copy-Info.plist"; path = "/Users/sungdoo/BabyMonitor/ios/FullScreenClock/FullScreenClock copy-Info.plist"; sourceTree = "<absolute>"; };
+		087DCE032EBB41EB00487EC1 /* FullScreenClock copy2-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; name = "FullScreenClock copy2-Info.plist"; path = "/Users/sungdoo/BabyMonitor/ios/FullScreenClock/FullScreenClock copy2-Info.plist"; sourceTree = "<absolute>"; };
 		08E6BBB82EAFF5D100DD237C /* Model.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Model.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		08E6BBC02EAFF5D100DD237C /* ModelTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = ModelTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		08E6BC152EB00D6500DD237C /* WidgetKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WidgetKit.framework; path = System/Library/Frameworks/WidgetKit.framework; sourceTree = SDKROOT; };
@@ -130,6 +132,15 @@
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		087DCDD32EBB375900487EC1 /* Exceptions for "Config" folder in "DashboardWidgetExtension" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Base.xcconfig,
+				Debug.xcconfig,
+				Release.xcconfig,
+			);
+			target = 08F230C12EB7B817007CB56A /* DashboardWidgetExtension */;
+		};
 		08EF111B2EAD5EE7001FF604 /* Exceptions for "FullScreenClock" folder in "FullScreenClock" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
@@ -184,6 +195,14 @@
 		0814D4892E8D4E7F0073412C /* FullScreenClockUITests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = FullScreenClockUITests;
+			sourceTree = "<group>";
+		};
+		087DCDCC2EBB352A00487EC1 /* Config */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				087DCDD32EBB375900487EC1 /* Exceptions for "Config" folder in "DashboardWidgetExtension" target */,
+			);
+			path = Config;
 			sourceTree = "<group>";
 		};
 		08E6BBB92EAFF5D100DD237C /* Model */ = {
@@ -266,6 +285,7 @@
 			isa = PBXGroup;
 			children = (
 				08F230DB2EB7B85C007CB56A /* DashboardWidgetExtension.entitlements */,
+				087DCDCC2EBB352A00487EC1 /* Config */,
 				0814D4702E8D4E7E0073412C /* FullScreenClock */,
 				0814D47F2E8D4E7F0073412C /* FullScreenClockTests */,
 				0814D4892E8D4E7F0073412C /* FullScreenClockUITests */,
@@ -273,6 +293,8 @@
 				08E6BBC62EAFF5D100DD237C /* ModelTests */,
 				08F230C52EB7B817007CB56A /* DashboardWidget */,
 				08E6BC142EB00D6500DD237C /* Frameworks */,
+				087DCDEB2EBB3BC500487EC1 /* FullScreenClock copy-Info.plist */,
+				087DCE032EBB41EB00487EC1 /* FullScreenClock copy2-Info.plist */,
 				0814D46F2E8D4E7E0073412C /* Products */,
 			);
 			sourceTree = "<group>";
@@ -448,6 +470,7 @@
 				08F230D92EB7B831007CB56A /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
+				087DCDCC2EBB352A00487EC1 /* Config */,
 				08F230C52EB7B817007CB56A /* DashboardWidget */,
 			);
 			name = DashboardWidgetExtension;
@@ -722,6 +745,8 @@
 		};
 		0814D48F2E8D4E7F0073412C /* Release */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReferenceAnchor = 087DCDCC2EBB352A00487EC1 /* Config */;
+			baseConfigurationReferenceRelativePath = Release.xcconfig;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
@@ -780,6 +805,8 @@
 		};
 		0814D4912E8D4E7F0073412C /* Debug */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReferenceAnchor = 087DCDCC2EBB352A00487EC1 /* Config */;
+			baseConfigurationReferenceRelativePath = Debug.xcconfig;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
@@ -794,7 +821,6 @@
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = FullScreenClock/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = "쌍둥이 대시보드";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.healthcare-fitness";
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
@@ -810,7 +836,6 @@
 				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = "@executable_path/../Frameworks";
 				MACOSX_DEPLOYMENT_TARGET = 15.5;
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.sungdoo.babyDashboard2;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				REGISTER_APP_GROUPS = YES;
 				SDKROOT = auto;
@@ -839,7 +864,6 @@
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = FullScreenClock/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = "쌍둥이 대시보드";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.healthcare-fitness";
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
@@ -969,6 +993,7 @@
 			buildSettings = {
 				ALLOW_TARGET_PLATFORM_SPECIALIZATION = YES;
 				BUILD_LIBRARY_FOR_DISTRIBUTION = YES;
+				CODE_SIGN_IDENTITY = "";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = 7KT5X239S9;
@@ -1018,6 +1043,7 @@
 			buildSettings = {
 				ALLOW_TARGET_PLATFORM_SPECIALIZATION = YES;
 				BUILD_LIBRARY_FOR_DISTRIBUTION = YES;
+				CODE_SIGN_IDENTITY = "";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = 7KT5X239S9;
@@ -1116,6 +1142,8 @@
 		};
 		08F230D32EB7B818007CB56A /* Debug */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReferenceAnchor = 087DCDCC2EBB352A00487EC1 /* Config */;
+			baseConfigurationReferenceRelativePath = Debug.xcconfig;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
@@ -1142,7 +1170,7 @@
 				);
 				MACOSX_DEPLOYMENT_TARGET = 26.0;
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.sungdoo.babyDashboard2.DashboardWidget;
+				PRODUCT_BUNDLE_IDENTIFIER = com.sungdoo.babyDashboard2.dev.widget;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				REGISTER_APP_GROUPS = YES;
 				SDKROOT = auto;
@@ -1186,7 +1214,7 @@
 				);
 				MACOSX_DEPLOYMENT_TARGET = 26.0;
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.sungdoo.babyDashboard2.DashboardWidget;
+				PRODUCT_BUNDLE_IDENTIFIER = com.sungdoo.babyDashboard2.widget;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				REGISTER_APP_GROUPS = YES;
 				SDKROOT = auto;
