@@ -1,32 +1,35 @@
 import SwiftUI
-import SwiftData
+import CoreData
 import Model
 
 struct HistoryView: View {
     @Environment(\.dismiss) private var dismiss
-    @Environment(\.modelContext) private var modelContext
+    @Environment(\.managedObjectContext) private var viewContext
     @EnvironmentObject var settings: AppSettings
 
-    // Load all data via @Query (sorted newest first)
-    @Query(sort: [SortDescriptor(\FeedSession.startTime, order: .reverse)])
-    private var feedSessions: [FeedSession]
+    @FetchRequest(
+        fetchRequest: HistoryView.makeFeedRequest(),
+        animation: .default
+    ) private var feedSessions: FetchedResults<FeedSession>
 
-    @Query(sort: [SortDescriptor(\DiaperChange.timestamp, order: .reverse)])
-    private var diaperChanges: [DiaperChange]
+    @FetchRequest(
+        fetchRequest: HistoryView.makeDiaperRequest(),
+        animation: .default
+    ) private var diaperChanges: FetchedResults<DiaperChange>
 
-    @Query(sort: [SortDescriptor(\BabyProfile.name, order: .forward)])
-    private var babies: [BabyProfile]
+    @FetchRequest(
+        fetchRequest: HistoryView.makeBabyRequest(),
+        animation: .default
+    ) private var babies: FetchedResults<BabyProfile>
 
-    // Editing
     @State private var eventToEdit: HistoryEvent?
+    @State private var selectedBabyID: UUID? = nil
+    @State private var selectedEventFilter: EventFilter = .all
+    @State private var isShowingFilters = false
+    @State private var isShowingAddSheet = false
 
-    // Filters
     enum EventFilter: String, CaseIterable, Identifiable {
-        case all
-        case feed
-        case pee
-        case poo
-
+        case all, feed, pee, poo
         var id: String { rawValue }
 
         var title: String {
@@ -39,33 +42,25 @@ struct HistoryView: View {
         }
     }
 
-    @State private var selectedBabyID: UUID? = nil // nil == All babies
-    @State private var selectedEventFilter: EventFilter = .all
-    @State private var isShowingFilters = false
-    @State private var isShowingAddSheet = false
-
-    // Merge and sort for display (raw, unfiltered)
     private var historyEvents: [HistoryEvent] {
-        let feeds = feedSessions.map { HistoryEvent(from: $0) }
-        let diapers = diaperChanges.map { HistoryEvent(from: $0) }
-        return (feeds + diapers).sorted(by: { $0.date > $1.date })
+        let feedEvents = feedSessions.map { HistoryEvent(from: $0) }
+        let diaperEvents = diaperChanges.map { HistoryEvent(from: $0) }
+        return (feedEvents + diaperEvents).sorted(by: { $0.date > $1.date })
     }
-    
-    // Apply filters to historyEvents
+
     private var filteredEvents: [HistoryEvent] {
         historyEvents.filter { event in
-            // Baby filter
             let babyMatches: Bool = {
                 guard let selectedBabyID else { return true }
                 switch event.type {
                 case .feed:
-                    if let model = feedSessions.first(where: { $0.persistentModelID == event.underlyingObjectId }) {
-                        return model.profile?.id == selectedBabyID
+                    if let session = feedSessions.first(where: { $0.objectID == event.underlyingObjectId }) {
+                        return session.profile?.id == selectedBabyID
                     }
                     return false
                 case .diaper:
-                    if let model = diaperChanges.first(where: { $0.persistentModelID == event.underlyingObjectId }) {
-                        return model.profile?.id == selectedBabyID
+                    if let change = diaperChanges.first(where: { $0.objectID == event.underlyingObjectId }) {
+                        return change.profile?.id == selectedBabyID
                     }
                     return false
                 @unknown default:
@@ -74,7 +69,6 @@ struct HistoryView: View {
             }()
             guard babyMatches else { return false }
 
-            // Event filter
             switch selectedEventFilter {
             case .all:
                 return true
@@ -88,75 +82,60 @@ struct HistoryView: View {
         }
     }
 
-    // Section model
     private struct DaySection: Identifiable {
-        let id: Date // startOfDay
+        let id: Date
         let date: Date
         let events: [HistoryEvent]
-        
-        // Aggregates per baby
         let feedTotalsByBaby: [String: Measurement<UnitVolume>]
         let diaperCountsByBaby: [String: Int]
     }
-    
-    // Build sections grouped by day using currently loaded models for accurate aggregates.
+
     private var daySections: [DaySection] {
         let summaries = makeDaySummaries(
             events: filteredEvents,
-            feedSessions: feedSessions,
-            diaperChanges: diaperChanges,
+            feedSessions: Array(feedSessions),
+            diaperChanges: Array(diaperChanges),
             targetUnit: (Locale.current.measurementSystem == .us) ? .fluidOunces : .milliliters,
             calendar: Calendar.current,
             startOfDayHour: settings.startOfDayHour,
             startOfDayMinute: settings.startOfDayMinute
         )
-        return summaries.map { s in
+        return summaries.map { summary in
             DaySection(
-                id: s.id,
-                date: s.date,
-                events: s.events,
-                feedTotalsByBaby: s.feedTotalsByBaby,
-                diaperCountsByBaby: s.diaperCountsByBaby
+                id: summary.id,
+                date: summary.date,
+                events: summary.events,
+                feedTotalsByBaby: summary.feedTotalsByBaby,
+                diaperCountsByBaby: summary.diaperCountsByBaby
             )
         }
     }
-    
-    // MARK: - Month grouping
-    
+
     private struct MonthSection: Identifiable {
-        let id: Date // month start
+        let id: Date
         let monthStart: Date
         let daySections: [DaySection]
     }
-    
+
     private var monthSections: [MonthSection] {
         let calendar = Calendar.current
-        // Group daySections by month
-        let groupedByMonth = Dictionary(grouping: daySections) { (day: DaySection) -> Date in
+        let grouped = Dictionary(grouping: daySections) { day -> Date in
             calendar.date(from: calendar.dateComponents([.year, .month], from: day.date)) ?? calendar.startOfDay(for: day.date)
         }
-        // Build MonthSection array
-        let sections = groupedByMonth.map { (monthStart, days) -> MonthSection in
-            // Sort days within the month descending by date
-            let sortedDays = days.sorted(by: { $0.date > $1.date })
-            return MonthSection(id: monthStart, monthStart: monthStart, daySections: sortedDays)
-        }
-        // Sort months descending (newest month first)
-        return sections.sorted(by: { $0.monthStart > $1.monthStart })
+        return grouped
+            .map { MonthSection(id: $0.key, monthStart: $0.key, daySections: $0.value.sorted(by: { $0.date > $1.date })) }
+            .sorted(by: { $0.monthStart > $1.monthStart })
     }
 
     var body: some View {
         NavigationView {
             List {
                 ForEach(monthSections) { month in
-                    // Month header (for now just title; later can navigate)
                     Section {
-                        // Within the month, render each day section
                         ForEach(month.daySections) { section in
                             Section {
                                 ForEach(section.events) { event in
                                     HistoryRowView(event: event)
-                                        // Ensure the entire row rectangle is the hit target
                                         .frame(maxWidth: .infinity, alignment: .leading)
                                         .contentShape(Rectangle())
                                         .onTapGesture { eventToEdit = event }
@@ -182,17 +161,13 @@ struct HistoryView: View {
                     Button("Done") { dismiss() }
                 }
                 ToolbarItem(placement: .primaryAction) {
-                    Button {
-                        isShowingFilters = true
-                    } label: {
+                    Button { isShowingFilters = true } label: {
                         Image(systemName: "line.3.horizontal.decrease.circle")
                     }
                     .accessibilityLabel(Text("Filters"))
                 }
                 ToolbarItem(placement: .primaryAction) {
-                    Button {
-                        isShowingAddSheet = true
-                    } label: {
+                    Button { isShowingAddSheet = true } label: {
                         Image(systemName: "plus")
                     }
                     .accessibilityLabel(Text("Add Event"))
@@ -200,7 +175,7 @@ struct HistoryView: View {
             }
             .sheet(isPresented: $isShowingFilters) {
                 FilterSheet(
-                    babies: babies,
+                    babies: Array(babies),
                     selectedBabyID: $selectedBabyID,
                     selectedEventFilter: $selectedEventFilter
                 )
@@ -209,24 +184,24 @@ struct HistoryView: View {
             .sheet(item: $eventToEdit) { event in
                 if let model = findModel(for: event) {
                     HistoryEditView(model: model)
+                        .environment(\.managedObjectContext, viewContext)
+                        .environmentObject(settings)
                 } else {
                     Text("Could not find event to edit.")
                 }
             }
             .sheet(isPresented: $isShowingAddSheet) {
                 AddHistorySheet(
-                    babies: babies,
+                    context: viewContext,
+                    babies: Array(babies),
                     defaultSelectedBabyID: selectedBabyID
-                ) { result in
-                    // Insert into SwiftData; @Query will update automatically
-                    switch result {
-                    case .feed(let session):
-                        modelContext.insert(session)
-                    case .diaper(let change):
-                        modelContext.insert(change)
+                ) {
+                    do {
+                        try viewContext.save()
+                        NearbySyncManager.shared.sendPing()
+                    } catch {
+                        // Ignore save error for now.
                     }
-                    try? modelContext.save()
-                    NearbySyncManager.shared.sendPing()
                     isShowingAddSheet = false
                 } onCancel: {
                     isShowingAddSheet = false
@@ -235,11 +210,8 @@ struct HistoryView: View {
             }
         }
     }
-    
-    // MARK: - Month Header View
-    
+
     private func monthHeaderView(for month: MonthSection) -> some View {
-        // Display the month name; include year only for December and January
         let monthNumber = Calendar.current.component(.month, from: month.monthStart)
         let title: String = {
             if monthNumber == 12 || monthNumber == 1 {
@@ -248,7 +220,7 @@ struct HistoryView: View {
                 return month.monthStart.formatted(.dateTime.month(.wide))
             }
         }()
-        
+
         return HStack {
             Text(title)
                 .font(.title3)
@@ -259,26 +231,18 @@ struct HistoryView: View {
                 .imageScale(.small)
         }
         .contentShape(Rectangle())
-        .onTapGesture {
-            // Placeholder for future navigation to monthly analysis page
-            // e.g., navigate to MonthlyAnalysisView(monthStart: month.monthStart)
-        }
+        .onTapGesture { }
         .padding(.vertical, 6)
     }
-    
-    // MARK: - Day Header View
-    
+
     @ViewBuilder
     private func dayHeaderView(for section: DaySection) -> some View {
         VStack(alignment: .leading, spacing: 6) {
-            // Logical-day span title, e.g., "10월 3일 ~ 4일" or "10월 31일 ~ 11월 1일"
             Text(logicalDaySpanTitle(start: section.date))
                 .font(.headline)
-            
-            // For each baby that has any activity that day, show totals.
-            // Build a union of baby names from both dictionaries.
-            let babyNames = Set(section.feedTotalsByBaby.keys).union(section.diaperCountsByBaby.keys)
-            ForEach(Array(babyNames).sorted(), id: \.self) { name in
+
+            let names = Set(section.feedTotalsByBaby.keys).union(section.diaperCountsByBaby.keys)
+            ForEach(Array(names).sorted(), id: \.self) { name in
                 HStack(spacing: 10) {
                     Text(name)
                         .font(.subheadline)
@@ -299,77 +263,91 @@ struct HistoryView: View {
         }
         .padding(.vertical, 4)
     }
-    
-    // Build a localized, compact title for a logical-day span starting at `start` and ending at `start + 1 day`.
-    // - If startOfDay is midnight (00:00), show just "M월 d일" (logical day == calendar day).
-    // - If start and end share the same month: "M월 d일 ~ d일"
-    // - If months differ: "M월 d일 ~ M월 d일"
+
     private func logicalDaySpanTitle(start: Date, calendar: Calendar = .current) -> String {
-        // Midnight start: show single date for classic calendar-day UX
         if settings.startOfDayHour == 0 && settings.startOfDayMinute == 0 {
             return start.formatted(.dateTime.month(.abbreviated).day())
         }
-        
+
         guard let end = calendar.date(byAdding: .day, value: 1, to: start) else {
-            // Fallback to single-day format
             return start.formatted(.dateTime.month(.abbreviated).day())
         }
-        
+
         let startMonth = calendar.component(.month, from: start)
         let endMonth = calendar.component(.month, from: end)
         let endDay = calendar.component(.day, from: end)
-        let sameMonth = (startMonth == endMonth)
-        
+        let sameMonth = startMonth == endMonth
+
         let startText = start.formatted(.dateTime.month(.abbreviated).day())
         if sameMonth {
-            // "10월 3일 ~ 4일"
             return "\(startText) ~ \(endDay)일"
         } else {
             let endText = end.formatted(.dateTime.month(.abbreviated).day())
-            // "10월 31일 ~ 11월 1일"
             return "\(startText) ~ \(endText)"
         }
     }
 
-    // MARK: - Model lookup for editing
-
-    private func findModel(for event: HistoryEvent) -> (any PersistentModel)? {
+    private func findModel(for event: HistoryEvent) -> HistoryEditModel? {
         switch event.type {
         case .feed:
-            return feedSessions.first { $0.persistentModelID == event.underlyingObjectId }
+            if let session = feedSessions.first(where: { $0.objectID == event.underlyingObjectId }) {
+                return .feed(session)
+            }
         case .diaper:
-            return diaperChanges.first { $0.persistentModelID == event.underlyingObjectId }
+            if let change = diaperChanges.first(where: { $0.objectID == event.underlyingObjectId }) {
+                return .diaper(change)
+            }
         @unknown default:
             return nil
         }
+        return nil
     }
 
-    // MARK: - Delete
-
     private func deleteEvent(at offsets: IndexSet) {
-        // Map offsets from the flattened filteredEvents (current visible order).
         let current = filteredEvents
         for index in offsets {
             let event = current[index]
-            if event.type == .feed,
-               let session = feedSessions.first(where: { $0.persistentModelID == event.underlyingObjectId }) {
-                modelContext.delete(session)
-            } else if event.type == .diaper,
-                      let diaper = diaperChanges.first(where: { $0.persistentModelID == event.underlyingObjectId }) {
-                modelContext.delete(diaper)
+            switch event.type {
+            case .feed:
+                if let session = feedSessions.first(where: { $0.objectID == event.underlyingObjectId }) {
+                    viewContext.delete(session)
+                }
+            case .diaper:
+                if let change = diaperChanges.first(where: { $0.objectID == event.underlyingObjectId }) {
+                    viewContext.delete(change)
+                }
+            @unknown default:
+                break
             }
         }
-        try? modelContext.save()
-        NearbySyncManager.shared.sendPing()
+        do {
+            try viewContext.save()
+            NearbySyncManager.shared.sendPing()
+        } catch {
+            // ignore for now
+        }
     }
 }
 
-// Make PersistentModel Identifiable for use in .sheet(item:)
-extension PersistentModel {
-    public var id: PersistentIdentifier { self.persistentModelID }
-}
+private extension HistoryView {
+    static func makeFeedRequest() -> NSFetchRequest<FeedSession> {
+        let request: NSFetchRequest<FeedSession> = FeedSession.fetchRequest()
+        request.sortDescriptors = [NSSortDescriptor(key: "startTime", ascending: false)]
+        return request
+    }
 
-// MARK: - Filter Sheet
+    static func makeDiaperRequest() -> NSFetchRequest<DiaperChange> {
+        let request: NSFetchRequest<DiaperChange> = DiaperChange.fetchRequest()
+        request.sortDescriptors = [NSSortDescriptor(key: "timestamp", ascending: false)]
+        return request
+    }
+
+    static func makeBabyRequest() -> NSFetchRequest<BabyProfile> {
+        let request: NSFetchRequest<BabyProfile> = BabyProfile.fetchRequest()
+        request.sortDescriptors = [NSSortDescriptor(key: "createdAt", ascending: true)]
+        return request
+    }
+}
 
 private struct FilterSheet: View {
     let babies: [BabyProfile]
@@ -385,8 +363,8 @@ private struct FilterSheet: View {
                         set: { selectedBabyID = $0 }
                     )) {
                         Text(String(localized: "All")).tag(UUID?.none)
-                        ForEach(babies, id: \.id) { baby in
-                            Text(baby.name).tag(UUID?.some(baby.id))
+                        ForEach(babies.map { ($0.id, $0.name) }, id: \.0) { id, name in
+                            Text(name).tag(UUID?.some(id))
                         }
                     }
                 }
@@ -406,8 +384,6 @@ private struct FilterSheet: View {
     }
 }
 
-// MARK: - Add History Sheet
-
 private struct AddHistorySheet: View {
     enum AddType: String, CaseIterable, Identifiable {
         case feed, diaper
@@ -420,25 +396,19 @@ private struct AddHistorySheet: View {
         }
     }
 
-    enum Result {
-        case feed(FeedSession)
-        case diaper(DiaperChange)
-    }
-
+    let context: NSManagedObjectContext
     let babies: [BabyProfile]
     let defaultSelectedBabyID: UUID?
-    let onSave: (Result) -> Void
+    let onSave: () -> Void
     let onCancel: () -> Void
 
     @Environment(\.dismiss) private var dismiss
 
     @State private var addType: AddType = .feed
     @State private var selectedBabyID: UUID?
-    // Feed fields (finished session only; unit inferred from locale)
     @State private var feedStart: Date = Date()
     @State private var feedEnd: Date = Date().addingTimeInterval(15 * 60)
     @State private var amountString: String = ""
-    // Diaper fields
     @State private var diaperTime: Date = Date()
     @State private var diaperType: DiaperType = .pee
 
@@ -451,9 +421,7 @@ private struct AddHistorySheet: View {
             Form {
                 Section(String(localized: "Event")) {
                     Picker(String(localized: "Type"), selection: $addType) {
-                        ForEach(AddType.allCases) { t in
-                            Text(t.title).tag(t)
-                        }
+                        ForEach(AddType.allCases) { Text($0.title).tag($0) }
                     }
                     .pickerStyle(.segmented)
                 }
@@ -463,8 +431,8 @@ private struct AddHistorySheet: View {
                         get: { selectedBabyID },
                         set: { selectedBabyID = $0 }
                     )) {
-                        ForEach(babies, id: \.id) { baby in
-                            Text(baby.name).tag(UUID?.some(baby.id))
+                        ForEach(babies.map { ($0.id, $0.name) }, id: \.0) { id, name in
+                            Text(name).tag(UUID?.some(id))
                         }
                     }
                 }
@@ -481,7 +449,6 @@ private struct AddHistorySheet: View {
                             Text(localeUnit.symbol)
                                 .foregroundStyle(.secondary)
                         }
-                        .accessibilityElement(children: .combine)
                     }
                 } else {
                     Section(String(localized: "Time")) {
@@ -513,9 +480,7 @@ private struct AddHistorySheet: View {
                 }
             }
             .onAppear {
-                // Preselect baby if provided; else default to first
                 selectedBabyID = defaultSelectedBabyID ?? babies.first?.id
-                // Ensure end defaults after start
                 if feedEnd < feedStart {
                     feedEnd = feedStart.addingTimeInterval(15 * 60)
                 }
@@ -533,7 +498,7 @@ private struct AddHistorySheet: View {
         switch addType {
         case .feed:
             guard feedEnd >= feedStart else { return false }
-            guard let v = Double(amountString), v >= 0 else { return false }
+            guard let value = Double(amountString), value >= 0 else { return false }
             return true
         case .diaper:
             return true
@@ -544,186 +509,17 @@ private struct AddHistorySheet: View {
         guard let baby = babies.first(where: { $0.id == selectedBabyID }) else { return }
         switch addType {
         case .feed:
-            let session = FeedSession(startTime: feedStart)
+            let session = FeedSession(context: context, startTime: feedStart)
             session.endTime = feedEnd
-            if let v = Double(amountString) {
-                session.amount = Measurement(value: v, unit: localeUnit)
+            if let value = Double(amountString) {
+                session.amount = Measurement(value: value, unit: localeUnit)
             }
             session.profile = baby
-            onSave(.feed(session))
-            dismiss()
         case .diaper:
-            let change = DiaperChange(timestamp: diaperTime, type: diaperType)
+            let change = DiaperChange(context: context, timestamp: diaperTime, type: diaperType)
             change.profile = baby
-            onSave(.diaper(change))
-            dismiss()
         }
+        onSave()
+        dismiss()
     }
-}
-
-#Preview("HistoryView Pagination Demo") {
-    // Build an in-memory container and seed many items across November to February
-    let schema = Schema([BabyProfile.self, FeedSession.self, DiaperChange.self])
-    let configuration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: true)
-    let container = try! ModelContainer(for: schema, configurations: [configuration])
-    let context = container.mainContext
-
-    // Seed two babies
-    let baby1 = BabyProfile(id: UUID(), name: "연두")
-    let baby2 = BabyProfile(id: UUID(), name: "초원")
-    context.insert(baby1)
-    context.insert(baby2)
-
-    let calendar = Calendar.current
-    let now = Date()
-    let currentYear = calendar.component(.year, from: now)
-    let prevYear = currentYear - 1
-    
-    // Helper to make a date at a specific Y/M/D hour/minute
-    func date(year: Int, month: Int, day: Int, hour: Int, minute: Int) -> Date {
-        var comps = DateComponents()
-        comps.year = year
-        comps.month = month
-        comps.day = day
-        comps.hour = hour
-        comps.minute = minute
-        return calendar.date(from: comps) ?? now
-    }
-    
-    // Unit per locale (use canonical unit to match feedTotals conversion)
-    let unit: UnitVolume = (Locale.current.measurementSystem == .us) ? .fluidOunces : .milliliters
-    
-    // Months: November (previous year), December (previous year), January (current year), February (current year)
-    // NOVEMBER (prevYear)
-    do {
-        let day1 = date(year: prevYear, month: 11, day: 10, hour: 8, minute: 0)
-        let day2 = date(year: prevYear, month: 11, day: 21, hour: 14, minute: 0)
-        
-        let s1 = FeedSession(startTime: day1)
-        s1.endTime = calendar.date(byAdding: .minute, value: 20, to: day1)
-        s1.amount = Measurement(value: Locale.current.measurementSystem == .us ? 3.0 : 90.0, unit: unit)
-        s1.profile = baby1
-        context.insert(s1)
-        
-        let d1 = DiaperChange(timestamp: calendar.date(byAdding: .hour, value: 2, to: day1)!, type: .pee)
-        d1.profile = baby1
-        context.insert(d1)
-        
-        let s2 = FeedSession(startTime: day2)
-        s2.endTime = calendar.date(byAdding: .minute, value: 15, to: day2)
-        s2.amount = Measurement(value: Locale.current.measurementSystem == .us ? 4.0 : 120.0, unit: unit)
-        s2.profile = baby2
-        context.insert(s2)
-        
-        let d2 = DiaperChange(timestamp: calendar.date(byAdding: .hour, value: 1, to: day2)!, type: .poo)
-        d2.profile = baby2
-        context.insert(d2)
-    }
-    
-    // DECEMBER (prevYear)
-    do {
-        let day1 = date(year: prevYear, month: 12, day: 5, hour: 9, minute: 30)
-        let day2 = date(year: prevYear, month: 12, day: 28, hour: 18, minute: 10)
-        
-        let s1 = FeedSession(startTime: day1)
-        s1.endTime = calendar.date(byAdding: .minute, value: 25, to: day1)
-        s1.amount = Measurement(value: Locale.current.measurementSystem == .us ? 5.0 : 150.0, unit: unit)
-        s1.profile = baby1
-        context.insert(s1)
-        
-        let d1 = DiaperChange(timestamp: calendar.date(byAdding: .hour, value: 3, to: day1)!, type: .pee)
-        d1.profile = baby1
-        context.insert(d1)
-        
-        let s2 = FeedSession(startTime: day2)
-        s2.endTime = calendar.date(byAdding: .minute, value: 20, to: day2)
-        s2.amount = Measurement(value: Locale.current.measurementSystem == .us ? 2.5 : 75.0, unit: unit)
-        s2.profile = baby2
-        context.insert(s2)
-        
-        let d2 = DiaperChange(timestamp: calendar.date(byAdding: .minute, value: 90, to: day2)!, type: .poo)
-        d2.profile = baby2
-        context.insert(d2)
-    }
-    
-    // JANUARY (currentYear)
-    do {
-        let day1 = date(year: currentYear, month: 1, day: 3, hour: 7, minute: 45)
-        let day2 = date(year: currentYear, month: 1, day: 17, hour: 12, minute: 5)
-        
-        let s1 = FeedSession(startTime: day1)
-        s1.endTime = calendar.date(byAdding: .minute, value: 18, to: day1)
-        s1.amount = Measurement(value: Locale.current.measurementSystem == .us ? 4.5 : 130.0, unit: unit)
-        s1.profile = baby1
-        context.insert(s1)
-        
-        let d1 = DiaperChange(timestamp: calendar.date(byAdding: .hour, value: 2, to: day1)!, type: .pee)
-        d1.profile = baby1
-        context.insert(d1)
-        
-        let s2 = FeedSession(startTime: day2)
-        s2.endTime = calendar.date(byAdding: .minute, value: 22, to: day2)
-        s2.amount = Measurement(value: Locale.current.measurementSystem == .us ? 3.5 : 100.0, unit: unit)
-        s2.profile = baby2
-        context.insert(s2)
-        
-        let d2 = DiaperChange(timestamp: calendar.date(byAdding: .minute, value: 70, to: day2)!, type: .pee)
-        d2.profile = baby2
-        context.insert(d2)
-    }
-    
-    // FEBRUARY (currentYear) — ensure both babies have both a feed and a diaper on each day
-    do {
-        let day1 = date(year: currentYear, month: 2, day: 2, hour: 6, minute: 50)
-        let day2 = date(year: currentYear, month: 2, day: 14, hour: 15, minute: 40)
-        
-        // Day 1 (Feb 2): baby1 feed + diaper, baby2 feed + diaper
-        let b1s1 = FeedSession(startTime: day1)
-        b1s1.endTime = calendar.date(byAdding: .minute, value: 20, to: day1)
-        b1s1.amount = Measurement(value: Locale.current.measurementSystem == .us ? 3.0 : 90.0, unit: unit)
-        b1s1.profile = baby1
-        context.insert(b1s1)
-        
-        let b1d1 = DiaperChange(timestamp: calendar.date(byAdding: .hour, value: 1, to: day1)!, type: .pee)
-        b1d1.profile = baby1
-        context.insert(b1d1)
-        let b1d3 = DiaperChange(timestamp: calendar.date(byAdding: .hour, value: 2, to: day1)!, type: .pee)
-        b1d3.profile = baby1
-        context.insert(b1d3)
-
-        let b2s1 = FeedSession(startTime: calendar.date(byAdding: .minute, value: 45, to: day1)!)
-        b2s1.endTime = calendar.date(byAdding: .minute, value: 65, to: day1) // 20 min later
-        b2s1.amount = Measurement(value: Locale.current.measurementSystem == .us ? 4.0 : 120.0, unit: unit)
-        b2s1.profile = baby2
-        context.insert(b2s1)
-        
-        let b2d1 = DiaperChange(timestamp: calendar.date(byAdding: .hour, value: 2, to: day1)!, type: .poo)
-        b2d1.profile = baby2
-        context.insert(b2d1)
-        
-        // Day 2 (Feb 14): baby1 feed + diaper, baby2 feed + diaper
-        let b1s2 = FeedSession(startTime: day2)
-        b1s2.endTime = calendar.date(byAdding: .minute, value: 15, to: day2)
-        b1s2.amount = Measurement(value: Locale.current.measurementSystem == .us ? 3.5 : 105.0, unit: unit)
-        b1s2.profile = baby1
-        context.insert(b1s2)
-        
-        let b1d2 = DiaperChange(timestamp: calendar.date(byAdding: .minute, value: 80, to: day2)!, type: .pee)
-        b1d2.profile = baby1
-        context.insert(b1d2)
-        
-        let b2s2 = FeedSession(startTime: calendar.date(byAdding: .minute, value: 30, to: day2)!)
-        b2s2.endTime = calendar.date(byAdding: .minute, value: 50, to: day2)
-        b2s2.amount = Measurement(value: Locale.current.measurementSystem == .us ? 4.5 : 135.0, unit: unit)
-        b2s2.profile = baby2
-        context.insert(b2s2)
-        
-        let b2d2 = DiaperChange(timestamp: calendar.date(byAdding: .minute, value: 95, to: day2)!, type: .poo)
-        b2d2.profile = baby2
-        context.insert(b2d2)
-    }
-
-    return HistoryView()
-        .modelContainer(container)
-        .environmentObject(AppSettings())
 }

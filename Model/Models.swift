@@ -1,73 +1,199 @@
 import Foundation
-import SwiftData
+import CoreData
 
-@Model
-public class BabyProfile {
-    public var id: UUID = UUID()
-    public var name: String = ""
-    public var lastFeedAmountValue: Double?
-    public var lastFeedAmountUnitSymbol: String?
+@objc(BabyProfile)
+public class BabyProfile: NSManagedObject {}
 
-    // New: per-baby configurable feeding interval (seconds). Default: 3 hours.
-    public var feedTerm: TimeInterval = 3 * 3600
+@objc(FeedSession)
+public class FeedSession: NSManagedObject {}
 
-    // Keep history: when a BabyProfile is deleted, nullify its relationships so events remain as orphans.
-    @Relationship(deleteRule: .nullify, inverse: \FeedSession.profile)
-    public var feedSessions: [FeedSession]? = []
+@objc(DiaperChange)
+public class DiaperChange: NSManagedObject {}
 
-    @Relationship(deleteRule: .nullify, inverse: \DiaperChange.profile)
-    public var diaperChanges: [DiaperChange]? = []
+extension BabyProfile {
+    @nonobjc public class func fetchRequest() -> NSFetchRequest<BabyProfile> {
+        NSFetchRequest<BabyProfile>(entityName: "BabyProfile")
+    }
 
-    // Keep convenience initializer used across the codebase/tests
-    public init(id: UUID, name: String) {
+    @NSManaged public var createdAt: Date
+    @NSManaged public var feedTerm: TimeInterval
+    @NSManaged public var id: UUID
+    @NSManaged public var name: String
+    @NSManaged public var diaperChanges: NSSet?
+    @NSManaged public var feedSessions: NSSet?
+}
+
+extension BabyProfile {
+    @objc(addDiaperChangesObject:)
+    @NSManaged public func addToDiaperChanges(_ value: DiaperChange)
+
+    @objc(removeDiaperChangesObject:)
+    @NSManaged public func removeFromDiaperChanges(_ value: DiaperChange)
+
+    @objc(addDiaperChanges:)
+    @NSManaged public func addToDiaperChanges(_ values: NSSet)
+
+    @objc(removeDiaperChanges:)
+    @NSManaged public func removeFromDiaperChanges(_ values: NSSet)
+
+    @objc(addFeedSessionsObject:)
+    @NSManaged public func addToFeedSessions(_ value: FeedSession)
+
+    @objc(removeFeedSessionsObject:)
+    @NSManaged public func removeFromFeedSessions(_ value: FeedSession)
+
+    @objc(addFeedSessions:)
+    @NSManaged public func addToFeedSessions(_ values: NSSet)
+
+    @objc(removeFeedSessions:)
+    @NSManaged public func removeFromFeedSessions(_ values: NSSet)
+}
+
+extension BabyProfile: Identifiable {}
+
+extension FeedSession {
+    @nonobjc public class func fetchRequest() -> NSFetchRequest<FeedSession> {
+        NSFetchRequest<FeedSession>(entityName: "FeedSession")
+    }
+
+    @NSManaged public var amountUnitSymbol: String?
+    @NSManaged public var amountValue: Double
+    @NSManaged public var endTime: Date?
+    @NSManaged public var memoText: String?
+    @NSManaged public var startTime: Date
+    @NSManaged public var uuid: UUID
+    @NSManaged public var profile: BabyProfile?
+}
+
+extension FeedSession: Identifiable {}
+
+extension DiaperChange {
+    @nonobjc public class func fetchRequest() -> NSFetchRequest<DiaperChange> {
+        NSFetchRequest<DiaperChange>(entityName: "DiaperChange")
+    }
+
+    @NSManaged public var timestamp: Date
+    @NSManaged public var type: String
+    @NSManaged public var uuid: UUID
+    @NSManaged public var profile: BabyProfile?
+}
+
+extension DiaperChange: Identifiable {}
+
+public enum DiaperType: String, Codable {
+    case pee
+    case poo
+}
+
+// MARK: - BabyProfile helpers
+
+public extension BabyProfile {
+    /// Convenience creator used by legacy call sites; callers must save the context.
+    convenience init(context: NSManagedObjectContext, id: UUID = UUID(), name: String) {
+        self.init(context: context)
         self.id = id
         self.name = name
+        self.feedTerm = 3 * 3600
+        self.createdAt = Date()
     }
 
-    public var inProgressFeedSession: FeedSession? {
-        (feedSessions ?? []).first(where: { $0.isInProgress })
+    override func awakeFromInsert() {
+        super.awakeFromInsert()
+        id = UUID()
+        createdAt = Date()
+        if feedTerm == 0 {
+            feedTerm = 3 * 3600
+        }
     }
 
-    public var lastFinishedFeedSession: FeedSession? {
-        (feedSessions ?? [])
+    var feedSessionsArray: [FeedSession] {
+        guard let set = feedSessions as? Set<FeedSession> else { return [] }
+        return Array(set)
+    }
+
+    var diaperChangesArray: [DiaperChange] {
+        guard let set = diaperChanges as? Set<DiaperChange> else { return [] }
+        return Array(set)
+    }
+
+    var inProgressFeedSession: FeedSession? {
+        feedSessionsArray.first(where: { $0.isInProgress })
+    }
+
+    var lastFinishedFeedSession: FeedSession? {
+        feedSessionsArray
             .filter { !$0.isInProgress && $0.endTime != nil }
             .sorted(by: { ($0.endTime ?? .distantPast) > ($1.endTime ?? .distantPast) })
             .first
     }
 
-    public var lastFeedSession: FeedSession? {
-        feedSessions?
-            .sorted(by: { ($0.startTime ) > ($1.startTime ) })
+    var lastFeedSession: FeedSession? {
+        feedSessionsArray
+            .sorted(by: { $0.startTime > $1.startTime })
             .first
     }
 
-    public var lastDiaperChange: DiaperChange? {
-        (diaperChanges ?? []).sorted(by: { $0.timestamp > $1.timestamp }).first
+    var lastDiaperChange: DiaperChange? {
+        diaperChangesArray.sorted(by: { $0.timestamp > $1.timestamp }).first
     }
 }
 
-@Model
-public class FeedSession {
-    // Provide defaults for non-optional attributes
-    public var startTime: Date = Date()
-    public var endTime: Date?
-    public var amountValue: Double?
-    public var amountUnitSymbol: String?
-    public var profile: BabyProfile?
+// MARK: - FeedSession helpers
 
-    public var memoText: String?
-
-    public init(startTime: Date) {
+public extension FeedSession {
+    convenience init(context: NSManagedObjectContext, startTime: Date) {
+        self.init(context: context)
         self.startTime = startTime
+        self.uuid = UUID()
     }
 
-    // Map persisted symbols to canonical UnitVolume instances
+    override func awakeFromInsert() {
+        super.awakeFromInsert()
+        uuid = UUID()
+        startTime = Date()
+    }
+
+    var amount: Measurement<UnitVolume>? {
+        get {
+            guard let unitSymbol = amountUnitSymbol else { return nil }
+            guard let unit = canonicalUnit(from: unitSymbol) else {
+                return Measurement(value: amountValue, unit: .milliliters)
+            }
+            return Measurement(value: amountValue, unit: unit)
+        }
+        set {
+            guard let newValue else {
+                amountValue = 0
+                amountUnitSymbol = nil
+                return
+            }
+            let unit = canonicalUnit(from: newValue.unit.symbol) ?? newValue.unit
+            amountValue = newValue.converted(to: unit).value
+            amountUnitSymbol = unit.symbol
+        }
+    }
+
+    var isInProgress: Bool {
+        endTime == nil
+    }
+
+    var hashtags: [String] {
+        guard let memoText, !memoText.isEmpty else { return [] }
+        let pattern = #"(?<!\w)#([\p{L}\p{N}_]+)"#
+        guard let regex = try? NSRegularExpression(pattern: pattern, options: []) else { return [] }
+        let nsText = memoText as NSString
+        let matches = regex.matches(in: memoText, options: [], range: NSRange(location: 0, length: nsText.length))
+        var tags: [String] = matches.map { nsText.substring(with: $0.range(at: 0)) }
+        var seen = Set<String>()
+        tags = tags.filter { seen.insert($0.lowercased()).inserted }
+        return tags
+    }
+
     private func canonicalUnit(from symbol: String) -> UnitVolume? {
         let trimmed = symbol.trimmingCharacters(in: .whitespacesAndNewlines)
         let lower = trimmed.lowercased()
-
         switch lower {
-        case "ml", "mL".lowercased(), "milliliter", "milliliters":
+        case "ml", "milliliter", "milliliters":
             return .milliliters
         case "fl oz", "fl oz", "fl. oz", "fluid ounce", "fluid ounces":
             return .fluidOunces
@@ -79,71 +205,27 @@ public class FeedSession {
             return nil
         }
     }
-
-    // Use canonical units everywhere
-    @Transient
-    public var amount: Measurement<UnitVolume>? {
-        get {
-            guard let value = amountValue, let symbol = amountUnitSymbol else { return nil }
-            guard let unit = canonicalUnit(from: symbol) else {
-                // Fallback: treat as milliliters to avoid crashes (conversion may be off)
-                return Measurement(value: value, unit: .milliliters)
-            }
-            return Measurement(value: value, unit: unit)
-        }
-        set {
-            if let newValue {
-                let unit: UnitVolume = canonicalUnit(from: newValue.unit.symbol) ?? newValue.unit
-                self.amountValue = newValue.converted(to: unit).value
-                self.amountUnitSymbol = unit.symbol
-            } else {
-                self.amountValue = nil
-                self.amountUnitSymbol = nil
-            }
-        }
-    }
-
-    @Transient
-    public var isInProgress: Bool {
-        endTime == nil
-    }
-
-    // Extract hashtags (words beginning with '#', stopping at whitespace or punctuation)
-    @Transient
-    public var hashtags: [String] {
-        guard let memoText, !memoText.isEmpty else { return [] }
-        // Regex matches # followed by letters/numbers/underscore in most scripts
-        let pattern = #"(?<!\w)#([\p{L}\p{N}_]+)"#
-        guard let regex = try? NSRegularExpression(pattern: pattern, options: []) else { return [] }
-        let ns = memoText as NSString
-        let matches = regex.matches(in: memoText, options: [], range: NSRange(location: 0, length: ns.length))
-        // Return with the leading '#'
-        var tags: [String] = matches.map {
-            let fullRange = $0.range(at: 0)
-            return ns.substring(with: fullRange)
-        }
-        // Deduplicate while preserving order
-        var seen = Set<String>()
-        tags = tags.filter { seen.insert($0.lowercased()).inserted }
-        return tags
-    }
 }
 
-public enum DiaperType: String, Codable {
-    case pee
-    case poo
-}
+// MARK: - DiaperChange helpers
 
-@Model
-public class DiaperChange {
-    // Provide defaults for non-optional attributes
-    public var timestamp: Date = Date()
-    public var type: DiaperType = DiaperType.pee
-    public var profile: BabyProfile?
-
-    public init(timestamp: Date, type: DiaperType) {
+public extension DiaperChange {
+    convenience init(context: NSManagedObjectContext, timestamp: Date, type: DiaperType) {
+        self.init(context: context)
         self.timestamp = timestamp
-        self.type = type
+        self.type = type.rawValue
+        self.uuid = UUID()
+    }
+
+    override func awakeFromInsert() {
+        super.awakeFromInsert()
+        timestamp = Date()
+        type = DiaperType.pee.rawValue
+        uuid = UUID()
+    }
+
+    var diaperType: DiaperType {
+        get { DiaperType(rawValue: type) ?? .pee }
+        set { type = newValue.rawValue }
     }
 }
-

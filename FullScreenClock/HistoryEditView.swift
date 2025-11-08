@@ -1,25 +1,38 @@
 import SwiftUI
-import SwiftData
+import CoreData
 import Model
+
+enum HistoryEditModel {
+    case feed(FeedSession)
+    case diaper(DiaperChange)
+}
 
 struct HistoryEditView: View {
     @Environment(\.dismiss) private var dismiss
-    @Environment(\.modelContext) private var modelContext
+    @Environment(\.managedObjectContext) private var viewContext
     @EnvironmentObject var settings: AppSettings
 
-    let model: any PersistentModel
-    
-    // State for the amount text field
-    @State private var amountString: String = ""
+    let model: HistoryEditModel
 
-    // Memo editing
+    @State private var amountString: String = ""
     @State private var memoText: String = ""
     @State private var pendingInsertion: String? = nil
+    @State private var endTime: Date = Date()
+    @State private var diaperTime: Date = Date()
+    @State private var diaperType: DiaperType = .pee
 
-    // Keyboard handling
     private let memoSectionID = "MemoSection"
 
-    // Styling for hashtags in the memo editor
+    private var feedSession: FeedSession? {
+        if case .feed(let session) = model { return session }
+        return nil
+    }
+
+    private var diaperChange: DiaperChange? {
+        if case .diaper(let change) = model { return change }
+        return nil
+    }
+
     private var hashtagAttributes: [NSAttributedString.Key: Any] {
         [
             .foregroundColor: UIColor.systemBlue,
@@ -31,11 +44,11 @@ struct HistoryEditView: View {
         NavigationView {
             ScrollViewReader { proxy in
                 Form {
-                    if let session = model as? FeedSession {
+                    if let session = feedSession {
                         feedEditor(for: session)
                         memoEditor(for: session)
                             .id(memoSectionID)
-                    } else if let diaper = model as? DiaperChange {
+                    } else if let diaper = diaperChange {
                         diaperEditor(for: diaper)
                     }
                 }
@@ -47,11 +60,8 @@ struct HistoryEditView: View {
                         }
                         .keyboardShortcut(.defaultAction)
                     }
-                    // Note: The hashtag bar is now provided by the UITextView's inputAccessoryView,
-                    // not by SwiftUI's keyboard toolbar.
                 }
                 .onAppear(perform: setupInitialState)
-                // When the keyboard appears or changes frame, scroll the memo section into view
                 .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillShowNotification)) { _ in
                     withAnimation {
                         proxy.scrollTo(memoSectionID, anchor: .bottom)
@@ -69,8 +79,13 @@ struct HistoryEditView: View {
     @ViewBuilder
     private func feedEditor(for session: FeedSession) -> some View {
         Section("Time") {
-            DatePicker("Start Time", selection: .init(get: { session.startTime }, set: { session.startTime = $0 }))
-            DatePicker("End Time", selection: .init(get: { session.endTime ?? session.startTime }, set: { session.endTime = $0 }))
+            DatePicker(
+                "Start Time",
+                selection: .constant(session.startTime),
+                displayedComponents: [.hourAndMinute]
+            )
+            .disabled(true)
+            DatePicker("End Time", selection: $endTime, displayedComponents: [.hourAndMinute])
         }
         Section("Amount") {
             HStack {
@@ -81,19 +96,15 @@ struct HistoryEditView: View {
         }
         .onChange(of: amountString) { _, newValue in
             if let value = Double(newValue) {
-                // Use existing unit if present; otherwise infer from locale
                 let unit: UnitVolume = {
-                    if let symbol = session.amountUnitSymbol, let u = unitVolume(from: symbol) {
-                        return u
+                    if let symbol = session.amountUnitSymbol,
+                       let resolved = unitVolume(from: symbol) {
+                        return resolved
                     }
                     return (Locale.current.measurementSystem == .us) ? .fluidOunces : .milliliters
                 }()
-                // Write to stored fields so SwiftData publishes changes
                 session.amountValue = value
                 session.amountUnitSymbol = unit.symbol
-            } else {
-                session.amountValue = nil
-                session.amountUnitSymbol = nil
             }
         }
     }
@@ -110,7 +121,6 @@ struct HistoryEditView: View {
             .frame(minHeight: 120)
             .accessibilityLabel(Text("Memo"))
             .onChange(of: memoText) { _, newText in
-                // Keep session memo live-updated
                 session.memoText = newText
             }
         }
@@ -119,41 +129,49 @@ struct HistoryEditView: View {
     @ViewBuilder
     private func diaperEditor(for diaper: DiaperChange) -> some View {
         Section("Time") {
-            DatePicker("Time", selection: .init(get: { diaper.timestamp }, set: { diaper.timestamp = $0 }))
+            DatePicker("Time", selection: $diaperTime)
         }
         Section("Type") {
-            Picker("Type", selection: .init(get: { diaper.type }, set: { diaper.type = $0 })) {
+            Picker("Type", selection: $diaperType) {
                 Text("Pee").tag(DiaperType.pee)
                 Text("Poo").tag(DiaperType.poo)
             }
             .pickerStyle(.segmented)
         }
     }
-    
+
     private func setupInitialState() {
-        if let session = model as? FeedSession {
-            if let value = session.amountValue {
-                // Preserve a single decimal like before
-                amountString = String(format: "%.1f", value)
-            }
+        if let session = feedSession {
+            amountString = String(format: "%.1f", session.amountValue)
             memoText = session.memoText ?? ""
+            endTime = session.endTime ?? Date()
+        } else if let diaper = diaperChange {
+            diaperTime = diaper.timestamp
+            diaperType = diaper.diaperType
         }
     }
 
     private func saveAndDismiss() {
-        if let session = model as? FeedSession {
-            // Persist memo text
+        if let session = feedSession {
+            session.endTime = endTime
             session.memoText = memoText
-            // Update MRU hashtags
             settings.addRecentHashtags(from: memoText)
+        } else if let diaper = diaperChange {
+            diaper.timestamp = diaperTime
+            diaper.diaperType = diaperType
         }
-        try? modelContext.save()
+
+        do {
+            try viewContext.save()
+        } catch {
+            assertionFailure(error.localizedDescription)
+        }
+
         NearbySyncManager.shared.sendPing()
         dismiss()
     }
 }
 
-// Local helper to decode a UnitVolume from a symbol/name
 private func unitVolume(from symbolOrName: String) -> UnitVolume? {
     let trimmed = symbolOrName.trimmingCharacters(in: .whitespacesAndNewlines)
     let lower = trimmed.lowercased()
@@ -171,7 +189,6 @@ private func unitVolume(from symbolOrName: String) -> UnitVolume? {
     }
 }
 
-// UIKit font helper
 private extension UIFont {
     func bold() -> UIFont {
         guard let descriptor = fontDescriptor.withSymbolicTraits(.traitBold) else { return self }

@@ -1,13 +1,13 @@
 import SwiftUI
-import SwiftData
+import CoreData
 import Model
 
 struct ProfileEditView: View {
     @ObservedObject var viewModel: ContentViewModel
     @Environment(\.dismiss) var dismiss
-    @Environment(\.modelContext) private var modelContext
+    @Environment(\.managedObjectContext) private var viewContext
 
-    var profile: BabyProfile
+    @ObservedObject var profile: BabyProfile
 
     @State private var name: String = ""
     @State private var showingDeleteConfirm = false
@@ -112,8 +112,8 @@ struct ProfileEditView: View {
     }
 
     private func deleteProfile() {
-        modelContext.delete(profile)
-        try? modelContext.save()
+        viewContext.delete(profile)
+        try? viewContext.save()
         NearbySyncManager.shared.sendPing()
         dismiss()
     }

@@ -1,6 +1,6 @@
 // AppDelegate.swift
 import UIKit
-import SwiftData
+import CoreData
 import Model
 
 final class AppDelegate: NSObject, UIApplicationDelegate {
@@ -9,11 +9,9 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
                      didReceiveRemoteNotification userInfo: [AnyHashable : Any],
                      fetchCompletionHandler completionHandler: @escaping (UIBackgroundFetchResult) -> Void) {
 
-        // Let SwiftData/Core Data mirroring process the push first.
-        // NSPersistentCloudKitContainer handles this automatically; we just schedule a refresh shortly after.
-        let context = SharedModelContainer.container.mainContext
+        // Let Core Data mirroring process the push first.
+        let context = PersistenceController.shared.viewContext
 
-        // Give the import a brief moment to complete; then refresh widget snapshots.
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
             refreshBabyWidgetSnapshots(using: context)
             completionHandler(.newData)

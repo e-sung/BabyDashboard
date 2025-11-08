@@ -1,17 +1,19 @@
 import SwiftUI
-import SwiftData
+import CoreData
 import Model
 
 struct FeedSessionEditView: View {
-    @Environment(\.dismiss) var dismiss
-    
-    @Bindable var session: FeedSession
-    
+    @Environment(\.dismiss) private var dismiss
+    @Environment(\.managedObjectContext) private var viewContext
+
+    @ObservedObject var session: FeedSession
+
     @State private var endTime: Date
     @State private var amountString: String
-    
+
     private var durationString: String {
-        let duration = endTime.timeIntervalSince(session.startTime)
+        let start = session.startTime
+        let duration = endTime.timeIntervalSince(start)
         guard duration > 0 else { return "--" }
         let formatter = DateComponentsFormatter()
         formatter.unitsStyle = .full
@@ -24,16 +26,20 @@ struct FeedSessionEditView: View {
         _endTime = State(initialValue: session.endTime ?? Date())
         _amountString = State(initialValue: session.amount.map { String(format: "%.1f", $0.value) } ?? "")
     }
-    
+
     var body: some View {
         Form {
             Section("Time") {
-                DatePicker("Started", selection: .constant(session.startTime), displayedComponents: [.hourAndMinute])
-                    .disabled(true)
+                DatePicker(
+                    "Started",
+                    selection: .constant(session.startTime),
+                    displayedComponents: [.hourAndMinute]
+                )
+                .disabled(true)
                 DatePicker("Ended", selection: $endTime, displayedComponents: [.hourAndMinute])
                 LabeledContent("Duration", value: durationString)
             }
-            
+
             Section("Amount") {
                 HStack {
                     TextField("Amount", text: $amountString)
@@ -44,17 +50,19 @@ struct FeedSessionEditView: View {
         }
         .onDisappear(perform: save)
     }
-    
+
     private func save() {
         session.endTime = endTime
         if let value = Double(amountString) {
             let unit = session.amount?.unit ?? ((Locale.current.measurementSystem == .us) ? .fluidOunces : .milliliters)
             let newAmount = Measurement(value: value, unit: unit)
             session.amount = newAmount
-            
-            // For consistency, update the last feed amount on the profile
-            session.profile?.lastFeedAmountValue = session.amount?.value
-            session.profile?.lastFeedAmountUnitSymbol = session.amount?.unit.symbol
+        }
+
+        do {
+            try session.managedObjectContext?.save()
+        } catch {
+            // If save fails we silently ignore in edit sheet to avoid user-facing crash in preview builds.
         }
     }
 }

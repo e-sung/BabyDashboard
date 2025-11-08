@@ -1,12 +1,12 @@
 import SwiftUI
 import UniformTypeIdentifiers
-import SwiftData
+import CoreData
 import Model
 
 struct SettingsView: View {
     @ObservedObject var settings: AppSettings
     @Environment(\.dismiss) private var dismiss
-    @Environment(\.modelContext) private var modelContext
+    @Environment(\.managedObjectContext) private var viewContext
 
     // Kind used for both export and import
     private enum DataKind: String {
@@ -31,6 +31,10 @@ struct SettingsView: View {
 
     @State private var importReport: HistoryCSVService.ImportReport?
     @State private var importError: String?
+    #if DEBUG
+    @State private var showingNukeConfirm = false
+    @State private var nukeError: String?
+    #endif
 
     // Create a Date binding from the hour/minute integers
     private var startOfDayBinding: Binding<Date> {
@@ -85,6 +89,16 @@ struct SettingsView: View {
                         Label("Import Diapers CSV", systemImage: "square.and.arrow.down")
                     }
                 }
+
+                #if DEBUG
+                Section(header: Text("Debug – Danger Zone")) {
+                    Button(role: .destructive) {
+                        showingNukeConfirm = true
+                    } label: {
+                        Label("Delete All Data", systemImage: "trash")
+                    }
+                }
+                #endif
             }
             .navigationTitle("Settings")
             .toolbar {
@@ -119,10 +133,10 @@ struct SettingsView: View {
                             defer { if didStart { url.stopAccessingSecurityScopedResource() } }
                             let data = try Data(contentsOf: url)
                             if importKind == .feeds {
-                                let report = try await HistoryCSVService.decodeFeedsAndImport(data: data, modelContext: modelContext)
+                                let report = try await HistoryCSVService.decodeFeedsAndImport(data: data, context: viewContext)
                                 importReport = report
                             } else if importKind == .diapers {
-                                let report = try await HistoryCSVService.decodeDiapersAndImport(data: data, modelContext: modelContext)
+                                let report = try await HistoryCSVService.decodeDiapersAndImport(data: data, context: viewContext)
                                 importReport = report
                             }
                             importKind = nil
@@ -156,6 +170,25 @@ Errors: \(r.errors.count)
                 Text(importError ?? "")
             }
         }
+        #if DEBUG
+        .alert("Delete All Data?", isPresented: $showingNukeConfirm) {
+            Button("Delete", role: .destructive) {
+                do {
+                    try nukeAllData()
+                } catch {
+                    nukeError = error.localizedDescription
+                }
+            }
+            Button("Cancel", role: .cancel) { }
+        } message: {
+            Text("This deletes all feed sessions, diaper changes, cached amounts, and resets app settings. This action cannot be undone.")
+        }
+        .alert("Nuke Failed", isPresented: Binding(get: { nukeError != nil }, set: { if !$0 { nukeError = nil } })) {
+            Button("OK", role: .cancel) { nukeError = nil }
+        } message: {
+            Text(nukeError ?? "")
+        }
+        #endif
     }
 
     // MARK: - Export helpers
@@ -165,9 +198,9 @@ Errors: \(r.errors.count)
             let data: Data
             switch kind {
             case .feeds:
-                data = try HistoryCSVService.encodeFeeds(modelContext: modelContext)
+                data = try HistoryCSVService.encodeFeeds(context: viewContext)
             case .diapers:
-                data = try HistoryCSVService.encodeDiapers(modelContext: modelContext)
+                data = try HistoryCSVService.encodeDiapers(context: viewContext)
             }
             preparedExport = CSVDocument(data: data)
             exportKind = kind
@@ -190,5 +223,36 @@ Errors: \(r.errors.count)
         df.dateFormat = "yyyyMMdd-HHmmss"
         return df.string(from: Date())
     }
-}
 
+    #if DEBUG
+    private func nukeAllData() throws {
+        let feedFetch: NSFetchRequest<FeedSession> = FeedSession.fetchRequest()
+        let feeds = try viewContext.fetch(feedFetch)
+        feeds.forEach(viewContext.delete)
+
+        let diaperFetch: NSFetchRequest<DiaperChange> = DiaperChange.fetchRequest()
+        let diapers = try viewContext.fetch(diaperFetch)
+        diapers.forEach(viewContext.delete)
+
+        if viewContext.hasChanges {
+            try viewContext.save()
+        }
+
+        settings.resetAll()
+        clearUserDefaultsStores()
+    }
+
+    private func clearUserDefaultsStores() {
+        if let bundleID = Bundle.main.bundleIdentifier {
+            UserDefaults.standard.removePersistentDomain(forName: bundleID)
+            UserDefaults.standard.synchronize()
+        }
+
+        let groupDefaults = appGroupUserDefaults()
+        for key in groupDefaults.dictionaryRepresentation().keys {
+            groupDefaults.removeObject(forKey: key)
+        }
+        groupDefaults.synchronize()
+    }
+    #endif
+}

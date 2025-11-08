@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<model type="com.apple.IDECoreDataModeler.DataModel" documentVersion="1.0" lastSavedToolsVersion="24299" systemVersion="25A362" minimumToolsVersion="Automatic" sourceLanguage="Swift" usedWithCloudKit="YES" userDefinedModelVersionIdentifier="">
+    <entity name="BabyProfile" representedClassName="BabyProfile" syncable="YES">
+        <attribute name="createdAt" attributeType="Date" defaultDateTimeInterval="784152300" usesScalarValueType="NO"/>
+        <attribute name="feedTerm" attributeType="Double" defaultValueString="0.0" usesScalarValueType="YES"/>
+        <attribute name="id" optional="YES" attributeType="UUID" defaultValueString="00000000-0000-0000-0000-000000000000" usesScalarValueType="NO"/>
+        <attribute name="name" attributeType="String" defaultValueString=""/>
+        <relationship name="diaperChanges" optional="YES" toMany="YES" deletionRule="Nullify" destinationEntity="DiaperChange" inverseName="profile" inverseEntity="DiaperChange"/>
+        <relationship name="feedSessions" optional="YES" toMany="YES" deletionRule="Nullify" destinationEntity="FeedSession" inverseName="profile" inverseEntity="FeedSession"/>
+    </entity>
+    <entity name="DiaperChange" representedClassName="DiaperChange" syncable="YES">
+        <attribute name="timestamp" attributeType="Date" defaultDateTimeInterval="784152300" usesScalarValueType="NO"/>
+        <attribute name="type" attributeType="String" defaultValueString="pee"/>
+        <attribute name="uuid" optional="YES" attributeType="UUID" defaultValueString="00000000-0000-0000-0000-000000000000" usesScalarValueType="NO"/>
+        <relationship name="profile" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="BabyProfile" inverseName="diaperChanges" inverseEntity="BabyProfile"/>
+    </entity>
+    <entity name="FeedSession" representedClassName="FeedSession" syncable="YES">
+        <attribute name="amountUnitSymbol" optional="YES" attributeType="String"/>
+        <attribute name="amountValue" optional="YES" attributeType="Double" usesScalarValueType="YES"/>
+        <attribute name="endTime" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="memoText" optional="YES" attributeType="String"/>
+        <attribute name="startTime" attributeType="Date" defaultDateTimeInterval="784152060" usesScalarValueType="NO"/>
+        <attribute name="uuid" optional="YES" attributeType="UUID" defaultValueString="00000000-0000-0000-0000-000000000000" usesScalarValueType="NO"/>
+        <relationship name="profile" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="BabyProfile" inverseName="feedSessions" inverseEntity="BabyProfile"/>
+    </entity>
+</model>

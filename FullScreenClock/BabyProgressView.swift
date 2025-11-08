@@ -51,7 +51,7 @@ class BabyProgressViewModel: ObservableObject {
 }
 
 struct BabyProgressView: View {
-    let baby: BabyProfile
+    @ObservedObject var baby: BabyProfile
     let timeScope: TimeInterval
     var feedingColor: Color = .blue
     @StateObject var viewModel: BabyProgressViewModel
@@ -84,35 +84,39 @@ struct BabyProgressView: View {
 }
 
 #Preview("BabyProgressView Scenarios") {
-    // timeScope: 3 hours
+    let controller = PersistenceController.preview
+    let context = controller.viewContext
     let scope: TimeInterval = 60
     let now = Date()
 
-    // Scenario 1: Feeding just started (in-progress)
-    let babyFeeding = BabyProfile(id: UUID(), name: "Feeding Now")
-    let inProgress = FeedSession(startTime: now) // just started
-    inProgress.profile = babyFeeding
-    babyFeeding.feedSessions = [inProgress]
+    var babyFeeding: BabyProfile!
+    var babyFinished: BabyProfile!
+    var babyOverdue: BabyProfile!
 
-    // Scenario 2: Finished 45-minute feed, ended 30 minutes ago
-    // Start 75 minutes ago, end 30 minutes ago => duration 45 minutes
-    let babyFinished = BabyProfile(id: UUID(), name: "45 min ended 30m ago")
-    let start2 = now.addingTimeInterval(-75 * 60)
-    let end2 = now.addingTimeInterval(-30 * 60)
-    let finished = FeedSession(startTime: start2)
-    finished.endTime = end2
-    finished.profile = babyFinished
-    babyFinished.feedSessions = [finished]
+    context.performAndWait {
+        // Scenario 1: Feeding just started (in-progress)
+        babyFeeding = BabyProfile(context: context, name: "Feeding Now")
+        let inProgress = FeedSession(context: context, startTime: now)
+        inProgress.profile = babyFeeding
 
-    // Scenario 3: Overdue — last feed started 4 hours ago (blue hidden)
-    // Start 4 hours ago, end 3h 45m ago (15 min duration)
-    let babyOverdue = BabyProfile(id: UUID(), name: "Overdue 4h since start")
-    let start3 = now.addingTimeInterval(-4 * 3600)
-    let end3 = now.addingTimeInterval(-3 * 3600 - 45 * 60)
-    let overdue = FeedSession(startTime: start3)
-    overdue.endTime = end3
-    overdue.profile = babyOverdue
-    babyOverdue.feedSessions = [overdue]
+        // Scenario 2: Finished 45-minute feed, ended 30 minutes ago
+        babyFinished = BabyProfile(context: context, name: "45 min ended 30m ago")
+        let start2 = now.addingTimeInterval(-75 * 60)
+        let end2 = now.addingTimeInterval(-30 * 60)
+        let finished = FeedSession(context: context, startTime: start2)
+        finished.endTime = end2
+        finished.profile = babyFinished
+
+        // Scenario 3: Overdue
+        babyOverdue = BabyProfile(context: context, name: "Overdue 4h since start")
+        let start3 = now.addingTimeInterval(-4 * 3600)
+        let end3 = now.addingTimeInterval(-3 * 3600 - 45 * 60)
+        let overdue = FeedSession(context: context, startTime: start3)
+        overdue.endTime = end3
+        overdue.profile = babyOverdue
+
+        try? context.save()
+    }
 
     return HStack(spacing: 24) {
         VStack {
@@ -136,4 +140,5 @@ struct BabyProgressView: View {
     }
     .frame(height: 300)
     .padding()
+    .environment(\.managedObjectContext, context)
 }

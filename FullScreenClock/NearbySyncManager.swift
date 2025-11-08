@@ -1,6 +1,6 @@
 import Foundation
 import MultipeerConnectivity
-import SwiftData
+import CoreData
 import Model
 import UIKit
 
@@ -75,7 +75,7 @@ final class NearbySyncManager: NSObject {
         case "syncPing":
             // Keep the model stack warm and flush any pending writes so CloudKit mirroring runs promptly.
             DispatchQueue.main.async {
-                let context = SharedModelContainer.container.mainContext
+                let context = PersistenceController.shared.viewContext
                 try? context.save()
             }
         default:

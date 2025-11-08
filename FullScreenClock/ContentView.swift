@@ -1,6 +1,6 @@
 import SwiftUI
 import Combine
-import SwiftData
+import CoreData
 import Model
 import WidgetKit
 
@@ -12,19 +12,19 @@ class ContentViewModel: ObservableObject {
     @Published var minute: String = "00"
     @Published var showColon: Bool = true
     @Published var date: String = ""
-    
-    private var modelContext: ModelContext {
-        SharedModelContainer.container.mainContext
-    }
+
+    private let viewContext: NSManagedObjectContext
 
     private var feedAnimationTimers: [UUID: Timer] = [:]
     private var diaperAnimationTimers: [UUID: Timer] = [:]
     @Published var feedAnimationStates: [UUID: Bool] = [:]
     @Published var diaperAnimationStates: [UUID: Bool] = [:]
 
-    static var shared = ContentViewModel()
+    static var shared = ContentViewModel(context: PersistenceController.shared.viewContext)
 
-    init() {
+    init(context: NSManagedObjectContext) {
+        self.viewContext = context
+
         Timer.scheduledTimer(withTimeInterval: 1, repeats: true, block: { [weak self] _ in
             DispatchQueue.main.async {
                 self?.updateClock()
@@ -48,11 +48,10 @@ class ContentViewModel: ObservableObject {
     
     func startFeeding(for baby: BabyProfile) {
         if let ongoing = baby.inProgressFeedSession {
-            modelContext.delete(ongoing)
+            viewContext.delete(ongoing)
         }
-        let newSession = FeedSession(startTime: Date())
+        let newSession = FeedSession(context: viewContext, startTime: Date())
         newSession.profile = baby
-        modelContext.insert(newSession)
         saveAndPing()
         triggerAnimation(for: baby.id, type: .feed)
     }
@@ -61,22 +60,20 @@ class ContentViewModel: ObservableObject {
         guard let session = baby.inProgressFeedSession else { return }
         session.endTime = Date()
         session.amount = amount
-        baby.lastFeedAmountValue = session.amount?.value
-        baby.lastFeedAmountUnitSymbol = session.amount?.unit.symbol
+
         saveAndPing()
     }
     
     func cancelFeeding(for baby: BabyProfile) {
         guard let session = baby.inProgressFeedSession else { return }
-        modelContext.delete(session)
+        viewContext.delete(session)
         saveAndPing()
         triggerAnimation(for: baby.id, type: .feed)
     }
     
     func logDiaperChange(for baby: BabyProfile, type: DiaperType) {
-        let newDiaper = DiaperChange(timestamp: Date(), type: type)
+        let newDiaper = DiaperChange(context: viewContext, timestamp: Date(), type: type)
         newDiaper.profile = baby
-        modelContext.insert(newDiaper)
         saveAndPing()
         triggerAnimation(for: baby.id, type: .diaper)
     }
@@ -85,9 +82,8 @@ class ContentViewModel: ObservableObject {
         if let lastChange = baby.lastDiaperChange {
             lastChange.timestamp = date
         } else {
-            let newDiaper = DiaperChange(timestamp: date, type: .pee)
+            let newDiaper = DiaperChange(context: viewContext, timestamp: date, type: .pee)
             newDiaper.profile = baby
-            modelContext.insert(newDiaper)
         }
         saveAndPing()
     }
@@ -123,10 +119,10 @@ class ContentViewModel: ObservableObject {
     // MARK: - Save + Nudge
 
     private func saveAndPing() {
-        try? modelContext.save()
+        try? viewContext.save()
         NearbySyncManager.shared.sendPing()
         // Update widget cache and reload timelines (using shared helper)
-        refreshBabyWidgetSnapshots(using: modelContext)
+        refreshBabyWidgetSnapshots(using: viewContext)
     }
 }
 
@@ -134,14 +130,17 @@ class ContentViewModel: ObservableObject {
 
 struct ContentView: View {
     @ObservedObject var viewModel: ContentViewModel
-    @Environment(\.modelContext) private var modelContext
+    @Environment(\.managedObjectContext) private var viewContext
     @EnvironmentObject var settings: AppSettings
 
     // Size class environment for conditional UI
     @Environment(\.horizontalSizeClass) private var hSizeClass
     @Environment(\.verticalSizeClass) private var vSizeClass
 
-    @Query(sort: [SortDescriptor(\BabyProfile.name)]) private var babies: [BabyProfile]
+    @FetchRequest(
+        fetchRequest: ContentView.makeBabiesRequest(),
+        animation: .default
+    ) private var babies: FetchedResults<BabyProfile>
 
     @State private var editingProfile: BabyProfile? = nil
     @State private var editingDiaperTimeFor: BabyProfile? = nil
@@ -197,7 +196,7 @@ struct ContentView: View {
                             }
                             ToolbarItem(placement: .confirmationAction) {
                                 Button("Save") {
-                                    try? modelContext.save()
+                                    try? viewContext.save()
                                     NearbySyncManager.shared.sendPing()
                                     editingFeedSession = nil
                                 }
@@ -225,6 +224,14 @@ struct ContentView: View {
                 Button("Poo") { viewModel.logDiaperChange(for: baby, type: .poo) }
             }
         }
+    }
+}
+
+private extension ContentView {
+    static func makeBabiesRequest() -> NSFetchRequest<BabyProfile> {
+        let request: NSFetchRequest<BabyProfile> = BabyProfile.fetchRequest()
+        request.sortDescriptors = [NSSortDescriptor(key: "createdAt", ascending: true)]
+        return request
     }
 }
 
@@ -416,9 +423,8 @@ private extension ContentView {
         }
         .padding()
         .onAppear {
-            if let lastAmount = baby.lastFeedAmountValue {
-                feedAmountString = lastAmount.formatted(.number.precision(.fractionLength(0)))
-            }
+            guard let latestFeedAmount = baby.lastFeedSession?.amountValue else { return }
+            feedAmountString = latestFeedAmount.formatted(.number.precision(.fractionLength(0)))
         }
     }
     
@@ -467,9 +473,8 @@ private extension ContentView {
             AddBabyForm { name in
                 let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
                 guard !trimmed.isEmpty else { return }
-                let baby = BabyProfile(id: UUID(), name: trimmed)
-                modelContext.insert(baby)
-                try? modelContext.save()
+                let _ = BabyProfile(context: viewContext, name: trimmed)
+                try? viewContext.save()
                 NearbySyncManager.shared.sendPing()
                 isShowingAddBaby = false
             } onCancel: {
@@ -530,47 +535,34 @@ private struct AddBabyForm: View {
 // MARK: - Preview
 
 #Preview("ContentView") {
-    // In-memory SwiftData container for previews
-    let schema = Schema([BabyProfile.self, FeedSession.self, DiaperChange.self])
-    let configuration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: true)
-    let container = try! ModelContainer(for: schema, configurations: [configuration])
-    let context = container.mainContext
+    let controller = PersistenceController.preview
+    let context = controller.viewContext
 
-    // Seed sample data
-    let baby1 = BabyProfile(id: UUID(), name: "연두")
-    let baby2 = BabyProfile(id: UUID(), name: "초원")
+    context.performAndWait {
+        let baby1 = BabyProfile(context: context, name: "연두")
+        let baby2 = BabyProfile(context: context, name: "초원")
 
-    // Baby 1: last finished feed 45 minutes ago, 120 ml, 15 min
-    let session1 = FeedSession(startTime: Date().addingTimeInterval(-60 * 60)) // 60 min ago
-    session1.endTime = Date().addingTimeInterval(-15 * 60) // ended 15 min after start => 45 min ago
-    session1.amount = Measurement(value: Locale.current.measurementSystem == .us ? 4.0 : 120.0,
-                                  unit: (Locale.current.measurementSystem == .us) ? .fluidOunces : .milliliters)
-    session1.profile = baby1
-    baby1.lastFeedAmountValue = session1.amount?.value
-    baby1.lastFeedAmountUnitSymbol = session1.amount?.unit.symbol
+        let session1 = FeedSession(context: context, startTime: Date().addingTimeInterval(-60 * 60))
+        session1.endTime = Date().addingTimeInterval(-15 * 60)
+        session1.amount = Measurement(value: Locale.current.measurementSystem == .us ? 4.0 : 120.0,
+                                      unit: (Locale.current.measurementSystem == .us) ? .fluidOunces : .milliliters)
+        session1.profile = baby1
 
-    // Baby 1: last diaper 30 minutes ago
-    let diaper1 = DiaperChange(timestamp: Date().addingTimeInterval(-30 * 60), type: .pee)
-    diaper1.profile = baby1
+        let diaper1 = DiaperChange(context: context, timestamp: Date().addingTimeInterval(-30 * 60), type: .pee)
+        diaper1.profile = baby1
 
-    // Baby 2: in-progress feed started 5 minutes ago
-    let session2 = FeedSession(startTime: Date().addingTimeInterval(-5 * 60))
-    session2.profile = baby2
+        let session2 = FeedSession(context: context, startTime: Date().addingTimeInterval(-5 * 60))
+        session2.profile = baby2
 
-    // Baby 2: last diaper 10 minutes ago
-    let diaper2 = DiaperChange(timestamp: Date().addingTimeInterval(-10 * 60), type: .poo)
-    diaper2.profile = baby2
+        let diaper2 = DiaperChange(context: context, timestamp: Date().addingTimeInterval(-10 * 60), type: .poo)
+        diaper2.profile = baby2
 
-    context.insert(baby1)
-    context.insert(baby2)
-    context.insert(session1)
-    context.insert(diaper1)
-    context.insert(session2)
-    context.insert(diaper2)
+        try? context.save()
+    }
 
-    // Use a fresh view model instance for previews
-    let vm = ContentViewModel()
+    let vm = ContentViewModel(context: context)
 
     return ContentView(viewModel: vm)
-        .modelContainer(container)
+        .environmentObject(AppSettings())
+        .environment(\.managedObjectContext, context)
 }

@@ -1,13 +1,12 @@
 import SwiftUI
-import SwiftData
+import CoreData
 import Model
 import Charts
 
 struct HistoryAnalysisView: View {
-    @Environment(\.modelContext) private var modelContext
+    @Environment(\.managedObjectContext) private var viewContext
     @EnvironmentObject var settings: AppSettings
 
-    // Segmented presets for analysis range
     enum RangePreset: Int, CaseIterable, Identifiable {
         case days30 = 30
         case days90 = 90
@@ -23,15 +22,13 @@ struct HistoryAnalysisView: View {
             }
         }
 
-        // Compute a DateInterval ending today (end-exclusive: start of tomorrow)
         func intervalEndingToday(calendar: Calendar = .current) -> DateInterval {
-            let endExclusive = calendar.startOfDay(for: Date()).addingTimeInterval(24*60*60)
+            let endExclusive = calendar.startOfDay(for: Date()).addingTimeInterval(24 * 60 * 60)
             let startInclusive = calendar.date(byAdding: .day, value: -(rawValue - 1), to: endExclusive) ?? Date()
             return DateInterval(start: startInclusive, end: endExclusive)
         }
     }
 
-    // Chart mode: daily totals vs per feed (non-aggregated)
     enum ChartMode: String, CaseIterable, Identifiable {
         case daily
         case perFeed
@@ -45,21 +42,16 @@ struct HistoryAnalysisView: View {
         }
     }
 
-    // Selected preset (default to 30 days)
     @State private var selectedPreset: RangePreset = .days30
     @State private var mode: ChartMode = .daily
 
     @State private var availableBabies: [BabyProfile] = []
     @State private var selectedBabyID: UUID? = nil
 
-    // Data
     @State private var feedPoints: [DailyFeedPoint] = []
     @State private var perFeedPoints: [FeedSessionPoint] = []
-
-    // Axis labels cache (avoid formatting inside AxisValueLabel closure)
     @State private var yAxisFormatter: (Double) -> String = { value in String(format: "%.0f", value) }
 
-    // Selection for memo popover (per-feed mode)
     @State private var selectedPointForMemo: FeedSessionPoint? = nil
     @State private var selectedMemoText: String = ""
 
@@ -74,17 +66,13 @@ struct HistoryAnalysisView: View {
         }
         .navigationTitle("Analysis")
         .task {
-            await refreshData()
             loadAvailableBabies()
+            await refreshData()
         }
         .onChange(of: selectedPreset) { _, _ in Task { await refreshData() } }
         .onChange(of: selectedBabyID) { _, _ in Task { await refreshData() } }
-        .onChange(of: mode) { _, _ in
-            // No fetch required; we already build both datasets in refreshData.
-        }
     }
 
-    // Split mark creation to tiny helpers to keep type checking simple.
     private func feedMark(for point: DailyFeedPoint) -> some ChartContent {
         LineMark(
             x: .value("Day", point.day),
@@ -108,8 +96,6 @@ struct HistoryAnalysisView: View {
         .symbol(Circle())
         .symbolSize(50)
     }
-
-    // MARK: - Chart branches
 
     @ViewBuilder
     private var chartView: some View {
@@ -177,19 +163,16 @@ struct HistoryAnalysisView: View {
                 )
             }
         }
-        // Tap handling only in per-feed chart
         .chartOverlay { proxy in
             GeometryReader { geo in
                 Rectangle()
                     .fill(.clear)
                     .contentShape(Rectangle())
                     .onTapGesture { location in
-                        // Convert tap to plot area coordinates
                         let plotFrame = proxy.plotAreaFrame
                         let origin = geo[plotFrame].origin
                         let pointInPlot = CGPoint(x: location.x - origin.x, y: location.y - origin.y)
 
-                        // Read the nearest x/y values at the tap with explicit axis types
                         if let date: Date = proxy.value(atX: pointInPlot.x, as: Date.self) {
                             let yDouble: Double? = proxy.value(atY: pointInPlot.y, as: Double.self)
                             if let nearest = nearestPoint(to: date, y: yDouble) {
@@ -199,7 +182,6 @@ struct HistoryAnalysisView: View {
                     }
             }
         }
-        // Popover for memo (appears when a per-feed point is selected)
         .popover(item: $selectedPointForMemo) { point in
             VStack(alignment: .leading, spacing: 8) {
                 Text(point.babyName)
@@ -222,11 +204,8 @@ struct HistoryAnalysisView: View {
         }
     }
 
-    // MARK: - Controls
-
     private var controls: some View {
         VStack(spacing: 8) {
-            // Segmented range picker
             Picker("Range", selection: $selectedPreset) {
                 ForEach(RangePreset.allCases) { preset in
                     Text(preset.title).tag(preset)
@@ -235,11 +214,10 @@ struct HistoryAnalysisView: View {
             .pickerStyle(.segmented)
             .padding(.horizontal)
 
-            // Mode + Baby filters
             HStack {
                 Picker("Mode", selection: $mode) {
-                    ForEach(ChartMode.allCases) { m in
-                        Text(m.title).tag(m)
+                    ForEach(ChartMode.allCases) { mode in
+                        Text(mode.title).tag(mode)
                     }
                 }
                 .pickerStyle(.segmented)
@@ -249,8 +227,8 @@ struct HistoryAnalysisView: View {
                     set: { selectedBabyID = $0 }
                 )) {
                     Text("All").tag(UUID?.none)
-                    ForEach(availableBabies, id: \.id) { baby in
-                        Text(baby.name).tag(UUID?.some(baby.id))
+                    ForEach(availableBabies.map { ( $0.id, $0.name ) }, id: \.0) { id, name in
+                        Text(name).tag(UUID?.some(id))
                     }
                 }
                 .pickerStyle(.menu)
@@ -260,51 +238,46 @@ struct HistoryAnalysisView: View {
         .padding(.top, 8)
     }
 
-    // MARK: - Data fetching / aggregation
-
     @MainActor
     private func refreshData() async {
         let calendar = Calendar.current
-
-        // Determine interval from preset (end-exclusive)
         let interval = selectedPreset.intervalEndingToday(calendar: calendar)
 
-        let feedPredicate: Predicate<FeedSession> = #Predicate { session in
-            session.startTime >= interval.start && session.startTime < interval.end
-        }
+        let request: NSFetchRequest<FeedSession> = FeedSession.fetchRequest()
+        var predicates: [NSPredicate] = []
 
-        let feedDescriptor = FetchDescriptor<FeedSession>(
-            predicate: feedPredicate,
-            sortBy: [SortDescriptor(\FeedSession.startTime, order: .forward)]
+        predicates.append(
+            NSPredicate(
+                format: "startTime >= %@ AND startTime < %@",
+                argumentArray: [interval.start as NSDate, interval.end as NSDate]
+            )
         )
+        if let selectedBabyID {
+            predicates.append(NSPredicate(format: "profile.id == %@", argumentArray: [selectedBabyID as CVarArg]))
+        }
+        request.predicate = NSCompoundPredicate(andPredicateWithSubpredicates: predicates)
+        request.sortDescriptors = [NSSortDescriptor(key: "startTime", ascending: true)]
 
-        let feeds = (try? modelContext.fetch(feedDescriptor)) ?? []
+        let feeds: [FeedSession] = (try? viewContext.fetch(request)) ?? []
 
-        let filteredFeeds: [FeedSession] = {
-            guard let selectedBabyID else { return feeds }
-            return feeds.filter { $0.profile?.id == selectedBabyID }
-        }()
-
-        // Daily totals (omit current logical day to avoid partial day)
         let feedPts = aggregateForChart(
-            feeds: filteredFeeds,
+            feeds: feeds,
             unit: targetUnit,
             calendar: calendar,
             startOfDayHour: settings.startOfDayHour,
             startOfDayMinute: settings.startOfDayMinute
         )
-        self.feedPoints = feedPts
+        feedPoints = feedPts
 
-        // Per-feed (include current logical day so latest finished sessions appear)
         let sessionPts = makePerSessionPoints(
-            feeds: filteredFeeds,
+            feeds: feeds,
             unit: targetUnit,
             calendar: calendar,
             startOfDayHour: settings.startOfDayHour,
             startOfDayMinute: settings.startOfDayMinute,
             omitLogicalToday: false
         )
-        self.perFeedPoints = sessionPts
+        perFeedPoints = sessionPts
 
         rebuildYAxisFormatter()
     }
@@ -312,36 +285,30 @@ struct HistoryAnalysisView: View {
     private func rebuildYAxisFormatter() {
         let unit = targetUnit
         yAxisFormatter = { value in
-            let m = Measurement(value: value, unit: unit)
-            return m.formatted(.measurement(width: .abbreviated, usage: .asProvided, numberFormatStyle: .number.precision(.fractionLength(0))))
+            let measurement = Measurement(value: value, unit: unit)
+            return measurement.formatted(.measurement(width: .abbreviated, usage: .asProvided, numberFormatStyle: .number.precision(.fractionLength(0))))
         }
     }
 
     private func loadAvailableBabies() {
-        let descriptor = FetchDescriptor<BabyProfile>(
-            sortBy: [SortDescriptor(\BabyProfile.name, order: .forward)]
-        )
-        if let babies = try? modelContext.fetch(descriptor) {
-            availableBabies = babies
-            if let selected = selectedBabyID, babies.first(where: { $0.id == selected }) == nil {
-                selectedBabyID = nil
-            }
+        let request: NSFetchRequest<BabyProfile> = BabyProfile.fetchRequest()
+        request.sortDescriptors = [NSSortDescriptor(key: "createdAt", ascending: true)]
+        availableBabies = (try? viewContext.fetch(request)) ?? []
+        if let selected = selectedBabyID,
+           availableBabies.first(where: { $0.id == selected }) == nil {
+            selectedBabyID = nil
         }
     }
 
-    // MARK: - Tap -> nearest point -> memo
-
     private func nearestPoint(to date: Date, y: Double?) -> FeedSessionPoint? {
         guard !perFeedPoints.isEmpty else { return nil }
-        var best: (FeedSessionPoint, Double)? = nil
-        for p in perFeedPoints {
-            let dx = abs(p.timestamp.timeIntervalSince(date))
-            let dy = y.map { abs(p.feedValue - $0) } ?? 0
-            // Simple combined distance; dx is in seconds, dy is in unit values.
-            // We can scale dx to minutes to keep magnitudes comparable.
+        var best: (FeedSessionPoint, Double)?
+        for point in perFeedPoints {
+            let dx = abs(point.timestamp.timeIntervalSince(date))
+            let dy = y.map { abs(point.feedValue - $0) } ?? 0
             let score = (dx / 60.0) + dy
-            if best == nil || score < best!.1 {
-                best = (p, score)
+            if best == nil || score < (best?.1 ?? .infinity) {
+                best = (point, score)
             }
         }
         return best?.0
@@ -349,17 +316,8 @@ struct HistoryAnalysisView: View {
 
     @MainActor
     private func presentMemo(for point: FeedSessionPoint) async {
-        // Capture values as plain constants and match optionality to the model
-        let ts: Date = point.timestamp
-        let babyIDOpt: UUID? = point.babyID
-
-        let predicate: Predicate<FeedSession> = #Predicate { s in
-            s.startTime == ts && s.profile?.id == babyIDOpt
-        }
-        let descriptor = FetchDescriptor<FeedSession>(predicate: predicate, sortBy: [])
-        let session = try? modelContext.fetch(descriptor).first
-
-        selectedMemoText = session?.memoText ?? ""
+        let memo = (try? viewContext.existingObject(with: point.objectID) as? FeedSession)?.memoText ?? ""
+        selectedMemoText = memo
         selectedPointForMemo = point
     }
 }

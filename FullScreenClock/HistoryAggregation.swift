@@ -1,5 +1,4 @@
 import Foundation
-import SwiftData
 import Model
 
 struct DaySummary: Identifiable, Equatable {
@@ -27,10 +26,10 @@ func makeDaySummaries(
 
     // Group models by day for accurate aggregates
     let groupedFeeds = Dictionary(grouping: feedSessions) { session in
-        calendar.logicalStartOfDay(for: session.startTime, startOfDayHour: startOfDayHour, startOfDayMinute: startOfDayMinute)
+        return calendar.logicalStartOfDay(for: session.startTime, startOfDayHour: startOfDayHour, startOfDayMinute: startOfDayMinute)
     }
     let groupedDiapers = Dictionary(grouping: diaperChanges) { change in
-        calendar.logicalStartOfDay(for: change.timestamp, startOfDayHour: startOfDayHour, startOfDayMinute: startOfDayMinute)
+        return calendar.logicalStartOfDay(for: change.timestamp, startOfDayHour: startOfDayHour, startOfDayMinute: startOfDayMinute)
     }
 
     // Build sections for all days that have any events
@@ -43,7 +42,8 @@ func makeDaySummaries(
         if let feeds = groupedFeeds[day] {
             for session in feeds {
                 guard let babyName = session.profile?.name else { continue }
-                guard let value = session.amountValue else { continue }
+                guard session.amountUnitSymbol != nil else { continue }
+                let value = session.amountValue
                 let unit = unitVolume(from: session.amountUnitSymbol) ?? ((Locale.current.measurementSystem == .us) ? .fluidOunces : .milliliters)
                 let convertedValue = Measurement(value: value, unit: unit).converted(to: targetUnit).value
                 if let existing = feedTotals[babyName] {
@@ -94,4 +94,3 @@ private func unitVolume(from symbolOrName: String?) -> UnitVolume? {
         return nil
     }
 }
-

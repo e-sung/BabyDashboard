@@ -1,6 +1,6 @@
 import AppIntents
 import Foundation
-import SwiftData
+import CoreData
 import Model
 import Playgrounds
 
@@ -116,27 +116,29 @@ struct FinishFeedingIntent: AppIntent {
 
 @MainActor
 private func fetchProfile(for id: UUID) async -> BabyProfile? {
-    let context = SharedModelContainer.container.mainContext
-    let descriptor = FetchDescriptor<BabyProfile>(predicate: #Predicate { $0.id == id })
-    return try? context.fetch(descriptor).first
+    let context = PersistenceController.shared.viewContext
+    let request: NSFetchRequest<BabyProfile> = BabyProfile.fetchRequest()
+    request.predicate = NSPredicate(format: "id == %@", id as CVarArg)
+    request.fetchLimit = 1
+    return try? context.fetch(request).first
 }
 
 @MainActor
 private func findBabiesWithInProgressSessions() async -> [BabyProfile] {
-    // Query FeedSession directly to avoid complex to-many relationship predicates.
-    let context = SharedModelContainer.container.mainContext
-    let descriptor = FetchDescriptor<FeedSession>(predicate: #Predicate { $0.endTime == nil })
-    guard let sessions = try? context.fetch(descriptor) else { return [] }
+    let context = PersistenceController.shared.viewContext
+    let request: NSFetchRequest<FeedSession> = FeedSession.fetchRequest()
+    request.predicate = NSPredicate(format: "endTime == nil")
+    guard let sessions = try? context.fetch(request) else { return [] }
 
     var seen = Set<UUID>()
-    var result: [BabyProfile] = []
+    var babies: [BabyProfile] = []
     for session in sessions {
         if let baby = session.profile, !seen.contains(baby.id) {
             seen.insert(baby.id)
-            result.append(baby)
+            babies.append(baby)
         }
     }
-    return result
+    return babies
 }
 
 // MARK: - Shortcuts Provider

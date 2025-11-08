@@ -176,3 +176,24 @@ final class AppSettings: ObservableObject {
     }
 }
 
+#if DEBUG
+extension AppSettings {
+    func resetAll() {
+        startOfDayHour = 7
+        startOfDayMinute = 0
+        didSeedBabiesOnce = false
+        recentHashtags = []
+
+        local.removeObject(forKey: Keys.startOfDayHour)
+        local.removeObject(forKey: Keys.startOfDayMinute)
+        local.removeObject(forKey: Keys.didSeedBabiesOnce)
+        local.removeObject(forKey: Keys.recentHashtags)
+
+        ubiquitous.removeObject(forKey: Keys.startOfDayHour)
+        ubiquitous.removeObject(forKey: Keys.startOfDayMinute)
+        ubiquitous.removeObject(forKey: Keys.didSeedBabiesOnce)
+        ubiquitous.removeObject(forKey: Keys.recentHashtags)
+        ubiquitous.synchronize()
+    }
+}
+#endif

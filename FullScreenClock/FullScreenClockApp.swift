@@ -6,7 +6,6 @@
 //
 
 import SwiftUI
-import SwiftData
 import Model
 import CoreData // for NSPersistentStoreRemoteChange
 
@@ -17,11 +16,14 @@ struct FullScreenClockApp: App {
     @StateObject private var settings = AppSettings()
     @Environment(\.scenePhase) private var scenePhase
 
+    private let persistenceController = PersistenceController.shared
+
     var body: some Scene {
         WindowGroup {
             ContentView(
                 viewModel: ContentViewModel.shared
             )
+            .environment(\.managedObjectContext, persistenceController.viewContext)
             .environmentObject(settings)
             .preferredColorScheme(.dark)
             .task {
@@ -29,8 +31,7 @@ struct FullScreenClockApp: App {
                 NearbySyncManager.shared.start()
 
                 // Build initial widget snapshots at launch
-                let context = SharedModelContainer.container.mainContext
-                refreshBabyWidgetSnapshots(using: context)
+                refreshBabyWidgetSnapshots(using: persistenceController.viewContext)
 
                 // Observe remote-change imports from CloudKit mirroring
                 NotificationCenter.default.addObserver(
@@ -38,15 +39,16 @@ struct FullScreenClockApp: App {
                     object: nil,
                     queue: .main
                 ) { _ in
-                    // When SwiftData/Core Data imports from CloudKit, refresh widget cache
-                    refreshBabyWidgetSnapshots(using: context)
+                    // When Core Data imports from CloudKit, refresh widget cache
+                    Task { @MainActor in
+                        refreshBabyWidgetSnapshots(using: persistenceController.viewContext)
+                    }
                 }
             }
         }
-        .modelContainer(SharedModelContainer.container)
         .onChange(of: scenePhase) { _, newPhase in
             if newPhase == .active {
-                let context = SharedModelContainer.container.mainContext
+                let context = persistenceController.viewContext
                 try? context.save()
                 NearbySyncManager.shared.sendPing()
 

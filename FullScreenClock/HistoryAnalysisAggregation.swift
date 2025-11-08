@@ -1,6 +1,5 @@
-
 import Foundation
-import SwiftData
+import CoreData
 import Model
 
 // MARK: - Chart Models
@@ -24,6 +23,7 @@ struct FeedSessionPoint: Identifiable, Hashable {
     let babyName: String
     let amountValue: Double
     let unit: UnitVolume
+    let objectID: NSManagedObjectID
 
     var feedValue: Double { amountValue }
 }
@@ -49,12 +49,13 @@ func aggregateForChart(
     var feedTotals: [FeedKey: Double] = [:]
     for s in feeds {
         guard let baby = s.profile, let amount = s.amount else { continue }
+        let babyID = baby.id
         let day = calendar.logicalStartOfDay(for: s.startTime, startOfDayHour: startOfDayHour, startOfDayMinute: startOfDayMinute)
 
         // Omit any feeds that fall on the current logical day
         if day == logicalToday { continue }
 
-        let key = FeedKey(day: day, babyID: baby.id, babyName: baby.name)
+        let key = FeedKey(day: day, babyID: babyID, babyName: baby.name)
         let value = amount.converted(to: unit).value
         feedTotals[key, default: 0] += value
     }
@@ -87,7 +88,8 @@ func makePerSessionPoints(
     points.reserveCapacity(feeds.count)
 
     for s in feeds {
-        guard let baby = s.profile, let amount = s.amount else { continue } // only finished sessions with an amount
+        guard let baby = s.profile, let amount = s.amount else { continue }
+        let babyID = baby.id
         let day = calendar.logicalStartOfDay(for: s.startTime, startOfDayHour: startOfDayHour, startOfDayMinute: startOfDayMinute)
         if omitLogicalToday && day == logicalToday { continue }
 
@@ -95,10 +97,11 @@ func makePerSessionPoints(
         points.append(
             FeedSessionPoint(
                 timestamp: s.startTime,
-                babyID: baby.id,
+                babyID: babyID,
                 babyName: baby.name,
                 amountValue: converted.value,
-                unit: unit
+                unit: unit,
+                objectID: s.objectID
             )
         )
     }
@@ -110,4 +113,3 @@ func makePerSessionPoints(
 
     return points
 }
-

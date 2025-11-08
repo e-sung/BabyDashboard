@@ -121,8 +121,6 @@
 		0814D46E2E8D4E7E0073412C /* FullScreenClock.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = FullScreenClock.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		0814D47C2E8D4E7F0073412C /* FullScreenClockTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = FullScreenClockTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		0814D4862E8D4E7F0073412C /* FullScreenClockUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = FullScreenClockUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
-		087DCDEB2EBB3BC500487EC1 /* FullScreenClock copy-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; name = "FullScreenClock copy-Info.plist"; path = "/Users/sungdoo/BabyMonitor/ios/FullScreenClock/FullScreenClock copy-Info.plist"; sourceTree = "<absolute>"; };
-		087DCE032EBB41EB00487EC1 /* FullScreenClock copy2-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; name = "FullScreenClock copy2-Info.plist"; path = "/Users/sungdoo/BabyMonitor/ios/FullScreenClock/FullScreenClock copy2-Info.plist"; sourceTree = "<absolute>"; };
 		08E6BBB82EAFF5D100DD237C /* Model.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Model.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		08E6BBC02EAFF5D100DD237C /* ModelTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = ModelTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		08E6BC152EB00D6500DD237C /* WidgetKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WidgetKit.framework; path = System/Library/Frameworks/WidgetKit.framework; sourceTree = SDKROOT; };
@@ -293,8 +291,6 @@
 				08E6BBC62EAFF5D100DD237C /* ModelTests */,
 				08F230C52EB7B817007CB56A /* DashboardWidget */,
 				08E6BC142EB00D6500DD237C /* Frameworks */,
-				087DCDEB2EBB3BC500487EC1 /* FullScreenClock copy-Info.plist */,
-				087DCE032EBB41EB00487EC1 /* FullScreenClock copy2-Info.plist */,
 				0814D46F2E8D4E7E0073412C /* Products */,
 			);
 			sourceTree = "<group>";

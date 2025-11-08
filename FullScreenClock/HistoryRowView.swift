@@ -1,5 +1,4 @@
 import SwiftUI
-import SwiftData
 import Model
 
 struct HistoryRowView: View {
