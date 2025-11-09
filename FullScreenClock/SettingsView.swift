@@ -5,6 +5,7 @@ import Model
 
 struct SettingsView: View {
     @ObservedObject var settings: AppSettings
+    @ObservedObject var shareController: ShareController
     @Environment(\.dismiss) private var dismiss
     @Environment(\.managedObjectContext) private var viewContext
 

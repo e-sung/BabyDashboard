@@ -23,4 +23,9 @@
         <attribute name="uuid" optional="YES" attributeType="UUID" defaultValueString="00000000-0000-0000-0000-000000000000" usesScalarValueType="NO"/>
         <relationship name="profile" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="BabyProfile" inverseName="feedSessions" inverseEntity="BabyProfile"/>
     </entity>
+    <configuration name="Shared" usedWithCloudKit="YES">
+        <memberEntity name="FeedSession"/>
+        <memberEntity name="DiaperChange"/>
+        <memberEntity name="BabyProfile"/>
+    </configuration>
 </model>

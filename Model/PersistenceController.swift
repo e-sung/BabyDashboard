@@ -1,11 +1,16 @@
 import Foundation
 import CoreData
+import CloudKit
+#if canImport(UIKit)
+import UIKit
+#endif
 
 public final class PersistenceController {
     public static let shared = PersistenceController()
     public static let preview = PersistenceController(inMemory: true)
 
     public let container: NSPersistentCloudKitContainer
+    public let cloudKitContainer: CKContainer
 
     @MainActor
     public var viewContext: NSManagedObjectContext {
@@ -16,33 +21,52 @@ public final class PersistenceController {
         let model = Self.makeManagedObjectModel()
         container = NSPersistentCloudKitContainer(name: "Model", managedObjectModel: model)
 
-        let description: NSPersistentStoreDescription
+        #if DEBUG
+        let defaultAppGroupID = "group.sungdoo.babyDashboard.dev"
+        let defaultContainerID = "iCloud.sungdoo.babyDashboard.dev"
+        #else
+        let defaultAppGroupID = "group.sungdoo.babyDashboard"
+        let defaultContainerID = "iCloud.sungdoo.babyDashboard"
+        #endif
 
         if inMemory {
-            description = NSPersistentStoreDescription()
+            let description = NSPersistentStoreDescription()
             description.type = NSInMemoryStoreType
+            cloudKitContainer = CKContainer(identifier: defaultContainerID)
+            description.setOption(true as NSNumber, forKey: NSPersistentHistoryTrackingKey)
+            description.setOption(true as NSNumber, forKey: NSPersistentStoreRemoteChangeNotificationPostOptionKey)
+            container.persistentStoreDescriptions = [description]
         } else {
-            #if DEBUG
-            let appGroupID = "group.sungdoo.babyDashboard.dev"
-            let containerID = "iCloud.sungdoo.babyDashboard.dev"
-            #else
-            let appGroupID = "group.sungdoo.babyDashboard"
-            let containerID = "iCloud.sungdoo.babyDashboard"
-            #endif
+            let appGroupID = defaultAppGroupID
+            let containerID = defaultContainerID
 
             guard let baseURL = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: appGroupID) else {
                 fatalError("Failed to retrieve App Group container for \(appGroupID)")
             }
 
-            let storeURL = baseURL.appendingPathComponent("BabyDashboardCoreData.sqlite")
-            description = NSPersistentStoreDescription(url: storeURL)
-            description.cloudKitContainerOptions = NSPersistentCloudKitContainerOptions(containerIdentifier: containerID)
+            cloudKitContainer = CKContainer(identifier: containerID)
+
+            let privateStoreURL = baseURL.appendingPathComponent("BabyDashboardCoreData.sqlite")
+            let sharedStoreURL = baseURL.appendingPathComponent("BabyDashboardCoreData-Shared.sqlite")
+
+            let privateDescription = NSPersistentStoreDescription(url: privateStoreURL)
+            let privateOptions = NSPersistentCloudKitContainerOptions(containerIdentifier: containerID)
+            privateOptions.databaseScope = .private
+            privateDescription.cloudKitContainerOptions = privateOptions
+            privateDescription.setOption(true as NSNumber, forKey: NSPersistentHistoryTrackingKey)
+            privateDescription.setOption(true as NSNumber, forKey: NSPersistentStoreRemoteChangeNotificationPostOptionKey)
+
+            let sharedDescription = NSPersistentStoreDescription(url: sharedStoreURL)
+            sharedDescription.configuration = "Shared"
+            let sharedOptions = NSPersistentCloudKitContainerOptions(containerIdentifier: containerID)
+            sharedOptions.databaseScope = .shared
+            sharedDescription.cloudKitContainerOptions = sharedOptions
+            sharedDescription.setOption(true as NSNumber, forKey: NSPersistentHistoryTrackingKey)
+            sharedDescription.setOption(true as NSNumber, forKey: NSPersistentStoreRemoteChangeNotificationPostOptionKey)
+
+            container.persistentStoreDescriptions = [privateDescription, sharedDescription]
         }
 
-        description.setOption(true as NSNumber, forKey: NSPersistentHistoryTrackingKey)
-        description.setOption(true as NSNumber, forKey: NSPersistentStoreRemoteChangeNotificationPostOptionKey)
-
-        container.persistentStoreDescriptions = [description]
         container.loadPersistentStores { _, error in
             if let error {
                 fatalError("Unresolved Core Data error: \(error)")
@@ -71,4 +95,83 @@ public final class PersistenceController {
     }
 
     private final class BundleToken {}
+}
+
+// MARK: - CloudKit Sharing Helpers
+
+public extension PersistenceController {
+    struct SharePreparationResult {
+        public let share: CKShare
+        public let container: CKContainer
+    }
+
+    enum SharePreparationError: Error {
+        case missingResult
+    }
+
+    @MainActor
+    func prepareShare(for baby: BabyProfile) async throws -> SharePreparationResult {
+        let objectID = baby.objectID
+        var existingShare: CKShare?
+        do {
+            let shares = try fetchShares(matching: [objectID])
+            existingShare = shares[objectID]
+        } catch {
+            debugPrint("[Sharing] fetchShares failed for \(baby.name): \(error)")
+        }
+
+        let container = self.container
+        let viewContext = self.viewContext
+        let babyName = baby.name
+
+        return try await withCheckedThrowingContinuation { continuation in
+            container.share([baby], to: existingShare) { _, share, ckContainer, error in
+                Task { @MainActor in
+                    if let share, let ckContainer {
+                        share.publicPermission = .readWrite
+                        share[CKShare.SystemFieldKey.title] = babyName as CKRecordValue
+                        if #available(iOS 26.0, *) {
+                            share.allowsAccessRequests = true
+                        }
+                        if let data = Self.defaultShareThumbnailData() {
+                            share[CKShare.SystemFieldKey.thumbnailImageData] = data as CKRecordValue
+                        }
+                        do {
+                            try viewContext.save()
+                        } catch {
+                            debugPrint("[Sharing] Failed to save context after preparing share: \(error)")
+                        }
+                        debugPrint("[Sharing] Prepared share for \(babyName)")
+                        continuation.resume(returning: SharePreparationResult(share: share, container: ckContainer))
+                    } else if let error {
+                        debugPrint("[Sharing] Failed to prepare share for \(babyName): \(error)")
+                        continuation.resume(throwing: error)
+                    } else {
+                        continuation.resume(throwing: SharePreparationError.missingResult)
+                    }
+                }
+            }
+        }
+    }
+
+    @MainActor
+    func fetchShares(matching objectIDs: [NSManagedObjectID]) throws -> [NSManagedObjectID: CKShare] {
+        guard !objectIDs.isEmpty else { return [:] }
+        return try container.fetchShares(matching: objectIDs)
+    }
+
+    private static func defaultShareThumbnailData() -> Data? {
+        #if canImport(UIKit)
+        let configuration = UIImage.SymbolConfiguration(pointSize: 60, weight: .bold)
+        let image = UIImage(systemName: "baby.fill", withConfiguration: configuration)?
+            .withTintColor(.systemPink, renderingMode: .alwaysOriginal)
+        return image?.pngData()
+        #else
+        return nil
+        #endif
+    }
+
+    @MainActor func existingShare(for baby: BabyProfile) -> CKShare? {
+        (try? fetchShares(matching: [baby.objectID]))?[baby.objectID]
+    }
 }

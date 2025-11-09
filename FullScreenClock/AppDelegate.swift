@@ -2,6 +2,7 @@
 import UIKit
 import CoreData
 import Model
+import CloudKit
 
 final class AppDelegate: NSObject, UIApplicationDelegate {
 
@@ -16,5 +17,15 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
             refreshBabyWidgetSnapshots(using: context)
             completionHandler(.newData)
         }
+    }
+
+    func application(_ application: UIApplication, userDidAcceptCloudKitShareWith metadata: CKShare.Metadata) {
+        CloudShareAcceptanceHandler.shared.accept(metadata: metadata)
+    }
+
+    func application(_ application: UIApplication, configurationForConnecting connectingSceneSession: UISceneSession, options: UIScene.ConnectionOptions) -> UISceneConfiguration {
+        let configuration = UISceneConfiguration(name: "Default Configuration", sessionRole: connectingSceneSession.role)
+        configuration.delegateClass = SharingSceneDelegate.self
+        return configuration
     }
 }

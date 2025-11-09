@@ -3,6 +3,7 @@ import Combine
 import CoreData
 import Model
 import WidgetKit
+import CloudKit
 
 // MARK: - ContentViewModel (Business Logic)
 
@@ -20,10 +21,14 @@ class ContentViewModel: ObservableObject {
     @Published var feedAnimationStates: [UUID: Bool] = [:]
     @Published var diaperAnimationStates: [UUID: Bool] = [:]
 
+    // Use ShareController directly for any share-related actions
+    private let shareController: ShareController
+
     static var shared = ContentViewModel(context: PersistenceController.shared.viewContext)
 
     init(context: NSManagedObjectContext) {
         self.viewContext = context
+        self.shareController = .shared
 
         Timer.scheduledTimer(withTimeInterval: 1, repeats: true, block: { [weak self] _ in
             DispatchQueue.main.async {
@@ -90,6 +95,9 @@ class ContentViewModel: ObservableObject {
     
     func updateProfileName(for baby: BabyProfile, to newName: String) {
         baby.name = newName
+        // Update share title via ShareController
+        shareController.updateShareTitleIfNeeded(for: baby, newName: newName)
+        _ = shareController.refreshShareInfo(for: baby)
         saveAndPing()
     }
     
@@ -132,6 +140,8 @@ struct ContentView: View {
     @ObservedObject var viewModel: ContentViewModel
     @Environment(\.managedObjectContext) private var viewContext
     @EnvironmentObject var settings: AppSettings
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.scenePhase) private var scenePhase
 
     // Size class environment for conditional UI
     @Environment(\.horizontalSizeClass) private var hSizeClass
@@ -149,6 +159,13 @@ struct ContentView: View {
     @State private var feedAmountString: String = ""
     @State private var showingHistory = false
     @State private var editingFeedSession: FeedSession? = nil
+
+    @State private var highlightedBabyID: NSManagedObjectID? = nil
+    @State private var knownBabyIDs: Set<NSManagedObjectID> = []
+    @State private var knownBabyNames: [NSManagedObjectID: String] = [:]
+    @State private var toastMessage: String? = nil
+    @State private var toastDismissWorkItem: DispatchWorkItem? = nil
+    @State private var highlightResetWorkItem: DispatchWorkItem? = nil
 
     // New: analysis navigation
     @State private var showingAnalysis = false
@@ -178,7 +195,7 @@ struct ContentView: View {
             .sheet(isPresented: $isShowingAddBaby) {
                 addBabySheet()
             }
-            .sheet(item: $editingProfile) { ProfileEditView(viewModel: viewModel, profile: $0) }
+            .sheet(item: $editingProfile) { ProfileView(profile: $0, context: viewContext, shareController: .shared) }
             .sheet(item: $editingDiaperTimeFor, content: diaperEditSheet)
             .sheet(item: $finishingFeedFor, onDismiss: { feedAmountString = "" }) { baby in
                 finishFeedSheet(baby: baby)
@@ -211,18 +228,34 @@ struct ContentView: View {
                 }
             }
             .sheet(isPresented: $showingSettings) {
-                SettingsView(settings: settings)
+                SettingsView(settings: settings, shareController: .shared)
             }
             .toolbar(content: toolbarContent)
             .navigationBarTitleDisplayMode(.inline)
             .navigationTitle("")
         }
         .navigationViewStyle(.stack)
+        .overlay(alignment: .top) {
+            if let toastMessage {
+                ToastView(message: toastMessage)
+                    .padding(.top, isIPhone ? 40 : 16)
+                    .transition(.move(edge: .top).combined(with: .opacity))
+                    .animation(.spring(response: 0.5, dampingFraction: 0.8), value: toastMessage)
+            }
+        }
         .confirmationDialog("Diaper Change", isPresented: .init(get: { changingDiaperFor != nil }, set: { if !$0 { changingDiaperFor = nil } }), titleVisibility: .visible) {
             if let baby = changingDiaperFor {
                 Button("Pee") { viewModel.logDiaperChange(for: baby, type: .pee) }
                 Button("Poo") { viewModel.logDiaperChange(for: baby, type: .poo) }
             }
+        }
+        .onAppear {
+            ShareController.shared.primeShareInfoCache()
+            cacheKnownBabies()
+        }
+        .onChange(of: babyObjectIDs) { oldValue, newValue in
+            guard oldValue != newValue else { return }
+            handleBabyListChange(newValue)
         }
     }
 }
@@ -307,6 +340,7 @@ private extension ContentView {
             ForEach(0..<maxBabySlots, id: \.self) { index in
                 if index < babies.count {
                     let baby = babies[index]
+                    let isHighlighted = highlightedBabyID == baby.objectID
                     let tile = BabyStatusView(
                         baby: baby,
                         isFeedAnimating: Binding(
@@ -326,6 +360,16 @@ private extension ContentView {
                             editingFeedSession = session
                         }
                     )
+                    .padding()
+                    .background(.thinMaterial)
+                    .clipShape(RoundedRectangle(cornerRadius: 16))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 16)
+                            .stroke(isHighlighted ? Color.accentColor : .clear, lineWidth: 3)
+                            .shadow(color: isHighlighted ? Color.accentColor.opacity(0.3) : .clear, radius: 12)
+                    )
+                    .scaleEffect(isHighlighted && !reduceMotion ? 1.03 : 1)
+                    .animation(reduceMotion ? .default : .spring(response: 0.5, dampingFraction: 0.75), value: isHighlighted)
                     // If this is the trailing baby tile, let it extend under the trailing safe area on iPhone
                     if index == min(babies.count, maxBabySlots) - 1 {
                         tile
@@ -473,8 +517,9 @@ private extension ContentView {
             AddBabyForm { name in
                 let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
                 guard !trimmed.isEmpty else { return }
-                let _ = BabyProfile(context: viewContext, name: trimmed)
+                let newBaby = BabyProfile(context: viewContext, name: trimmed)
                 try? viewContext.save()
+                _ = ShareController.shared.refreshShareInfo(for: newBaby)
                 NearbySyncManager.shared.sendPing()
                 isShowingAddBaby = false
             } onCancel: {
@@ -529,6 +574,109 @@ private struct AddBabyForm: View {
                 .disabled(name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
             }
         }
+    }
+}
+
+// MARK: - Toast + Sharing Notifications
+
+private extension ContentView {
+    var babyObjectIDs: [NSManagedObjectID] {
+        babies.map { $0.objectID }
+    }
+
+    func cacheKnownBabies() {
+        knownBabyIDs = Set(babyObjectIDs)
+        knownBabyNames = babies.reduce(into: [:]) { partialResult, baby in
+            partialResult[baby.objectID] = baby.name
+        }
+    }
+
+    func handleBabyListChange(_ newIDs: [NSManagedObjectID]) {
+        let currentSet = Set(newIDs)
+        let added = currentSet.subtracting(knownBabyIDs)
+        for identifier in added {
+            if let baby = babies.first(where: { $0.objectID == identifier }) {
+                _ = ShareController.shared.refreshShareInfo(for: baby)
+                notifyBabyAdded(baby)
+            }
+        }
+
+        let removed = knownBabyIDs.subtracting(currentSet)
+        for identifier in removed {
+            let name = knownBabyNames[identifier] ?? "Baby"
+            notifyBabyRemoved(name: name, objectID: identifier)
+        }
+
+        knownBabyIDs = currentSet
+        knownBabyNames = babies.reduce(into: [:]) { partialResult, baby in
+            partialResult[baby.objectID] = baby.name
+        }
+    }
+
+    func notifyBabyAdded(_ baby: BabyProfile) {
+        debugPrint("[Sharing] Baby added: \(baby.name)")
+        let message = String(
+            format: NSLocalizedString("%@ was added.", comment: "Toast shown when a shared baby appears"),
+            baby.name
+        )
+        showToast(message)
+        highlight(baby: baby)
+    }
+
+    func notifyBabyRemoved(name: String, objectID: NSManagedObjectID) {
+        debugPrint("[Sharing] Baby removed: \(name)")
+        ShareController.shared.clearShareInfo(forObjectID: objectID)
+        let message = String(
+            format: NSLocalizedString("%@ is no longer available.", comment: "Toast shown when a shared baby disappears"),
+            name
+        )
+        showToast(message)
+    }
+
+    func showToast(_ message: String) {
+        guard scenePhase == .active else { return }
+        toastDismissWorkItem?.cancel()
+        withAnimation {
+            toastMessage = message
+        }
+        let workItem = DispatchWorkItem {
+            withAnimation {
+                toastMessage = nil
+            }
+        }
+        toastDismissWorkItem = workItem
+        DispatchQueue.main.asyncAfter(deadline: .now() + 3, execute: workItem)
+    }
+
+    func highlight(baby: BabyProfile) {
+        guard scenePhase == .active else { return }
+        highlightResetWorkItem?.cancel()
+        let animation = reduceMotion ? Animation.easeInOut(duration: 0.3) : Animation.spring(response: 0.5, dampingFraction: 0.7)
+        withAnimation(animation) {
+            highlightedBabyID = baby.objectID
+        }
+        let workItem = DispatchWorkItem {
+            withAnimation(animation) {
+                highlightedBabyID = nil
+            }
+        }
+        highlightResetWorkItem = workItem
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2.5, execute: workItem)
+    }
+}
+
+private struct ToastView: View {
+    let message: String
+
+    var body: some View {
+        Text(message)
+            .font(.callout)
+            .fontWeight(.semibold)
+            .padding(.horizontal, 20)
+            .padding(.vertical, 10)
+            .background(.ultraThinMaterial, in: Capsule())
+            .shadow(radius: 8)
+            .accessibilityLabel(Text(message))
     }
 }
 
