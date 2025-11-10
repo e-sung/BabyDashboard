@@ -467,7 +467,9 @@ private extension ContentView {
         }
         .padding()
         .onAppear {
-            guard let latestFeedAmount = baby.lastFeedSession?.amountValue else { return }
+            guard let latestFeedAmount = baby.lastFinishedFeedSession?.amountValue else {
+                return
+            }
             feedAmountString = latestFeedAmount.formatted(.number.precision(.fractionLength(0)))
         }
     }
