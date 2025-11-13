@@ -25,8 +25,29 @@ struct HistoryView: View {
     @State private var eventToEdit: HistoryEvent?
     @State private var selectedBabyID: UUID? = nil
     @State private var selectedEventFilter: EventFilter = .all
+    @AppStorage("HistoryView.selectedEventFilter") private var storedEventFilterRaw: String = EventFilter.all.rawValue
     @State private var isShowingFilters = false
     @State private var isShowingAddSheet = false
+
+    private var hasActiveFilters: Bool {
+        selectedEventFilter != .all || selectedBabyID != nil
+    }
+
+    private var selectedBabyName: String? {
+        guard let id = selectedBabyID else { return nil }
+        return babies.first(where: { $0.id == id })?.name
+    }
+
+    private var eventFilterTitle: String? {
+        selectedEventFilter == .all ? nil : selectedEventFilter.title
+    }
+
+    private var filtersAccessibilityValue: String {
+        var parts: [String] = []
+        if let name = selectedBabyName { parts.append(name) }
+        if let title = eventFilterTitle { parts.append(title) }
+        return parts.isEmpty ? String(localized: "Not applied") : parts.joined(separator: ", ")
+    }
 
     enum EventFilter: String, CaseIterable, Identifiable {
         case all, feed, pee, poo
@@ -130,6 +151,21 @@ struct HistoryView: View {
     var body: some View {
         NavigationView {
             List {
+                if hasActiveFilters {
+                    Section {
+                        FilterChipsRow(
+                            babyName: selectedBabyName,
+                            eventFilterTitle: eventFilterTitle,
+                            onClearBaby: { selectedBabyID = nil },
+                            onClearEvent: { selectedEventFilter = .all },
+                            onClearAll: {
+                                selectedBabyID = nil
+                                selectedEventFilter = .all
+                            }
+                        )
+                        .listRowInsets(EdgeInsets())
+                    }
+                }
                 ForEach(monthSections) { month in
                     Section {
                         ForEach(month.daySections) { section in
@@ -162,9 +198,13 @@ struct HistoryView: View {
                 }
                 ToolbarItem(placement: .primaryAction) {
                     Button { isShowingFilters = true } label: {
-                        Image(systemName: "line.3.horizontal.decrease.circle")
+                        Image(systemName: hasActiveFilters ? "line.3.horizontal.decrease.circle.fill" : "line.3.horizontal.decrease.circle")
+                            .symbolRenderingMode(.hierarchical)
+                            .font(.headline.weight(hasActiveFilters ? .bold : .regular))
+                            .foregroundStyle(hasActiveFilters ? AnyShapeStyle(.tint) : AnyShapeStyle(.secondary))
                     }
                     .accessibilityLabel(Text("Filters"))
+//                    .accessibilityValue(Text(filtersAccessibilityValue))
                 }
                 ToolbarItem(placement: .primaryAction) {
                     Button { isShowingAddSheet = true } label: {
@@ -207,6 +247,14 @@ struct HistoryView: View {
                     isShowingAddSheet = false
                 }
                 .presentationDetents([.medium, .large])
+            }
+            .onAppear {
+                // Initialize the selected filter from stored value
+                selectedEventFilter = EventFilter(rawValue: storedEventFilterRaw) ?? .all
+            }
+            .onChange(of: selectedEventFilter) { _, newValue in
+                // Persist the selected filter whenever it changes
+                storedEventFilterRaw = newValue.rawValue
             }
         }
     }
@@ -326,6 +374,54 @@ struct HistoryView: View {
         } catch {
             // ignore for now
         }
+    }
+}
+
+private struct FilterChipsRow: View {
+    let babyName: String?
+    let eventFilterTitle: String?
+    let onClearBaby: () -> Void
+    let onClearEvent: () -> Void
+    let onClearAll: () -> Void
+
+    var body: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 8) {
+                if let babyName {
+                    chip(title: babyName, action: onClearBaby)
+                }
+                if let eventFilterTitle {
+                    chip(title: eventFilterTitle, action: onClearEvent)
+                }
+                Button(action: onClearAll) {
+                    HStack(spacing: 6) {
+                        Image(systemName: "xmark.circle.fill")
+                        Text(String(localized: "Clear"))
+                    }
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 6)
+                    .background(.thinMaterial, in: Capsule())
+                }
+                .accessibilityLabel(Text(String(localized: "Clear all filters")))
+            }
+            .padding(.vertical, 4)
+            .padding(.horizontal)
+        }
+    }
+
+    @ViewBuilder
+    private func chip(title: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            HStack(spacing: 6) {
+                Text(title)
+                Image(systemName: "xmark.circle.fill")
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 6)
+            .background(.thinMaterial, in: Capsule())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(Text(String(format: String(localized: "Remove filter: %@"), title)))
     }
 }
 

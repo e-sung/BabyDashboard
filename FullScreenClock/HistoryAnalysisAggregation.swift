@@ -46,14 +46,18 @@ func aggregateForChart(
     // Compute the current logical "today" and omit it from aggregation
     let logicalToday = calendar.logicalStartOfDay(for: Date(), startOfDayHour: startOfDayHour, startOfDayMinute: startOfDayMinute)
 
+    // Compute the earliest logical day present in the feeds and omit it as well, since users often start mid-day
+    let initialLogicalDay = feeds.map { calendar.logicalStartOfDay(for: $0.startTime, startOfDayHour: startOfDayHour, startOfDayMinute: startOfDayMinute) }.min()
+
     var feedTotals: [FeedKey: Double] = [:]
     for s in feeds {
         guard let baby = s.profile, let amount = s.amount else { continue }
         let babyID = baby.id
         let day = calendar.logicalStartOfDay(for: s.startTime, startOfDayHour: startOfDayHour, startOfDayMinute: startOfDayMinute)
 
-        // Omit any feeds that fall on the current logical day
+        // Omit any feeds that fall on the current logical day or the initial logical day (when data likely started mid-day)
         if day == logicalToday { continue }
+        if let firstDay = initialLogicalDay, day == firstDay { continue }
 
         let key = FeedKey(day: day, babyID: babyID, babyName: baby.name)
         let value = amount.converted(to: unit).value
@@ -113,3 +117,4 @@ func makePerSessionPoints(
 
     return points
 }
+
