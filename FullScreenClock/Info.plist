@@ -9,6 +9,10 @@
 		<string>iCloud.sungdoo.babyDashboard.dev</string>
 		<string>iCloud.sungdoo.babyDashboard</string>
 	</array>
+	<key>NSBonjourServices</key>
+	<array>
+		<string>_baby-sync._tcp</string>
+	</array>
 	<key>PHProjectExtensionCustomTypesEnabled</key>
 	<false/>
 	<key>UIApplicationSceneManifest</key>

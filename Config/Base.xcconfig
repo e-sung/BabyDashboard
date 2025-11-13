@@ -17,6 +17,7 @@ INFOPLIST_KEY_CFBundleIdentifier = $(PRODUCT_BUNDLE_IDENTIFIER)
 // Inject environment-specific IDs into Info.plist so Swift can read them at runtime.
 INFOPLIST_KEY_ICLOUD_CONTAINER_ID = $(ICLOUD_CONTAINER_ID)
 INFOPLIST_KEY_APP_GROUP_ID = $(APP_GROUP_ID)
+INFOPLIST_KEY_NSLocalNetworkUsageDescription = 같은 네트워크 내의 기기들간 더 빠른 동기화를 지원합니다
 
 // Set the user-visible app name shown on the Home screen / Finder.
 APP_NAME = 쌍둥이 대시보드

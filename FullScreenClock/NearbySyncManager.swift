@@ -76,7 +76,12 @@ final class NearbySyncManager: NSObject {
             // Keep the model stack warm and flush any pending writes so CloudKit mirroring runs promptly.
             DispatchQueue.main.async {
                 let context = PersistenceController.shared.viewContext
-                try? context.save()
+                do {
+                    try context.save()
+                    refreshBabyWidgetSnapshots(using: context)
+                } catch {
+                    debugPrint("Failed to save on syncPing: \(error.localizedDescription)")
+                }
             }
         default:
             break

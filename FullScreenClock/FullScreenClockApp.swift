@@ -29,21 +29,6 @@ struct FullScreenClockApp: App {
             .task {
                 // Start nearby sync on launch
                 NearbySyncManager.shared.start()
-
-                // Build initial widget snapshots at launch
-                refreshBabyWidgetSnapshots(using: persistenceController.viewContext)
-
-                // Observe remote-change imports from CloudKit mirroring
-                NotificationCenter.default.addObserver(
-                    forName: .NSPersistentStoreRemoteChange,
-                    object: nil,
-                    queue: .main
-                ) { _ in
-                    // When Core Data imports from CloudKit, refresh widget cache
-                    Task { @MainActor in
-                        refreshBabyWidgetSnapshots(using: persistenceController.viewContext)
-                    }
-                }
             }
         }
         .onChange(of: scenePhase) { _, newPhase in
