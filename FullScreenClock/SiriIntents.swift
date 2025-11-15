@@ -112,6 +112,25 @@ struct FinishFeedingIntent: AppIntent {
     }
 }
 
+struct UndoLastActionIntent: AppIntent {
+    static var title: LocalizedStringResource = "Undo Last Change"
+    static var description = IntentDescription("Undoes the most recent change.")
+    static var openAppWhenRun: Bool = true
+
+    @MainActor
+    func perform() async throws -> some IntentResult & ReturnsValue<String> & ProvidesDialog {
+        let viewContext = PersistenceController.shared.viewContext
+        if viewContext.undoManager?.canUndo == true {
+            let dialog: LocalizedStringResource = "Undid the last change."
+            viewContext.undo()
+            return .result(value: String(localized: dialog), dialog: IntentDialog(dialog))
+        } else {
+            let dialog: LocalizedStringResource = "There is nothing to undo."
+            return .result(value: String(localized: dialog), dialog: IntentDialog(dialog))
+        }
+    }
+}
+
 // MARK: - Helper Functions for Intents
 
 @MainActor
@@ -168,6 +187,14 @@ struct BabyMonitorShortcuts: AppShortcutsProvider {
             ],
             shortTitle: "Log Diaper Change",
             systemImageName: "record.circle"
+        )
+        AppShortcut(
+            intent: UndoLastActionIntent(),
+            phrases: [
+                "Undo in \(.applicationName)"
+            ],
+            shortTitle: "Undo",
+            systemImageName: "arrow.uturn.backward.circle"
         )
     }
 }
