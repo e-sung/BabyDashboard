@@ -97,14 +97,19 @@ struct BabyStatusView: View {
     @ViewBuilder
     private func feedStateView(now: Date, shouldWarn: Bool) -> some View {
         HStack(alignment: .center) {
-            ZStack(alignment: .topTrailing) {
-                Text("🍼")
-                    .font(isIPhone ? .title : .system(size: 50))
-                if shouldWarn {
-                    warningBadge()
-                        .offset(x: 6, y: -6)
+            Button(action: onFeedTap) {
+                ZStack(alignment: .topTrailing) {
+                    Text("🍼")
+                        .font(isIPhone ? .title : .system(size: 50))
+                    if shouldWarn {
+                        warningBadge()
+                            .offset(x: 6, y: -6)
+                    }
                 }
             }
+            .buttonStyle(TappableIconStyle())
+            .accessibilityLabel("Log a feed")
+            .accessibilityHint("Tap to start or view feeding")
 
             VStack(alignment: .leading) {
                 if let session = baby.inProgressFeedSession {
@@ -143,15 +148,23 @@ struct BabyStatusView: View {
 
     private func diaperStateView(now: Date, shouldWarn: Bool) -> some View {
         HStack(alignment: .center, spacing: 15) {
-            ZStack(alignment: .topTrailing) {
-                Image("diaper")
-                    .resizable()
-                    .frame(width: 50, height: 50)
-                    .foregroundStyle(shouldWarn ? .red : .primary)
-                if shouldWarn {
-                    warningBadge()
-                        .offset(x: 6, y: -6)
+            Button(action: onDiaperUpdateTap) {
+                ZStack(alignment: .topTrailing) {
+                    Image("diaper")
+                        .resizable()
+                        .frame(width: 50, height: 50)
+                        .foregroundStyle(shouldWarn ? .red : .primary)
+                    if shouldWarn {
+                        warningBadge()
+                            .offset(x: 6, y: -6)
+                    }
                 }
+            }
+            .buttonStyle(TappableIconStyle())
+            .accessibilityLabel("Log a diaper change")
+            .accessibilityHint("Tap to add a diaper change")
+            .contextMenu {
+                Button("Edit diaper…", systemImage: "pencil", action: onDiaperEditTap)
             }
 
             VStack(alignment: .leading) {
@@ -209,13 +222,21 @@ struct BabyStatusView: View {
     }
 }
 
-#Preview("Initial (no data)") {
+#Preview("Normal Status") {
     let controller = PersistenceController.preview
     let context = controller.viewContext
-
-    var previewBaby: BabyProfile!
+    let baby = BabyProfile(context: context, name: "연두")
     context.performAndWait {
-        previewBaby = BabyProfile(context: context, name: "초기")
+
+        let session1 = FeedSession(context: context, startTime: Date().addingTimeInterval(-60 * 60))
+        session1.endTime = Date().addingTimeInterval(-15 * 60)
+        session1.amount = Measurement(value: Locale.current.measurementSystem == .us ? 4.0 : 120.0,
+                                      unit: (Locale.current.measurementSystem == .us) ? .fluidOunces : .milliliters)
+        session1.profile = baby
+
+        let diaper1 = DiaperChange(context: context, timestamp: Date().addingTimeInterval(-30 * 60), type: .pee)
+        diaper1.profile = baby
+
         try? context.save()
     }
 
@@ -241,6 +262,60 @@ struct BabyStatusView: View {
         }
     }
 
-    return Wrapper(baby: previewBaby)
+    return PreviewWrapper(baby: baby)
         .environment(\.managedObjectContext, context)
+}
+
+#Preview("Initial (no data)") {
+    let controller = PersistenceController.preview
+    let context = controller.viewContext
+
+    var previewBaby: BabyProfile!
+    context.performAndWait {
+        previewBaby = BabyProfile(context: context, name: "초기")
+        try? context.save()
+    }
+
+    return PreviewWrapper(baby: previewBaby)
+        .environment(\.managedObjectContext, context)
+}
+
+#if DEBUG
+fileprivate struct PreviewWrapper: View {
+    @State var feed = false
+    @State var diaper = false
+    let baby: BabyProfile
+    var body: some View {
+        BabyStatusView(
+            baby: baby,
+            isFeedAnimating: $feed,
+            isDiaperAnimating: $diaper,
+            onFeedTap: {},
+            onFeedLongPress: {},
+            onDiaperUpdateTap: {},
+            onDiaperEditTap: {},
+            onNameTap: {},
+            onLastFeedTap: { _ in }
+        )
+        .padding()
+        .background(.thinMaterial)
+        .clipShape(RoundedRectangle(cornerRadius: 16))
+    }
+}
+#endif
+
+private struct TappableIconStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .padding(8)
+            .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .strokeBorder(.quaternary, lineWidth: 1)
+            )
+            .scaleEffect(configuration.isPressed ? 0.96 : 1)
+            .animation(.easeInOut(duration: 0.12), value: configuration.isPressed)
+            .contentShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+            .hoverEffect(.highlight)
+    }
 }

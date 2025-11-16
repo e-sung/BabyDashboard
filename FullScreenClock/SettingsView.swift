@@ -2,6 +2,7 @@ import SwiftUI
 import UniformTypeIdentifiers
 import CoreData
 import Model
+import AppIntents
 
 struct SettingsView: View {
     @ObservedObject var settings: AppSettings
@@ -59,6 +60,15 @@ struct SettingsView: View {
             Form {
                 Section(header: Text("Daily Summaries")) {
                     DatePicker("Start of Day", selection: startOfDayBinding, displayedComponents: .hourAndMinute)
+                }
+
+                Section(header: Text("Siri & Shortcuts")) {
+                    Text("Add shortcuts to quickly start and finish feedings, or log diaper changes using Siri or the Shortcuts app.")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+
+                    ShortcutsLink()
                 }
 
                 Section(header: Text("Data – Feeds")) {
@@ -257,3 +267,4 @@ Errors: \(r.errors.count)
     }
     #endif
 }
+
