@@ -17,6 +17,7 @@ struct HistoryEditView: View {
     @State private var amountString: String = ""
     @State private var memoText: String = ""
     @State private var pendingInsertion: String? = nil
+    @State private var startTime: Date = Date()
     @State private var endTime: Date = Date()
     @State private var diaperTime: Date = Date()
     @State private var diaperType: DiaperType = .pee
@@ -58,6 +59,12 @@ struct HistoryEditView: View {
                         Button("Done") {
                             saveAndDismiss()
                         }
+                        .disabled({
+                            if feedSession != nil {
+                                return endTime < startTime
+                            }
+                            return false
+                        }())
                         .keyboardShortcut(.defaultAction)
                     }
                 }
@@ -81,11 +88,21 @@ struct HistoryEditView: View {
         Section("Time") {
             DatePicker(
                 "Start Time",
-                selection: .constant(session.startTime),
+                selection: $startTime,
+                in: ...endTime,
                 displayedComponents: [.hourAndMinute]
             )
-            .disabled(true)
-            DatePicker("End Time", selection: $endTime, displayedComponents: [.hourAndMinute])
+            DatePicker(
+                "End Time",
+                selection: $endTime,
+                in: startTime...Date.distantFuture,
+                displayedComponents: [.hourAndMinute]
+            )
+            if endTime < startTime {
+                Text("End time must be after start time.")
+                    .font(.footnote)
+                    .foregroundStyle(.red)
+            }
         }
         Section("Amount") {
             HStack {
@@ -144,6 +161,7 @@ struct HistoryEditView: View {
         if let session = feedSession {
             amountString = String(format: "%.1f", session.amountValue)
             memoText = session.memoText ?? ""
+            startTime = session.startTime
             endTime = session.endTime ?? Date()
         } else if let diaper = diaperChange {
             diaperTime = diaper.timestamp
@@ -153,6 +171,7 @@ struct HistoryEditView: View {
 
     private func saveAndDismiss() {
         if let session = feedSession {
+            session.startTime = startTime
             session.endTime = endTime
             session.memoText = memoText
             settings.addRecentHashtags(from: memoText)

@@ -204,22 +204,9 @@ struct ContentView: View {
             }
             .sheet(isPresented: $showingHistory) { HistoryView() }
             .sheet(item: $editingFeedSession) { session in
-                NavigationView {
-                    FeedSessionEditView(session: session)
-                        .navigationTitle("Edit Feed Session")
-                        .toolbar {
-                            ToolbarItem(placement: .cancellationAction) {
-                                Button("Cancel") { editingFeedSession = nil }
-                            }
-                            ToolbarItem(placement: .confirmationAction) {
-                                Button("Save") {
-                                    try? viewContext.save()
-                                    NearbySyncManager.shared.sendPing()
-                                    editingFeedSession = nil
-                                }
-                            }
-                        }
-                }
+                HistoryEditView(model: .feed(session))
+                    .environment(\.managedObjectContext, viewContext)
+                    .environmentObject(settings)
             }
             // New: present analysis
             .sheet(isPresented: $showingAnalysis) {
@@ -716,3 +703,4 @@ private struct ToastView: View {
         .environmentObject(AppSettings())
         .environment(\.managedObjectContext, context)
 }
+

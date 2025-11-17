@@ -222,6 +222,7 @@ struct BabyStatusView: View {
     }
 }
 
+#if DEBUG
 #Preview("Normal Status") {
     let controller = PersistenceController.preview
     let context = controller.viewContext
@@ -280,7 +281,6 @@ struct BabyStatusView: View {
         .environment(\.managedObjectContext, context)
 }
 
-#if DEBUG
 fileprivate struct PreviewWrapper: View {
     @State var feed = false
     @State var diaper = false
