@@ -35,10 +35,18 @@ struct FullScreenClockApp: App {
             if newPhase == .active {
                 let context = persistenceController.viewContext
                 try? context.save()
+                
+                // Re-establish any closed MultipeerConnectivity sessions on foreground
+                NearbySyncManager.shared.start()
+
+                // Optionally ping peers after restarting
                 NearbySyncManager.shared.sendPing()
 
                 // Refresh widget snapshots on foreground
                 refreshBabyWidgetSnapshots(using: context)
+            } else if newPhase == .background {
+                // Stop nearby sync when moving to background to clean up resources
+                NearbySyncManager.shared.stop()
             }
         }
     }
