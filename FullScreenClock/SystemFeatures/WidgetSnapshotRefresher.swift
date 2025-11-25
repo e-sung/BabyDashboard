@@ -45,6 +45,6 @@ public func refreshBabyWidgetSnapshots(using context: NSManagedObjectContext) {
             WidgetCache.writeSnapshot(snapshot)
         }
 
-        WidgetCenter.shared.reloadTimelines(ofKind: "DashboardWidget")
+        WidgetCenter.shared.reloadAllTimelines()
     }
 }

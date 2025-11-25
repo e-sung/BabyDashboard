@@ -78,7 +78,6 @@ final class NearbySyncManager: NSObject {
                 let context = PersistenceController.shared.viewContext
                 do {
                     try context.save()
-                    refreshBabyWidgetSnapshots(using: context)
                 } catch {
                     debugPrint("Failed to save on syncPing: \(error.localizedDescription)")
                 }
