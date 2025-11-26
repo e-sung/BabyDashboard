@@ -118,9 +118,9 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
-		0814D46E2E8D4E7E0073412C /* FullScreenClock.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = FullScreenClock.app; sourceTree = BUILT_PRODUCTS_DIR; };
-		0814D47C2E8D4E7F0073412C /* FullScreenClockTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = FullScreenClockTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
-		0814D4862E8D4E7F0073412C /* FullScreenClockUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = FullScreenClockUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		0814D46E2E8D4E7E0073412C /* BabyDashboard.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = BabyDashboard.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		0814D47C2E8D4E7F0073412C /* BabyDashboardTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = BabyDashboardTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		0814D4862E8D4E7F0073412C /* BabyDashboardUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = BabyDashboardUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		08E6BBB82EAFF5D100DD237C /* Model.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Model.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		08E6BBC02EAFF5D100DD237C /* ModelTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = ModelTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		08E6BC152EB00D6500DD237C /* WidgetKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WidgetKit.framework; path = System/Library/Frameworks/WidgetKit.framework; sourceTree = SDKROOT; };
@@ -139,12 +139,12 @@
 			);
 			target = 08F230C12EB7B817007CB56A /* DashboardWidgetExtension */;
 		};
-		08EF111B2EAD5EE7001FF604 /* Exceptions for "FullScreenClock" folder in "FullScreenClock" target */ = {
+		08EF111B2EAD5EE7001FF604 /* Exceptions for "BabyDashboard" folder in "BabyDashboard" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				Info.plist,
 			);
-			target = 0814D46D2E8D4E7E0073412C /* FullScreenClock */;
+			target = 0814D46D2E8D4E7E0073412C /* BabyDashboard */;
 		};
 		08F230D52EB7B818007CB56A /* Exceptions for "DashboardWidget" folder in "DashboardWidgetExtension" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
@@ -153,12 +153,12 @@
 			);
 			target = 08F230C12EB7B817007CB56A /* DashboardWidgetExtension */;
 		};
-		08F230EB2EB7CB5B007CB56A /* Exceptions for "Model" folder in "FullScreenClock" target */ = {
+		08F230EB2EB7CB5B007CB56A /* Exceptions for "Model" folder in "BabyDashboard" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				AppEntity.swift,
 			);
-			target = 0814D46D2E8D4E7E0073412C /* FullScreenClock */;
+			target = 0814D46D2E8D4E7E0073412C /* BabyDashboard */;
 		};
 		08F230EC2EB7CB5B007CB56A /* Exceptions for "Model" folder in "DashboardWidgetExtension" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
@@ -177,22 +177,22 @@
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
-		0814D4702E8D4E7E0073412C /* FullScreenClock */ = {
+		0814D4702E8D4E7E0073412C /* BabyDashboard */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
-				08EF111B2EAD5EE7001FF604 /* Exceptions for "FullScreenClock" folder in "FullScreenClock" target */,
+				08EF111B2EAD5EE7001FF604 /* Exceptions for "BabyDashboard" folder in "BabyDashboard" target */,
 			);
-			path = FullScreenClock;
+			path = BabyDashboard;
 			sourceTree = "<group>";
 		};
-		0814D47F2E8D4E7F0073412C /* FullScreenClockTests */ = {
+		0814D47F2E8D4E7F0073412C /* BabyDashboardTests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
-			path = FullScreenClockTests;
+			path = BabyDashboardTests;
 			sourceTree = "<group>";
 		};
-		0814D4892E8D4E7F0073412C /* FullScreenClockUITests */ = {
+		0814D4892E8D4E7F0073412C /* BabyDashboardUITests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
-			path = FullScreenClockUITests;
+			path = BabyDashboardUITests;
 			sourceTree = "<group>";
 		};
 		087DCDCC2EBB352A00487EC1 /* Config */ = {
@@ -206,7 +206,7 @@
 		08E6BBB92EAFF5D100DD237C /* Model */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
-				08F230EB2EB7CB5B007CB56A /* Exceptions for "Model" folder in "FullScreenClock" target */,
+				08F230EB2EB7CB5B007CB56A /* Exceptions for "Model" folder in "BabyDashboard" target */,
 				08F230ED2EB7CB84007CB56A /* Exceptions for "Model" folder in "Model" target */,
 				08F230EC2EB7CB5B007CB56A /* Exceptions for "Model" folder in "DashboardWidgetExtension" target */,
 			);
@@ -284,9 +284,9 @@
 			children = (
 				08F230DB2EB7B85C007CB56A /* DashboardWidgetExtension.entitlements */,
 				087DCDCC2EBB352A00487EC1 /* Config */,
-				0814D4702E8D4E7E0073412C /* FullScreenClock */,
-				0814D47F2E8D4E7F0073412C /* FullScreenClockTests */,
-				0814D4892E8D4E7F0073412C /* FullScreenClockUITests */,
+				0814D4702E8D4E7E0073412C /* BabyDashboard */,
+				0814D47F2E8D4E7F0073412C /* BabyDashboardTests */,
+				0814D4892E8D4E7F0073412C /* BabyDashboardUITests */,
 				08E6BBB92EAFF5D100DD237C /* Model */,
 				08E6BBC62EAFF5D100DD237C /* ModelTests */,
 				08F230C52EB7B817007CB56A /* DashboardWidget */,
@@ -298,9 +298,9 @@
 		0814D46F2E8D4E7E0073412C /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				0814D46E2E8D4E7E0073412C /* FullScreenClock.app */,
-				0814D47C2E8D4E7F0073412C /* FullScreenClockTests.xctest */,
-				0814D4862E8D4E7F0073412C /* FullScreenClockUITests.xctest */,
+				0814D46E2E8D4E7E0073412C /* BabyDashboard.app */,
+				0814D47C2E8D4E7F0073412C /* BabyDashboardTests.xctest */,
+				0814D4862E8D4E7F0073412C /* BabyDashboardUITests.xctest */,
 				08E6BBB82EAFF5D100DD237C /* Model.framework */,
 				08E6BBC02EAFF5D100DD237C /* ModelTests.xctest */,
 				08F230C22EB7B817007CB56A /* DashboardWidgetExtension.appex */,
@@ -330,9 +330,9 @@
 /* End PBXHeadersBuildPhase section */
 
 /* Begin PBXNativeTarget section */
-		0814D46D2E8D4E7E0073412C /* FullScreenClock */ = {
+		0814D46D2E8D4E7E0073412C /* BabyDashboard */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = 0814D4902E8D4E7F0073412C /* Build configuration list for PBXNativeTarget "FullScreenClock" */;
+			buildConfigurationList = 0814D4902E8D4E7F0073412C /* Build configuration list for PBXNativeTarget "BabyDashboard" */;
 			buildPhases = (
 				0814D46A2E8D4E7E0073412C /* Sources */,
 				0814D46B2E8D4E7E0073412C /* Frameworks */,
@@ -350,18 +350,18 @@
 				08F230D02EB7B818007CB56A /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
-				0814D4702E8D4E7E0073412C /* FullScreenClock */,
+				0814D4702E8D4E7E0073412C /* BabyDashboard */,
 			);
-			name = FullScreenClock;
+			name = BabyDashboard;
 			packageProductDependencies = (
 			);
 			productName = FullScreenClock;
-			productReference = 0814D46E2E8D4E7E0073412C /* FullScreenClock.app */;
+			productReference = 0814D46E2E8D4E7E0073412C /* BabyDashboard.app */;
 			productType = "com.apple.product-type.application";
 		};
-		0814D47B2E8D4E7F0073412C /* FullScreenClockTests */ = {
+		0814D47B2E8D4E7F0073412C /* BabyDashboardTests */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = 0814D4932E8D4E7F0073412C /* Build configuration list for PBXNativeTarget "FullScreenClockTests" */;
+			buildConfigurationList = 0814D4932E8D4E7F0073412C /* Build configuration list for PBXNativeTarget "BabyDashboardTests" */;
 			buildPhases = (
 				0814D4782E8D4E7F0073412C /* Sources */,
 				0814D4792E8D4E7F0073412C /* Frameworks */,
@@ -373,18 +373,18 @@
 				0814D47E2E8D4E7F0073412C /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
-				0814D47F2E8D4E7F0073412C /* FullScreenClockTests */,
+				0814D47F2E8D4E7F0073412C /* BabyDashboardTests */,
 			);
-			name = FullScreenClockTests;
+			name = BabyDashboardTests;
 			packageProductDependencies = (
 			);
 			productName = FullScreenClockTests;
-			productReference = 0814D47C2E8D4E7F0073412C /* FullScreenClockTests.xctest */;
+			productReference = 0814D47C2E8D4E7F0073412C /* BabyDashboardTests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
 		};
-		0814D4852E8D4E7F0073412C /* FullScreenClockUITests */ = {
+		0814D4852E8D4E7F0073412C /* BabyDashboardUITests */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = 0814D4962E8D4E7F0073412C /* Build configuration list for PBXNativeTarget "FullScreenClockUITests" */;
+			buildConfigurationList = 0814D4962E8D4E7F0073412C /* Build configuration list for PBXNativeTarget "BabyDashboardUITests" */;
 			buildPhases = (
 				0814D4822E8D4E7F0073412C /* Sources */,
 				0814D4832E8D4E7F0073412C /* Frameworks */,
@@ -396,13 +396,13 @@
 				0814D4882E8D4E7F0073412C /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
-				0814D4892E8D4E7F0073412C /* FullScreenClockUITests */,
+				0814D4892E8D4E7F0073412C /* BabyDashboardUITests */,
 			);
-			name = FullScreenClockUITests;
+			name = BabyDashboardUITests;
 			packageProductDependencies = (
 			);
 			productName = FullScreenClockUITests;
-			productReference = 0814D4862E8D4E7F0073412C /* FullScreenClockUITests.xctest */;
+			productReference = 0814D4862E8D4E7F0073412C /* BabyDashboardUITests.xctest */;
 			productType = "com.apple.product-type.bundle.ui-testing";
 		};
 		08E6BBB72EAFF5D100DD237C /* Model */ = {
@@ -509,7 +509,7 @@
 					};
 				};
 			};
-			buildConfigurationList = 0814D4692E8D4E7E0073412C /* Build configuration list for PBXProject "FullScreenClock" */;
+			buildConfigurationList = 0814D4692E8D4E7E0073412C /* Build configuration list for PBXProject "BabyDashboard" */;
 			developmentRegion = en;
 			hasScannedForEncodings = 0;
 			knownRegions = (
@@ -526,9 +526,9 @@
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
-				0814D46D2E8D4E7E0073412C /* FullScreenClock */,
-				0814D47B2E8D4E7F0073412C /* FullScreenClockTests */,
-				0814D4852E8D4E7F0073412C /* FullScreenClockUITests */,
+				0814D46D2E8D4E7E0073412C /* BabyDashboard */,
+				0814D47B2E8D4E7F0073412C /* BabyDashboardTests */,
+				0814D4852E8D4E7F0073412C /* BabyDashboardUITests */,
 				08E6BBB72EAFF5D100DD237C /* Model */,
 				08E6BBBF2EAFF5D100DD237C /* ModelTests */,
 				08F230C12EB7B817007CB56A /* DashboardWidgetExtension */,
@@ -629,12 +629,12 @@
 /* Begin PBXTargetDependency section */
 		0814D47E2E8D4E7F0073412C /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
-			target = 0814D46D2E8D4E7E0073412C /* FullScreenClock */;
+			target = 0814D46D2E8D4E7E0073412C /* BabyDashboard */;
 			targetProxy = 0814D47D2E8D4E7F0073412C /* PBXContainerItemProxy */;
 		};
 		0814D4882E8D4E7F0073412C /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
-			target = 0814D46D2E8D4E7E0073412C /* FullScreenClock */;
+			target = 0814D46D2E8D4E7E0073412C /* BabyDashboard */;
 			targetProxy = 0814D4872E8D4E7F0073412C /* PBXContainerItemProxy */;
 		};
 		081CCAF42EB505590095A859 /* PBXTargetDependency */ = {
@@ -652,7 +652,7 @@
 		};
 		08E6BBC52EAFF5D100DD237C /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
-			target = 0814D46D2E8D4E7E0073412C /* FullScreenClock */;
+			target = 0814D46D2E8D4E7E0073412C /* BabyDashboard */;
 			targetProxy = 08E6BBC42EAFF5D100DD237C /* PBXContainerItemProxy */;
 		};
 		08E6BBCA2EAFF5D100DD237C /* PBXTargetDependency */ = {
@@ -806,7 +806,8 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
-				CODE_SIGN_ENTITLEMENTS = FullScreenClock/FullScreenClock.entitlements;
+				CLANG_OPTIMIZATION_PROFILE_FILE = "$(SRCROOT)/OptimizationProfiles/BabyDashboard.profdata";
+				CODE_SIGN_ENTITLEMENTS = BabyDashboard/BabyDashboard.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEAD_CODE_STRIPPING = YES;
@@ -816,7 +817,7 @@
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_FILE = FullScreenClock/Info.plist;
+				INFOPLIST_FILE = BabyDashboard/Info.plist;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.healthcare-fitness";
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
@@ -849,7 +850,8 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
-				CODE_SIGN_ENTITLEMENTS = FullScreenClock/FullScreenClock.entitlements;
+				CLANG_OPTIMIZATION_PROFILE_FILE = "$(SRCROOT)/OptimizationProfiles/BabyDashboard.profdata";
+				CODE_SIGN_ENTITLEMENTS = BabyDashboard/BabyDashboard.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEAD_CODE_STRIPPING = YES;
@@ -859,7 +861,7 @@
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_FILE = FullScreenClock/Info.plist;
+				INFOPLIST_FILE = BabyDashboard/Info.plist;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.healthcare-fitness";
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
@@ -909,7 +911,7 @@
 				SWIFT_EMIT_LOC_STRINGS = NO;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2,7";
-				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/FullScreenClock.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/FullScreenClock";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/BabyDashboard.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/BabyDashboard";
 				XROS_DEPLOYMENT_TARGET = 2.5;
 			};
 			name = Debug;
@@ -933,7 +935,7 @@
 				SWIFT_EMIT_LOC_STRINGS = NO;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2,7";
-				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/FullScreenClock.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/FullScreenClock";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/BabyDashboard.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/BabyDashboard";
 				XROS_DEPLOYMENT_TARGET = 2.5;
 			};
 			name = Release;
@@ -1105,7 +1107,7 @@
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2,7";
-				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/FullScreenClock.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/FullScreenClock";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/BabyDashboard.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/BabyDashboard";
 				XROS_DEPLOYMENT_TARGET = 26.0;
 			};
 			name = Debug;
@@ -1131,7 +1133,7 @@
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2,7";
-				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/FullScreenClock.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/FullScreenClock";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/BabyDashboard.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/BabyDashboard";
 				XROS_DEPLOYMENT_TARGET = 26.0;
 			};
 			name = Release;
@@ -1229,7 +1231,7 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
-		0814D4692E8D4E7E0073412C /* Build configuration list for PBXProject "FullScreenClock" */ = {
+		0814D4692E8D4E7E0073412C /* Build configuration list for PBXProject "BabyDashboard" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				0814D48E2E8D4E7F0073412C /* Debug */,
@@ -1238,7 +1240,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		0814D4902E8D4E7F0073412C /* Build configuration list for PBXNativeTarget "FullScreenClock" */ = {
+		0814D4902E8D4E7F0073412C /* Build configuration list for PBXNativeTarget "BabyDashboard" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				0814D4912E8D4E7F0073412C /* Debug */,
@@ -1247,7 +1249,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		0814D4932E8D4E7F0073412C /* Build configuration list for PBXNativeTarget "FullScreenClockTests" */ = {
+		0814D4932E8D4E7F0073412C /* Build configuration list for PBXNativeTarget "BabyDashboardTests" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				0814D4942E8D4E7F0073412C /* Debug */,
@@ -1256,7 +1258,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		0814D4962E8D4E7F0073412C /* Build configuration list for PBXNativeTarget "FullScreenClockUITests" */ = {
+		0814D4962E8D4E7F0073412C /* Build configuration list for PBXNativeTarget "BabyDashboardUITests" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				0814D4972E8D4E7F0073412C /* Debug */,

@@ -1,6 +1,6 @@
 import Foundation
 import Testing
-@testable import FullScreenClock
+@testable import BabyDashboard
 
 @Suite("History analysis for chart")
 struct HistoryAnalysisSpecs {

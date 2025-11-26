@@ -19,7 +19,7 @@
                BlueprintIdentifier = "08F230C12EB7B817007CB56A"
                BuildableName = "DashboardWidgetExtension.appex"
                BlueprintName = "DashboardWidgetExtension"
-               ReferencedContainer = "container:FullScreenClock.xcodeproj">
+               ReferencedContainer = "container:BabyDashboard.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>
          <BuildActionEntry
@@ -31,9 +31,9 @@
             <BuildableReference
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "0814D46D2E8D4E7E0073412C"
-               BuildableName = "FullScreenClock.app"
-               BlueprintName = "FullScreenClock"
-               ReferencedContainer = "container:FullScreenClock.xcodeproj">
+               BuildableName = "BabyDashboard.app"
+               BlueprintName = "BabyDashboard"
+               ReferencedContainer = "container:BabyDashboard.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>
       </BuildActionEntries>
@@ -65,16 +65,16 @@
             BlueprintIdentifier = "08F230C12EB7B817007CB56A"
             BuildableName = "DashboardWidgetExtension.appex"
             BlueprintName = "DashboardWidgetExtension"
-            ReferencedContainer = "container:FullScreenClock.xcodeproj">
+            ReferencedContainer = "container:BabyDashboard.xcodeproj">
          </BuildableReference>
       </RemoteRunnable>
       <MacroExpansion>
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "0814D46D2E8D4E7E0073412C"
-            BuildableName = "FullScreenClock.app"
-            BlueprintName = "FullScreenClock"
-            ReferencedContainer = "container:FullScreenClock.xcodeproj">
+            BuildableName = "BabyDashboard.app"
+            BlueprintName = "BabyDashboard"
+            ReferencedContainer = "container:BabyDashboard.xcodeproj">
          </BuildableReference>
       </MacroExpansion>
       <CommandLineArguments>
@@ -114,9 +114,9 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "0814D46D2E8D4E7E0073412C"
-            BuildableName = "FullScreenClock.app"
-            BlueprintName = "FullScreenClock"
-            ReferencedContainer = "container:FullScreenClock.xcodeproj">
+            BuildableName = "BabyDashboard.app"
+            BlueprintName = "BabyDashboard"
+            ReferencedContainer = "container:BabyDashboard.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
    </ProfileAction>

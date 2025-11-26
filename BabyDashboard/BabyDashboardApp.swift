@@ -1,6 +1,6 @@
 //
-//  FullScreenClockApp.swift
-//  FullScreenClock
+//  BabyDashboardApp.swift
+//  BabyDashboard
 //
 //  Created by 류성두 on 10/1/25.
 //
@@ -10,7 +10,7 @@ import Model
 import CoreData // for NSPersistentStoreRemoteChange
 
 @main
-struct FullScreenClockApp: App {
+struct BabyDashboardApp: App {
     @UIApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
 
     @StateObject private var settings = AppSettings()
