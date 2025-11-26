@@ -29,7 +29,7 @@ public final class PersistenceController {
         let defaultContainerID = "iCloud.sungdoo.babyDashboard"
         #endif
 
-        if inMemory {
+        if inMemory || ProcessInfo.processInfo.arguments.contains("-UITest") {
             let description = NSPersistentStoreDescription()
             description.type = NSInMemoryStoreType
             cloudKitContainer = CKContainer(identifier: defaultContainerID)
@@ -78,6 +78,34 @@ public final class PersistenceController {
             container.viewContext.undoManager = UndoManager()
         }
         container.viewContext.mergePolicy = NSMergeByPropertyObjectTrumpMergePolicy
+        
+        // Seeding for UI Tests
+        if ProcessInfo.processInfo.arguments.contains("-UITest") {
+            seedDataForUITests()
+        }
+    }
+    
+    private func seedDataForUITests() {
+        let context = container.viewContext
+        let args = ProcessInfo.processInfo.arguments
+        
+        if args.contains("-Seed:babyAddedWithoutLog") {
+            let _ = BabyProfile(context: context, name: "Baby A")
+        } else if args.contains("-Seed:babiesWithSomeLogs") {
+            let baby = BabyProfile(context: context, name: "Baby A")
+            
+            // Add some logs
+            let now = Date.current
+            let session = FeedSession(context: context, startTime: now.addingTimeInterval(-3600)) // 1 hour ago
+            session.endTime = now.addingTimeInterval(-3000)
+            session.amount = Measurement(value: 120, unit: .milliliters)
+            session.profile = baby
+            
+            let diaper = DiaperChange(context: context, timestamp: now.addingTimeInterval(-1800), type: .pee) // 30 mins ago
+            diaper.profile = baby
+        }
+        
+        try? context.save()
     }
 
     public func newBackgroundContext() -> NSManagedObjectContext {

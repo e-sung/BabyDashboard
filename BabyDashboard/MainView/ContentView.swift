@@ -38,7 +38,7 @@ class ContentViewModel: ObservableObject {
     }
 
     private func updateClock() {
-        let now = Date()
+        let now = Date.current
         let calendar = Calendar.current
         let second = calendar.component(.second, from: now)
         showColon = second % 2 == 0
@@ -474,12 +474,14 @@ private extension ContentView {
                 Image(systemName: "list.bullet.clipboard")
                     .imageScale(.large)
             }
+            .accessibilityLabel("History")
         }
         ToolbarItem(placement: .navigationBarTrailing) {
             Button(action: { showingSettings = true }) {
                 Image(systemName: "gear")
                     .imageScale(.large)
             }
+            .accessibilityLabel("Settings")
         }
         ToolbarItem(placement: .navigationBarTrailing) {
             Button(action: { showingAnalysis = true }) {

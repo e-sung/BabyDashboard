@@ -165,7 +165,7 @@ struct HistoryCSVServiceTest {
 
     @Test func importDocument() async throws {
         let controller = PersistenceController(inMemory: true)
-        let context = controller.viewContext
+        let context = await controller.viewContext
 
         let data = try #require(수유이력csv.data(using: .utf8))
 

@@ -121,6 +121,7 @@
 		0814D46E2E8D4E7E0073412C /* BabyDashboard.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = BabyDashboard.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		0814D47C2E8D4E7F0073412C /* BabyDashboardTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = BabyDashboardTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		0814D4862E8D4E7F0073412C /* BabyDashboardUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = BabyDashboardUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		08C1FF392ED6D4A800156ED3 /* BabyDashboard.xctestplan */ = {isa = PBXFileReference; lastKnownFileType = text; path = BabyDashboard.xctestplan; sourceTree = "<group>"; };
 		08E6BBB82EAFF5D100DD237C /* Model.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Model.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		08E6BBC02EAFF5D100DD237C /* ModelTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = ModelTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		08E6BC152EB00D6500DD237C /* WidgetKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WidgetKit.framework; path = System/Library/Frameworks/WidgetKit.framework; sourceTree = SDKROOT; };
@@ -282,6 +283,7 @@
 		0814D4652E8D4E7E0073412C = {
 			isa = PBXGroup;
 			children = (
+				08C1FF392ED6D4A800156ED3 /* BabyDashboard.xctestplan */,
 				08F230DB2EB7B85C007CB56A /* DashboardWidgetExtension.entitlements */,
 				087DCDCC2EBB352A00487EC1 /* Config */,
 				0814D4702E8D4E7E0073412C /* BabyDashboard */,
@@ -943,6 +945,7 @@
 		0814D4972E8D4E7F0073412C /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				CLANG_OPTIMIZATION_PROFILE_FILE = "$(SRCROOT)/OptimizationProfiles/BabyDashboard.profdata";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEAD_CODE_STRIPPING = YES;
@@ -958,7 +961,7 @@
 				SWIFT_EMIT_LOC_STRINGS = NO;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2,7";
-				TEST_TARGET_NAME = FullScreenClock;
+				TEST_TARGET_NAME = BabyDashboard;
 				XROS_DEPLOYMENT_TARGET = 2.5;
 			};
 			name = Debug;
@@ -966,6 +969,7 @@
 		0814D4982E8D4E7F0073412C /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				CLANG_OPTIMIZATION_PROFILE_FILE = "$(SRCROOT)/OptimizationProfiles/BabyDashboard.profdata";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEAD_CODE_STRIPPING = YES;
@@ -981,7 +985,7 @@
 				SWIFT_EMIT_LOC_STRINGS = NO;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2,7";
-				TEST_TARGET_NAME = FullScreenClock;
+				TEST_TARGET_NAME = BabyDashboard;
 				XROS_DEPLOYMENT_TARGET = 2.5;
 			};
 			name = Release;

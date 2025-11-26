@@ -92,12 +92,14 @@ struct HistoryEditView: View {
                 in: ...endTime,
                 displayedComponents: [.hourAndMinute]
             )
+            .accessibilityIdentifier("Start Time")
             DatePicker(
                 "End Time",
                 selection: $endTime,
                 in: startTime...Date.distantFuture,
                 displayedComponents: [.hourAndMinute]
             )
+            .accessibilityIdentifier("End Time")
             if endTime < startTime {
                 Text("End time must be after start time.")
                     .font(.footnote)

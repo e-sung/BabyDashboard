@@ -64,7 +64,7 @@ struct BabyStatusView: View {
 
     var body: some View {
         TimelineView(.periodic(from: .now, by: 1.0)) { context in
-            let now = context.date
+            let now = Date.current
 
             let shouldWarnFeed = WarningLogic.shouldWarnFeed(
                 now: now,
@@ -135,6 +135,7 @@ struct BabyStatusView: View {
                                 .onTapGesture {
                                     onLastFeedTap?(session)
                                 }
+                                .accessibilityIdentifier("LastFeedDetails")
                         }
                     }
                 }
