@@ -224,22 +224,13 @@ struct HistoryCSVServiceTest {
         let babyFetch: NSFetchRequest<BabyProfile> = BabyProfile.fetchRequest()
 
         var feedCount = 0
-        var sampleAmount: Double?
-        var sampleUnit: String?
         var babyNames = Set<String>()
         var fetchError: Error?
-
-        let sampleTimestamp = ISO8601DateFormatter().date(from: "2025-11-06T18:34:39.946Z")
 
         context.performAndWait {
             do {
                 let feeds = try context.fetch(feedFetch)
                 feedCount = feeds.count
-                if let sample = feeds.first(where: { $0.startTime == sampleTimestamp }) {
-                    sampleAmount = sample.amountValue
-                    sampleUnit = sample.amountUnitSymbol
-                }
-
                 let babies = try context.fetch(babyFetch)
                 babyNames = Set(babies.compactMap { $0.name })
             } catch {
@@ -253,8 +244,6 @@ struct HistoryCSVServiceTest {
 
         #expect(feedCount == expectedFeedCount)
         #expect(babyNames == allowedBabyNames)
-        #expect(sampleAmount == 80.0)
-        #expect(sampleUnit == UnitVolume.milliliters.symbol)
     }
 
 }

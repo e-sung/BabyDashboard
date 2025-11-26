@@ -30,6 +30,16 @@ struct BabyDashboardApp: App {
                 // Start nearby sync on launch
                 NearbySyncManager.shared.start()
             }
+            .onAppear {
+                if ProcessInfo.processInfo.arguments.contains("-FastAnimations") {
+                    UIApplication.shared.connectedScenes
+                        .compactMap { $0 as? UIWindowScene }
+                        .flatMap { $0.windows }
+                        .forEach { window in
+                            window.layer.speed = 100
+                        }
+                }
+            }
         }
         .onChange(of: scenePhase) { _, newPhase in
             if newPhase == .active {

@@ -125,7 +125,8 @@ final class BabyDashboardDocumentationTests: XCTestCase {
             "-Seed:babiesWithSomeLogs",
             "-FixedTime:\(fixedTimestamp)",
             "-AppleLanguages", "(en)",
-            "-AppleLocale", "en_US"
+            "-AppleLocale", "en_US",
+            "-FastAnimations"
         ]
         app.launch()
         
