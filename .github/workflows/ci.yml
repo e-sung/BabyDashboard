@@ -16,7 +16,6 @@ jobs:
         uses: actions/checkout@v4
       - name: Set Default Scheme
         run: |
-          scheme_list=$(xcodebuild -list -json | tr -d "\n")
           default=BabyDashboardTestsOnCI
           echo $default | cat >default
           echo Using default scheme: $default
