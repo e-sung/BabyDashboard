@@ -75,7 +75,7 @@ final class BabyDashboardDocumentationTests: XCTestCase {
         app.buttons["Done"].tap()
         
         // 4. Verify Feeding status is gone (or updated)
-        XCTAssertFalse(feedingText.exists, "Feeding status should be gone")
+        XCTAssertFalse(feedingText.waitForNonExistence(timeout: 1), "Feeding status should be gone")
     }
     
     func testDiaperLogging() throws {
