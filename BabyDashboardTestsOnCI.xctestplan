@@ -28,7 +28,7 @@
     {
       "target" : {
         "containerPath" : "container:BabyDashboard.xcodeproj",
-        "identifier" : "0814D47B2E8D4E7F0073412C",
+        "identifier" : "0823A6BC2ED82F380003E7B1",
         "name" : "BabyDashboardTests"
       }
     },
