@@ -328,7 +328,7 @@ private extension ContentView {
                 if index < babies.count {
                     let baby = babies[index]
                     let isHighlighted = highlightedBabyID == baby.objectID
-                    let tile = BabyStatusView(
+                    BabyStatusView(
                         baby: baby,
                         isFeedAnimating: Binding(
                             get: { viewModel.feedAnimationStates[baby.id, default: false] },
@@ -345,26 +345,11 @@ private extension ContentView {
                         onNameTap: { editingProfile = baby },
                         onLastFeedTap: { session in
                             editingFeedSession = session
-                        }
+                        },
+                        isHighlighted: isHighlighted
                     )
-                    .padding()
-                    .background(.thinMaterial)
-                    .clipShape(RoundedRectangle(cornerRadius: 16))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 16)
-                            .stroke(isHighlighted ? Color.accentColor : .clear, lineWidth: 3)
-                            .shadow(color: isHighlighted ? Color.accentColor.opacity(0.3) : .clear, radius: 12)
-                    )
-                    .scaleEffect(isHighlighted && !reduceMotion ? 1.03 : 1)
-                    .animation(reduceMotion ? .default : .spring(response: 0.5, dampingFraction: 0.75), value: isHighlighted)
                     // If this is the trailing baby tile, let it extend under the trailing safe area on iPhone
-                    if index == min(babies.count, maxBabySlots) - 1 {
-                        tile
-                            .modifier(IgnoreTrailingSafeArea(isIPhone: isIPhone))
-                    } else {
-                        tile
-                            .modifier(IgnoreTrailingSafeArea(isIPhone: isIPhone))
-                    }
+                    .modifier(IgnoreTrailingSafeArea(isIPhone: isIPhone))
                 } else {
                     addBabyPlaceholder()
                         .onTapGesture { isShowingAddBaby = true }

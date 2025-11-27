@@ -18,6 +18,11 @@ struct BabyStatusView: View {
     let onNameTap: () -> Void
     let onLastFeedTap: ((FeedSession) -> Void)?
 
+    /// Whether this tile is highlighted (e.g., newly added baby from sharing).
+    var isHighlighted: Bool = false
+
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
     private let timeFormatter: DateFormatter = {
         let formatter = DateFormatter()
         formatter.dateFormat = "HH:mm"
@@ -91,6 +96,16 @@ struct BabyStatusView: View {
                 }
                 .font(isIPhone ? .title : .system(size: 60))
             }
+            .padding()
+            .background(.thinMaterial)
+            .clipShape(RoundedRectangle(cornerRadius: 16))
+            .overlay(
+                RoundedRectangle(cornerRadius: 16)
+                    .stroke(isHighlighted ? Color.accentColor : .clear, lineWidth: 3)
+                    .shadow(color: isHighlighted ? Color.accentColor.opacity(0.3) : .clear, radius: 12)
+            )
+            .scaleEffect(isHighlighted && !reduceMotion ? 1.03 : 1)
+            .animation(reduceMotion ? .default : .spring(response: 0.5, dampingFraction: 0.75), value: isHighlighted)
         }
     }
 
@@ -258,9 +273,6 @@ struct BabyStatusView: View {
                 onNameTap: {},
                 onLastFeedTap: { _ in }
             )
-            .padding()
-            .background(.thinMaterial)
-            .clipShape(RoundedRectangle(cornerRadius: 16))
         }
     }
 
@@ -298,9 +310,6 @@ fileprivate struct PreviewWrapper: View {
             onNameTap: {},
             onLastFeedTap: { _ in }
         )
-        .padding()
-        .background(.thinMaterial)
-        .clipShape(RoundedRectangle(cornerRadius: 16))
     }
 }
 #endif
