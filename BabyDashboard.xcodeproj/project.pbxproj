@@ -135,6 +135,13 @@
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		0823A6E32ED8363F0003E7B1 /* Exceptions for "BabyDashboardTests" folder in "BabyDashboardTests" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Utils.swift,
+			);
+			target = 0823A6BC2ED82F380003E7B1 /* BabyDashboardTests */;
+		};
 		087DCDD32EBB375900487EC1 /* Exceptions for "Config" folder in "DashboardWidgetExtension" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
@@ -192,6 +199,9 @@
 		};
 		0814D47F2E8D4E7F0073412C /* BabyDashboardTests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				0823A6E32ED8363F0003E7B1 /* Exceptions for "BabyDashboardTests" folder in "BabyDashboardTests" target */,
+			);
 			path = BabyDashboardTests;
 			sourceTree = "<group>";
 		};

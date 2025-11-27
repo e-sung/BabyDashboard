@@ -7,20 +7,24 @@ internal import CoreData
 
 final class BabyStatusViewSnapshotTests: XCTestCase {
     private var persistenceController: PersistenceController!
+    var now: Date {
+        defaultNow
+    }
 
     override func setUp() async throws {
         try await super.setUp()
         persistenceController = PersistenceController(inMemory: true)
+        Date.fixedDate = now
     }
 
     override func tearDown() {
         persistenceController = nil
+        Date.fixedDate = nil
         super.tearDown()
     }
 
     @MainActor
     func testBabyStatusViewDefaultState() {
-        let now = Date(timeIntervalSince1970: 1_700_000_000)
         let baby = makeBabyProfile(now: now)
 
         let view = BabyStatusView(
@@ -36,7 +40,6 @@ final class BabyStatusViewSnapshotTests: XCTestCase {
         )
         .environment(\.managedObjectContext, persistenceController.viewContext)
         .environment(\.locale, Locale(identifier: "en_US"))
-        .preferredColorScheme(.light)
 
         assertSnapshot(
             of: view,
@@ -47,7 +50,6 @@ final class BabyStatusViewSnapshotTests: XCTestCase {
 
     @MainActor
     func testBabyStatusViewWarningState() {
-        let now = Date(timeIntervalSince1970: 1_700_000_000)
         let baby = makeBabyProfile(now: now, feedHoursAgo: 7, diaperMinutesAgo: 90)
 
         let view = BabyStatusView(
@@ -63,7 +65,6 @@ final class BabyStatusViewSnapshotTests: XCTestCase {
         )
         .environment(\.managedObjectContext, persistenceController.viewContext)
         .environment(\.locale, Locale(identifier: "en_US"))
-        .preferredColorScheme(.light)
 
         assertSnapshot(
             of: view,
