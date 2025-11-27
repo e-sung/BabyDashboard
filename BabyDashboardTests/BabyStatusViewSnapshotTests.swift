@@ -3,20 +3,17 @@ import SwiftUI
 import XCTest
 @testable import BabyDashboard
 import Model
+internal import CoreData
 
 final class BabyStatusViewSnapshotTests: XCTestCase {
     private var persistenceController: PersistenceController!
-    private var originalArguments: [String] = []
 
     override func setUp() async throws {
         try await super.setUp()
         persistenceController = PersistenceController(inMemory: true)
-        originalArguments = CommandLine.arguments
-        CommandLine.arguments.append("-FixedTime:1700000000")
     }
 
     override func tearDown() {
-        CommandLine.arguments = originalArguments
         persistenceController = nil
         super.tearDown()
     }
@@ -75,7 +72,7 @@ final class BabyStatusViewSnapshotTests: XCTestCase {
         )
     }
 
-    private func makeBabyProfile(now: Date, feedHoursAgo: TimeInterval = 2, diaperMinutesAgo: TimeInterval = 30) -> BabyProfile {
+    @MainActor private func makeBabyProfile(now: Date, feedHoursAgo: TimeInterval = 2, diaperMinutesAgo: TimeInterval = 30) -> BabyProfile {
         let context = persistenceController.viewContext
         let baby = BabyProfile(context: context, name: "Baby A")
         baby.feedTerm = 3 * 3600
