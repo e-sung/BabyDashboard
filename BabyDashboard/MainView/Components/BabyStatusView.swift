@@ -7,6 +7,7 @@ import UIKit
 
 struct BabyStatusView: View {
     @ObservedObject var baby: BabyProfile
+    @Environment(\.timeZone) var timeZone
 
     @Binding var isFeedAnimating: Bool
     @Binding var isDiaperAnimating: Bool
@@ -18,11 +19,12 @@ struct BabyStatusView: View {
     let onNameTap: () -> Void
     let onLastFeedTap: ((FeedSession) -> Void)?
 
-    private let timeFormatter: DateFormatter = {
+    private var timeFormatter: DateFormatter {
         let formatter = DateFormatter()
         formatter.dateFormat = "HH:mm"
+        formatter.timeZone = timeZone
         return formatter
-    }()
+    }
 
     private var isIPhone: Bool {
         #if canImport(UIKit)
