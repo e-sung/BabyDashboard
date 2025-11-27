@@ -44,7 +44,7 @@ final class BabyStatusViewSnapshotTests: XCTestCase {
 
         assertSnapshot(
             of: view,
-            as: .image(layout: .device(config: .iPhone13Pro)),
+            as: .image(layout: .fixed(width: 300, height: 300)),
             named: "Default"
         )
     }
@@ -70,7 +70,7 @@ final class BabyStatusViewSnapshotTests: XCTestCase {
 
         assertSnapshot(
             of: view,
-            as: .image(layout: .device(config: .iPhone13Pro)),
+            as: .image(layout: .fixed(width: 300, height: 300)),
             named: "Warnings"
         )
     }
