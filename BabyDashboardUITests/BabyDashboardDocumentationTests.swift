@@ -118,7 +118,7 @@ final class BabyDashboardDocumentationTests: XCTestCase {
     
     func testEditFeedSessionAndVerifyWarning() throws {
         let app = XCUIApplication()
-        // Fixed time: 2025-11-26 12:00:00 UTC (approx) -> 1764158400
+        // Fixed time: 2025-11-26 09:00:00 KST (approx) -> 1764158400
         let fixedTimestamp = 1764158400.0
         app.launchArguments = [
             "-UITest",
@@ -128,9 +128,11 @@ final class BabyDashboardDocumentationTests: XCTestCase {
             "-AppleLocale", "en_US",
             "-FastAnimations"
         ]
+        app.launchEnvironment["TZ"] = "Asia/Seoul"
         app.launch()
         
-        XCTAssertFalse(app/*@START_MENU_TOKEN@*/.buttons.staticTexts["Warning"]/*[[".buttons.staticTexts[\"Warning\"]",".staticTexts[\"Warning\"]"],[[[-1,1],[-1,0]]],[1]]@END_MENU_TOKEN@*/.waitForExistence(timeout: 2), "Warning badge should appear after editing time")
+        // 0. Verify NO Warning Badge initially
+        XCTAssertFalse(app.buttons.staticTexts["Warning"].waitForExistence(timeout: 2), "Warning badge should NOT appear initially")
 
         // 1. Tap Last Feed Details to edit
         let lastFeedDetails = app.buttons["120 mL in 10m"].firstMatch
