@@ -14,6 +14,7 @@ final class BabyDashboardDocumentationTests: XCTestCase {
     override func setUpWithError() throws {
         continueAfterFailure = false
         app = XCUIApplication()
+        app.launchEnvironment["TZ"] = "Asia/Seoul"
     }
     
     override func tearDownWithError() throws {
@@ -117,9 +118,19 @@ final class BabyDashboardDocumentationTests: XCTestCase {
     }
     
     func testEditFeedSessionAndVerifyWarning() throws {
+        // 1. Prepare Fixed Time (2025-11-26 21:00:00)
+        let dateFormatter = DateFormatter()
+        dateFormatter.dateFormat = "yyyy-MM-dd HH:mm"
+        dateFormatter.timeZone = TimeZone(identifier: "Asia/Seoul")
+        
+        guard let fixedDate = dateFormatter.date(from: "2025-11-26 21:00") else {
+            XCTFail("Failed to create fixed date")
+            return
+        }
+        
+        let fixedTimestamp = fixedDate.timeIntervalSince1970
+        
         let app = XCUIApplication()
-        // Fixed time: 2025-11-26 12:00:00 UTC (approx) -> 1764158400
-        let fixedTimestamp = 1764158400.0
         app.launchArguments = [
             "-UITest",
             "-Seed:babiesWithSomeLogs",
@@ -128,27 +139,33 @@ final class BabyDashboardDocumentationTests: XCTestCase {
             "-AppleLocale", "en_US",
             "-FastAnimations"
         ]
+        app.launchEnvironment["TZ"] = "Asia/Seoul"
         app.launch()
         
-        XCTAssertFalse(app/*@START_MENU_TOKEN@*/.buttons.staticTexts["Warning"]/*[[".buttons.staticTexts[\"Warning\"]",".staticTexts[\"Warning\"]"],[[[-1,1],[-1,0]]],[1]]@END_MENU_TOKEN@*/.waitForExistence(timeout: 2), "Warning badge should appear after editing time")
+        // 0. Verify NO Warning Badge initially
+        XCTAssertFalse(app.buttons.staticTexts["Warning"].waitForExistence(timeout: 2), "Warning badge should NOT appear initially")
 
         // 1. Tap Last Feed Details to edit
         let lastFeedDetails = app.buttons["120 mL in 10m"].firstMatch
-        XCTAssert(lastFeedDetails.waitForExistence(timeout: 3), "Last feed details should be visible")
+        XCTAssertTrue(lastFeedDetails.exists, "Last feed details should be visible")
         lastFeedDetails.tap()
         
         // 2. Edit Time
         let datePickers = app.datePickers
         let startPicker = datePickers["Start Time"]
-        if startPicker.waitForExistence(timeout: 3) {
-             // If it's a compact picker, tapping it opens the wheel
+        if startPicker.exists {
             startPicker.tap()
         }
         
-        // Swipe down on the wheel to move time back
+        // We want to trigger a warning by setting the time to > 3 hours ago.
+        // Current Fixed Time: 21:00
+        // Target Time: 17:00 (4 hours ago) -> "5" PM
+        let targetHour = 5
+        let targetHourString = String(targetHour)
+        
         let hourWheel = app.pickerWheels.firstMatch
         if hourWheel.waitForExistence(timeout: 2) {
-            hourWheel.swipeDown(velocity: .slow)
+            hourWheel.adjust(toPickerWheelValue: targetHourString)
         }
         
         // Dismiss popover if present (User recorded "PopoverDismissRegion")
