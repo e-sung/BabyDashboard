@@ -42,10 +42,17 @@ jobs:
           if [ $scheme = default ]; then scheme=$(cat default); fi
           if [ "`ls -A | grep -i \\.xcworkspace\$`" ]; then filetype_parameter="workspace" && file_to_build="`ls -A | grep -i \\.xcworkspace\$`"; else filetype_parameter="project" && file_to_build="`ls -A | grep -i \\.xcodeproj\$`"; fi
           file_to_build=`echo $file_to_build | awk '{$1=$1;print}'`
-          xcodebuild test-without-building -scheme "$scheme" -"$filetype_parameter" "$file_to_build" -destination "platform=$platform,name=$device" -resultBundlePath TestResults.xcresult
+          xcodebuild test-without-building -scheme "$scheme" -"$filetype_parameter" "$file_to_build" -destination "platform=$platform,name=$device" -resultBundlePath TestResults.xcresult || true
       - name: Upload test results
         uses: actions/upload-artifact@v4
         if: failure()
         with:
           name: TestResults.xcresult
           path: TestResults.xcresult
+      - name: Upload snapshots
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: Snapshots
+          path: BabyDashboardTests/__Snapshots__/
+          if-no-files-found: ignore

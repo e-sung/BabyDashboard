@@ -75,6 +75,7 @@ final class BabyStatusViewSnapshotTests: XCTestCase {
         )
     }
 
+    @MainActor
     private func makeBabyProfile(now: Date, feedHoursAgo: TimeInterval = 2, diaperMinutesAgo: TimeInterval = 30) -> BabyProfile {
         let context = persistenceController.viewContext
         let baby = BabyProfile(context: context, name: "Baby A")
