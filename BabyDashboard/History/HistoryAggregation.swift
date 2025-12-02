@@ -13,7 +13,7 @@ func makeDaySummaries(
     events: [HistoryEvent],
     feedSessions: [FeedSession],
     diaperChanges: [DiaperChange],
-    targetUnit: UnitVolume = (Locale.current.measurementSystem == .us) ? .fluidOunces : .milliliters,
+    targetUnit: UnitVolume = UnitUtils.preferredUnit,
     calendar: Calendar,
     startOfDayHour: Int,
     startOfDayMinute: Int
@@ -44,7 +44,7 @@ func makeDaySummaries(
                 guard let babyName = session.profile?.name else { continue }
                 guard session.amountUnitSymbol != nil else { continue }
                 let value = session.amountValue
-                let unit = unitVolume(from: session.amountUnitSymbol) ?? ((Locale.current.measurementSystem == .us) ? .fluidOunces : .milliliters)
+                let unit = unitVolume(from: session.amountUnitSymbol) ?? UnitUtils.preferredUnit
                 let convertedValue = Measurement(value: value, unit: unit).converted(to: targetUnit).value
                 if let existing = feedTotals[babyName] {
                     feedTotals[babyName] = Measurement(value: existing.value + convertedValue, unit: targetUnit)

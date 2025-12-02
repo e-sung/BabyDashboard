@@ -116,7 +116,6 @@ struct HistoryView: View {
             events: filteredEvents,
             feedSessions: Array(feedSessions),
             diaperChanges: Array(diaperChanges),
-            targetUnit: (Locale.current.measurementSystem == .us) ? .fluidOunces : .milliliters,
             calendar: Calendar.current,
             startOfDayHour: settings.startOfDayHour,
             startOfDayMinute: settings.startOfDayMinute
@@ -297,7 +296,7 @@ struct HistoryView: View {
                         .fontWeight(.semibold)
                     Spacer()
                     if let total = section.feedTotalsByBaby[name] {
-                        Text(total.formatted(.measurement(width: .abbreviated, usage: .asProvided, numberFormatStyle: .number.precision(.fractionLength(0)))))
+                        Text(total.formatted(.measurement(width: .abbreviated, usage: .asProvided, numberFormatStyle: .number.precision(.fractionLength(UnitUtils.preferredUnit == .fluidOunces ? 1 : 0 )))))
                             .font(.subheadline)
                     }
                     let diaperCount = section.diaperCountsByBaby[name, default: 0]
@@ -509,10 +508,6 @@ private struct AddHistorySheet: View {
     @State private var diaperTime: Date = Date.current
     @State private var diaperType: DiaperType = .pee
 
-    private var localeUnit: UnitVolume {
-        (Locale.current.measurementSystem == .us) ? .fluidOunces : .milliliters
-    }
-
     var body: some View {
         NavigationView {
             Form {
@@ -543,7 +538,7 @@ private struct AddHistorySheet: View {
                         HStack {
                             TextField(String(localized: "Amount"), text: $amountString)
                                 .keyboardType(.decimalPad)
-                            Text(localeUnit.symbol)
+                            Text(UnitUtils.preferredUnit.symbol)
                                 .foregroundStyle(.secondary)
                         }
                     }
@@ -609,7 +604,7 @@ private struct AddHistorySheet: View {
             let session = FeedSession(context: context, startTime: feedStart)
             session.endTime = feedEnd
             if let value = Double(amountString) {
-                session.amount = Measurement(value: value, unit: localeUnit)
+                session.amount = Measurement(value: value, unit: UnitUtils.preferredUnit)
             }
             session.profile = baby
         case .diaper:

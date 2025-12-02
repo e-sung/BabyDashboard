@@ -56,7 +56,7 @@ struct HistoryAnalysisView: View {
     @State private var selectedMemoText: String = ""
 
     private var targetUnit: UnitVolume {
-        (Locale.current.measurementSystem == .us) ? .fluidOunces : .milliliters
+        UnitUtils.preferredUnit
     }
 
     var body: some View {

@@ -62,6 +62,18 @@ struct SettingsView: View {
                     DatePicker("Start of Day", selection: startOfDayBinding, displayedComponents: .hourAndMinute)
                 }
 
+                Section(header: Text("Measurement Unit")) {
+                    Picker("Unit", selection: Binding(
+                        get: { UnitUtils.preferredUnit },
+                        set: { UnitUtils.preferredUnit = $0 }
+                    )) {
+                        ForEach([UnitVolume.milliliters, UnitVolume.fluidOunces], id: \.self) { unit in
+                            Text(unit.symbol).tag(unit)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+                }
+
                 Section(header: Text("Siri & Shortcuts")) {
                     Text("Add shortcuts to quickly start and finish feedings, or log diaper changes using Siri or the Shortcuts app.")
                         .font(.subheadline)

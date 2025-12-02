@@ -181,7 +181,9 @@ struct BabyStatusView2: View {
         let duration = endTime.timeIntervalSince(session.startTime)
         var text = formattedDuration(from: duration)
         if let amount = session.amount {
-            text += " • \(amount.formatted(.measurement(width: .abbreviated, usage: .asProvided, numberFormatStyle: .number.precision(.fractionLength(0)))))".lowercased()
+            let preferredUnit = UnitUtils.preferredUnit
+            let converted = amount.converted(to: preferredUnit)
+            text += " • \(UnitUtils.format(measurement: converted))".lowercased()
         }
         return text
     }
@@ -228,7 +230,7 @@ struct BabyStatusView2: View {
         formatter.unitsStyle = .abbreviated
         formatter.zeroFormattingBehavior = [.dropAll]
         guard let formatted = formatter.string(from: interval) else { return "" }
-        return "\(formatted)간"
+        return String(localized: "in \(formatted)")
     }
     
     private func formattedElapsingTime(from interval: TimeInterval) -> String {

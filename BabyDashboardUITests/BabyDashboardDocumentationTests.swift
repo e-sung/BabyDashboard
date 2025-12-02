@@ -77,8 +77,8 @@ final class BabyDashboardDocumentationTests: XCTestCase {
 
         let feedCard = feedStatusCard()
         XCTContext.runActivity(named: "Initial State") { _ in
-            XCTAssertFalse(
-                findStaticText(containing: "ml", from: feedCard).exists,
+            XCTAssert(
+                findStaticText(containing: "No data", from: feedCard).exists,
                 "Amount element should not be present before finishing feed"
             )
             XCTAssert(progressValue(of: feedCard) == 0, "Progress should be zero in initial state")
@@ -107,12 +107,12 @@ final class BabyDashboardDocumentationTests: XCTestCase {
             XCTAssert(app.staticTexts["How much did Baby A eat?"].waitForNonExistence(timeout: 2))
             XCTAssert(findStaticText(containing: "Just now", from: feedCard).exists)
             XCTAssertFalse(findStaticText(containing: "Feeding", from: feedCard).exists)
-            XCTAssertTrue(findStaticText(containing: "90 ml").waitForExistence(timeout: 2), "Feed footer should include entered amount")
+            XCTAssertTrue(findStaticText(containing: "90").waitForExistence(timeout: 2), "Feed footer should include entered amount")
         }
 
         XCTContext.runActivity(named: "Edit History") { _ in
             // Edit start time to 1 hour ago via footer -> HistoryEditView
-            let footerElement = findStaticText(containing: "ml", from: feedCard)
+            let footerElement = findStaticText(containing: "Last Feed", from: feedCard)
             XCTAssertTrue(footerElement.exists, "Feed footer should be tappable")
             footerElement.tap()
             XCTAssert(app.staticTexts["Edit Event"].waitForExistence(timeout: 1))
@@ -147,7 +147,7 @@ final class BabyDashboardDocumentationTests: XCTestCase {
             XCTAssert(app.staticTexts["How much did Baby A eat?"].waitForNonExistence(timeout: 2))
             XCTAssert(findStaticText(containing: "Just now", from: feedCard).exists)
             XCTAssertFalse(findStaticText(containing: "Feeding", from: feedCard).exists)
-            XCTAssertTrue(findStaticText(containing: "100 ml").waitForExistence(timeout: 2), "Feed footer should include entered amount")
+            XCTAssertTrue(findStaticText(containing: "100").waitForExistence(timeout: 2), "Feed footer should include entered amount")
         }
     }
 
