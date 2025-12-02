@@ -508,10 +508,6 @@ private struct AddHistorySheet: View {
     @State private var diaperTime: Date = Date.current
     @State private var diaperType: DiaperType = .pee
 
-    private var localeUnit: UnitVolume {
-        UnitUtils.preferredUnit
-    }
-
     var body: some View {
         NavigationView {
             Form {
@@ -542,7 +538,7 @@ private struct AddHistorySheet: View {
                         HStack {
                             TextField(String(localized: "Amount"), text: $amountString)
                                 .keyboardType(.decimalPad)
-                            Text(localeUnit.symbol)
+                            Text(UnitUtils.preferredUnit.symbol)
                                 .foregroundStyle(.secondary)
                         }
                     }
@@ -608,7 +604,7 @@ private struct AddHistorySheet: View {
             let session = FeedSession(context: context, startTime: feedStart)
             session.endTime = feedEnd
             if let value = Double(amountString) {
-                session.amount = Measurement(value: value, unit: localeUnit)
+                session.amount = Measurement(value: value, unit: UnitUtils.preferredUnit)
             }
             session.profile = baby
         case .diaper:

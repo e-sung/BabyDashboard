@@ -230,7 +230,7 @@ struct BabyStatusView2: View {
         formatter.unitsStyle = .abbreviated
         formatter.zeroFormattingBehavior = [.dropAll]
         guard let formatted = formatter.string(from: interval) else { return "" }
-        return "\(formatted)간"
+        return "in \(formatted)"
     }
     
     private func formattedElapsingTime(from interval: TimeInterval) -> String {
