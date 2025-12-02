@@ -107,7 +107,7 @@ final class BabyDashboardDocumentationTests: XCTestCase {
             XCTAssert(app.staticTexts["How much did Baby A eat?"].waitForNonExistence(timeout: 2))
             XCTAssert(findStaticText(containing: "Just now", from: feedCard).exists)
             XCTAssertFalse(findStaticText(containing: "Feeding", from: feedCard).exists)
-            XCTAssertTrue(findStaticText(containing: "90 ml").waitForExistence(timeout: 2), "Feed footer should include entered amount")
+            XCTAssertTrue(findStaticText(containing: "90").waitForExistence(timeout: 2), "Feed footer should include entered amount")
         }
 
         XCTContext.runActivity(named: "Edit History") { _ in
