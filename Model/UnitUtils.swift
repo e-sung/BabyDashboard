@@ -5,11 +5,6 @@ public struct UnitUtils {
     
     public static var preferredUnit: UnitVolume {
         get {
-            #if DEBUG
-            if ProcessInfo.processInfo.arguments.contains("-UITest") {
-                return .milliliters
-            }
-            #endif
             if let savedSymbol = UserDefaults.standard.string(forKey: preferredUnitKey) {
                 return unit(from: savedSymbol)
             }

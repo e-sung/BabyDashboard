@@ -52,21 +52,14 @@ final class UnitSettingsTests: XCTestCase {
         
         let cells = app.cells
         XCTAssertTrue(cells.count >= 2)
-        
-        let firstCell = cells.element(boundBy: 0)
-        let secondCell = cells.element(boundBy: 1)
-        
-        XCTAssertTrue(firstCell.staticTexts["4.0 fl oz over 0 min"].exists || firstCell.staticTexts["4 fl oz over 0 min"].exists)
-        
+
+        XCTAssertTrue(app.cells.staticTexts["4 fl oz over 0 min"].exists)
+
         // 120 ml = 4.05768 fl oz -> 4.1 fl oz
-        XCTAssertTrue(secondCell.staticTexts["4.1 fl oz over 0 min"].exists)
-        
-        // 8. Verify daily total
-        // 4.0 + 4.1 = 8.1 fl oz
-        // The header might show this.
-        let header = app.collectionViews.otherElements.matching(identifier: "SectionHeader").firstMatch
-        // Note: Implementation of header accessibility might need adjustment or we check static texts in header
-        // For now, let's just verify the rows.
+        XCTAssertTrue(app.cells.staticTexts["4.1 fl oz over 0 min"].exists)
+
+        // Daily summary = 4.0 + 4.1 = 8.1
+        XCTAssert(app.cells.staticTexts["8.1 fl oz"].exists)
     }
     
     // MARK: - Helpers
@@ -99,6 +92,7 @@ final class UnitSettingsTests: XCTestCase {
     }
     
     private func selectUnit(_ unit: String) {
+        XCTAssert(app.buttons[unit].waitForExistence(timeout: 2))
         app.buttons[unit].tap()
     }
     
