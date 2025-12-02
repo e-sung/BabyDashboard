@@ -3,4 +3,66 @@
    uuid = "BA3F74FC-DD08-4557-A262-AD0E2365DD31"
    type = "1"
    version = "2.0">
+   <Breakpoints>
+      <BreakpointProxy
+         BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
+         <BreakpointContent
+            uuid = "A2474E98-F23D-4589-9BD9-3A5B44A37D9F"
+            shouldBeEnabled = "Yes"
+            ignoreCount = "0"
+            continueAfterRunningActions = "No"
+            filePath = "Model/Models.swift"
+            startingColumnNumber = "9223372036854775807"
+            endingColumnNumber = "9223372036854775807"
+            startingLineNumber = "120"
+            endingLineNumber = "120"
+            landmarkName = "sessionBeforeCurrentInProgressSession"
+            landmarkType = "24">
+            <Locations>
+               <Location
+                  uuid = "A2474E98-F23D-4589-9BD9-3A5B44A37D9F - 65c68379b28b87bd"
+                  shouldBeEnabled = "Yes"
+                  ignoreCount = "0"
+                  continueAfterRunningActions = "No"
+                  symbolName = "Model.BabyProfile.sessionBeforeCurrentInProgressSession.getter : Swift.Optional&lt;Model.FeedSession&gt;"
+                  moduleName = "Model"
+                  usesParentBreakpointCondition = "Yes"
+                  urlString = "file:///Users/sungdoo/BabyMonitor/ios/FullScreenClock/Model/Models.swift"
+                  startingColumnNumber = "9223372036854775807"
+                  endingColumnNumber = "9223372036854775807"
+                  startingLineNumber = "120"
+                  endingLineNumber = "120">
+               </Location>
+               <Location
+                  uuid = "A2474E98-F23D-4589-9BD9-3A5B44A37D9F - bd365e5776fdc4b4"
+                  shouldBeEnabled = "Yes"
+                  ignoreCount = "0"
+                  continueAfterRunningActions = "No"
+                  symbolName = "closure #1 (Model.FeedSession) -&gt; Swift.Bool in Model.BabyProfile.sessionBeforeCurrentInProgressSession.getter : Swift.Optional&lt;Model.FeedSession&gt;"
+                  moduleName = "Model"
+                  usesParentBreakpointCondition = "Yes"
+                  urlString = "file:///Users/sungdoo/BabyMonitor/ios/FullScreenClock/Model/Models.swift"
+                  startingColumnNumber = "9223372036854775807"
+                  endingColumnNumber = "9223372036854775807"
+                  startingLineNumber = "120"
+                  endingLineNumber = "120">
+               </Location>
+               <Location
+                  uuid = "A2474E98-F23D-4589-9BD9-3A5B44A37D9F - 29d40795b661ec65"
+                  shouldBeEnabled = "Yes"
+                  ignoreCount = "0"
+                  continueAfterRunningActions = "No"
+                  symbolName = "closure #2 (Model.FeedSession, Model.FeedSession) -&gt; Swift.Bool in Model.BabyProfile.sessionBeforeCurrentInProgressSession.getter : Swift.Optional&lt;Model.FeedSession&gt;"
+                  moduleName = "Model"
+                  usesParentBreakpointCondition = "Yes"
+                  urlString = "file:///Users/sungdoo/BabyMonitor/ios/FullScreenClock/Model/Models.swift"
+                  startingColumnNumber = "9223372036854775807"
+                  endingColumnNumber = "9223372036854775807"
+                  startingLineNumber = "120"
+                  endingLineNumber = "120">
+               </Location>
+            </Locations>
+         </BreakpointContent>
+      </BreakpointProxy>
+   </Breakpoints>
 </Bucket>

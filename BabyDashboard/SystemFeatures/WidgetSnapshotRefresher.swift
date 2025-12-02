@@ -10,7 +10,7 @@ public func refreshBabyWidgetSnapshots(using context: NSManagedObjectContext) {
         // We only need IDs/names/feedTerm but fetching full objects is fine here.
         let babies = (try? context.fetch(request)) ?? []
 
-        let now = Date()
+        let now = Date.current
         for baby in babies {
             let id = baby.id
             let name = baby.name

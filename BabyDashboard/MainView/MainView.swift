@@ -5,139 +5,13 @@ import Model
 import WidgetKit
 import CloudKit
 
-// MARK: - ContentViewModel (Business Logic)
+// MainViewModel is defined in ContentView.swift (or should be extracted to its own file)
 
-@MainActor
-class ContentViewModel: ObservableObject {
-    @Published var hour: String = "00"
-    @Published var minute: String = "00"
-    @Published var showColon: Bool = true
-    @Published var date: String = ""
 
-    private let viewContext: NSManagedObjectContext
+// MARK: - MainView (UI)
 
-    private var feedAnimationTimers: [UUID: Timer] = [:]
-    private var diaperAnimationTimers: [UUID: Timer] = [:]
-    @Published var feedAnimationStates: [UUID: Bool] = [:]
-    @Published var diaperAnimationStates: [UUID: Bool] = [:]
-
-    // Use ShareController directly for any share-related actions
-    private let shareController: ShareController
-
-    static var shared = ContentViewModel(context: PersistenceController.shared.viewContext)
-
-    init(context: NSManagedObjectContext) {
-        self.viewContext = context
-        self.shareController = .shared
-
-        Timer.scheduledTimer(withTimeInterval: 1, repeats: true, block: { [weak self] _ in
-            DispatchQueue.main.async {
-                self?.updateClock()
-            }
-        })
-    }
-
-    private func updateClock() {
-        let now = Date.current
-        let calendar = Calendar.current
-        let second = calendar.component(.second, from: now)
-        showColon = second % 2 == 0
-
-        let components = calendar.dateComponents([.hour, .minute], from: now)
-        hour = String(format: "%02d", components.hour ?? 0)
-        minute = String(format: "%02d", components.minute ?? 0)
-        date = now.formatted(Date.FormatStyle(locale: Locale.autoupdatingCurrent).year(.defaultDigits).month(.abbreviated).day(.defaultDigits).weekday(.wide))
-    }
-    
-    // MARK: - Intents
-    
-    func startFeeding(for baby: BabyProfile) {
-        if let ongoing = baby.inProgressFeedSession {
-            viewContext.delete(ongoing)
-        }
-        let newSession = FeedSession(context: viewContext, startTime: Date())
-        newSession.profile = baby
-        saveAndPing()
-        triggerAnimation(for: baby.id, type: .feed)
-    }
-    
-    func finishFeeding(for baby: BabyProfile, amount: Measurement<UnitVolume>) {
-        guard let session = baby.inProgressFeedSession else { return }
-        session.endTime = Date()
-        session.amount = amount
-
-        saveAndPing()
-    }
-    
-    func cancelFeeding(for baby: BabyProfile) {
-        guard let session = baby.inProgressFeedSession else { return }
-        viewContext.delete(session)
-        saveAndPing()
-        triggerAnimation(for: baby.id, type: .feed)
-    }
-    
-    func logDiaperChange(for baby: BabyProfile, type: DiaperType) {
-        let newDiaper = DiaperChange(context: viewContext, timestamp: Date(), type: type)
-        newDiaper.profile = baby
-        saveAndPing()
-        triggerAnimation(for: baby.id, type: .diaper)
-    }
-    
-    func setDiaperTime(for baby: BabyProfile, to date: Date) {
-        if let lastChange = baby.lastDiaperChange {
-            lastChange.timestamp = date
-        } else {
-            let newDiaper = DiaperChange(context: viewContext, timestamp: date, type: .pee)
-            newDiaper.profile = baby
-        }
-        saveAndPing()
-    }
-    
-    func updateProfileName(for baby: BabyProfile, to newName: String) {
-        baby.name = newName
-        // Update share title via ShareController
-        shareController.updateShareTitleIfNeeded(for: baby, newName: newName)
-        _ = shareController.refreshShareInfo(for: baby)
-        saveAndPing()
-    }
-    
-    // MARK: - Animation Helpers
-    private enum AnimationType { case feed, diaper }
-    
-    private func triggerAnimation(for babyId: UUID, type: AnimationType) {
-        if type == .feed {
-            feedAnimationStates[babyId] = true
-            feedAnimationTimers[babyId]?.invalidate()
-            feedAnimationTimers[babyId] = Timer.scheduledTimer(withTimeInterval: 0.31, repeats: false) { [weak self] _ in
-                DispatchQueue.main.async {
-                    self?.feedAnimationStates[babyId] = false
-                }
-            }
-        } else {
-            diaperAnimationStates[babyId] = true
-            diaperAnimationTimers[babyId]?.invalidate()
-            diaperAnimationTimers[babyId] = Timer.scheduledTimer(withTimeInterval: 0.31, repeats: false) { [weak self] _ in
-                DispatchQueue.main.async {
-                    self?.diaperAnimationStates[babyId] = false
-                }
-            }
-        }
-    }
-
-    // MARK: - Save + Nudge
-
-    private func saveAndPing() {
-        try? viewContext.save()
-        NearbySyncManager.shared.sendPing()
-        // Update widget cache and reload timelines (using shared helper)
-        refreshBabyWidgetSnapshots(using: viewContext)
-    }
-}
-
-// MARK: - ContentView (UI)
-
-struct ContentView: View {
-    @ObservedObject var viewModel: ContentViewModel
+struct MainView: View {
+    @ObservedObject var viewModel: MainViewModel
     @Environment(\.managedObjectContext) private var viewContext
     @EnvironmentObject var settings: AppSettings
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -148,7 +22,7 @@ struct ContentView: View {
     @Environment(\.verticalSizeClass) private var vSizeClass
 
     @FetchRequest(
-        fetchRequest: ContentView.makeBabiesRequest(),
+        fetchRequest: MainView.makeBabiesRequest(),
         animation: .default
     ) private var babies: FetchedResults<BabyProfile>
 
@@ -159,6 +33,7 @@ struct ContentView: View {
     @State private var feedAmountString: String = ""
     @State private var showingHistory = false
     @State private var editingFeedSession: FeedSession? = nil
+    @State private var editingDiaperChange: DiaperChange? = nil
 
     @State private var highlightedBabyID: NSManagedObjectID? = nil
     @State private var knownBabyIDs: Set<NSManagedObjectID> = []
@@ -188,8 +63,7 @@ struct ContentView: View {
     var body: some View {
         NavigationView {
             ZStack {
-                progressBarsView
-                mainVStack
+                dashboardView
             }
             // Add Baby sheet to allow adding one or two babies
             .sheet(isPresented: $isShowingAddBaby) {
@@ -205,6 +79,12 @@ struct ContentView: View {
             .sheet(isPresented: $showingHistory) { HistoryView() }
             .sheet(item: $editingFeedSession) { session in
                 HistoryEditView(model: .feed(session))
+                    .environment(\.managedObjectContext, viewContext)
+                    .environment(\.managedObjectContext, viewContext)
+                    .environmentObject(settings)
+            }
+            .sheet(item: $editingDiaperChange) { change in
+                HistoryEditView(model: .diaper(change))
                     .environment(\.managedObjectContext, viewContext)
                     .environmentObject(settings)
             }
@@ -230,6 +110,13 @@ struct ContentView: View {
                     .animation(.spring(response: 0.5, dampingFraction: 0.8), value: toastMessage)
             }
         }
+        .overlay(alignment: .topTrailing) {
+            if !isIPhone {
+                ClockView()
+                    .padding(.trailing, 20)
+            }
+           // Adjust top padding based on device
+        }
         .confirmationDialog("Diaper Change", isPresented: .init(get: { changingDiaperFor != nil }, set: { if !$0 { changingDiaperFor = nil } }), titleVisibility: .visible) {
             if let baby = changingDiaperFor {
                 Button("Pee") { viewModel.logDiaperChange(for: baby, type: .pee) }
@@ -247,7 +134,7 @@ struct ContentView: View {
     }
 }
 
-private extension ContentView {
+private extension MainView {
     static func makeBabiesRequest() -> NSFetchRequest<BabyProfile> {
         let request: NSFetchRequest<BabyProfile> = BabyProfile.fetchRequest()
         request.sortDescriptors = [NSSortDescriptor(key: "createdAt", ascending: true)]
@@ -255,126 +142,51 @@ private extension ContentView {
     }
 }
 
-// MARK: - ContentView Subviews & Logic
+// MARK: - MainView Subviews & Logic
 
-private extension ContentView {
-    // Treat the UI as "compact" if either size class is compact.
-    var isCompact: Bool {
-        (hSizeClass == .compact) || (vSizeClass == .compact)
-    }
-
-    var progressBarsView: some View {
-        HStack(spacing: 0) {
-            // Draw progress bars only for existing babies
-            ForEach(babies) { baby in
-                BabyProgressView(baby: baby, timeScope: baby.feedTerm, feedingColor: .blue)
-                    .frame(width: 20)
-                    .padding(.leading, baby.id == babies.first?.id ? 10 : 0)
-                    // On iPhone, let the trailing bar extend to/under the safe area by removing extra padding
-                    .padding(.trailing, baby.id == babies.last?.id ? (isIPhone ? 0 : 10) : 0)
-                if baby.id != babies.last?.id {
-                    Spacer()
-                }
-            }
-        }
-        // Keep left margin the same; on iPhone, remove trailing margin and ignore trailing safe area.
-        .padding(.leading, isIPhone ? -20 : 20)
-        .padding(.trailing, isIPhone ? 0 : 20)
-        .modifier(IgnoreTrailingSafeArea(isIPhone: isIPhone))
-    }
-    
-    var mainVStack: some View {
-        VStack {
-            Spacer()
-            VStack {
-                if !isCompact {
-                    clockView
-                        .offset(x: 0, y: -70)
-                }
-                Spacer()
-                // On iPhone, reduce horizontal padding so the trailing tile can reach the edge
-                dashboardView
-                    .padding(.horizontal, isIPhone ? 0 : 100)
-            }
-        }
-        // Remove trailing padding on iPhone so trailing child can extend under the safe area
-        .padding(.leading, 16)
-        .padding(.trailing, isIPhone ? 0 : 16)
-        .padding(.vertical, 16)
-    }
-    
-    var clockView: some View {
-        VStack {
-            HStack(spacing: 16) {
-                Text(viewModel.hour)
-                Text(":").opacity(viewModel.showColon ? 1 : 0)
-                Text(viewModel.minute)
-            }
-            .font(.system(size: 290))
-            .lineLimit(1)
-            .minimumScaleFactor(0.1)
-            .fontWeight(.bold)
-
-            Text(viewModel.date)
-                .font(.largeTitle)
-                .fontWeight(.bold)
-        }
-    }
-
-    // Show up to two slots: existing babies first, then "Add Baby" placeholders
+private extension MainView {
     var dashboardView: some View {
-        HStack {
-            ForEach(0..<maxBabySlots, id: \.self) { index in
-                if index < babies.count {
-                    let baby = babies[index]
-                    let isHighlighted = highlightedBabyID == baby.objectID
-                    let tile = BabyStatusView(
-                        baby: baby,
-                        isFeedAnimating: Binding(
-                            get: { viewModel.feedAnimationStates[baby.id, default: false] },
-                            set: { viewModel.feedAnimationStates[baby.id] = $0 }
-                        ),
-                        isDiaperAnimating: Binding(
-                            get: { viewModel.diaperAnimationStates[baby.id, default: false] },
-                            set: { viewModel.diaperAnimationStates[baby.id] = $0 }
-                        ),
-                        onFeedTap: { handleFeedTap(for: baby) },
-                        onFeedLongPress: { viewModel.cancelFeeding(for: baby) },
-                        onDiaperUpdateTap: { changingDiaperFor = baby },
-                        onDiaperEditTap: { editingDiaperTimeFor = baby },
-                        onNameTap: { editingProfile = baby },
-                        onLastFeedTap: { session in
-                            editingFeedSession = session
+        GeometryReader { proxy in
+            let isPortrait = proxy.size.height > proxy.size.width
+            let layout = isPortrait ? AnyLayout(VStackLayout(spacing: 0)) : AnyLayout(HStackLayout(spacing: 0))
+            let scrollAxis: Axis.Set = isPortrait ? .vertical : .horizontal
+
+            ScrollView(scrollAxis, showsIndicators: false) {
+                layout {
+                    ForEach(0..<maxBabySlots, id: \.self) { index in
+                        if index < babies.count {
+                            let baby = babies[index]
+                            let isHighlighted = highlightedBabyID == baby.objectID
+                            let tile = BabyStatusView2(
+                                baby: baby,
+                                isFeedAnimating: viewModel.feedAnimationStates[baby.id, default: false],
+                                isDiaperAnimating: viewModel.diaperAnimationStates[baby.id, default: false],
+                                onFeedTap: { handleFeedTap(for: baby) },
+                                onFeedLongPress: { viewModel.cancelFeeding(for: baby) },
+                                onDiaperTap: { changingDiaperFor = baby },
+                                onNameTap: { editingProfile = baby },
+                                onLastFeedTap: { session in
+                                    editingFeedSession = session
+                                },
+                                onLastDiaperTap: { change in
+                                    editingDiaperChange = change
+                                }
+                            )
+                            .padding()
+                            
+                            if !isIPhone {
+                                tile.frame(width: proxy.size.width / 2, height: proxy.size.height)
+                            } else {
+                                tile
+                            }
+                        } else {
+                            addBabyPlaceholder()
+                                .onTapGesture { isShowingAddBaby = true }
                         }
-                    )
-                    .padding()
-                    .background(.thinMaterial)
-                    .clipShape(RoundedRectangle(cornerRadius: 16))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 16)
-                            .stroke(isHighlighted ? Color.accentColor : .clear, lineWidth: 3)
-                            .shadow(color: isHighlighted ? Color.accentColor.opacity(0.3) : .clear, radius: 12)
-                    )
-                    .scaleEffect(isHighlighted && !reduceMotion ? 1.03 : 1)
-                    .animation(reduceMotion ? .default : .spring(response: 0.5, dampingFraction: 0.75), value: isHighlighted)
-                    // If this is the trailing baby tile, let it extend under the trailing safe area on iPhone
-                    if index == min(babies.count, maxBabySlots) - 1 {
-                        tile
-                            .modifier(IgnoreTrailingSafeArea(isIPhone: isIPhone))
-                    } else {
-                        tile
-                            .modifier(IgnoreTrailingSafeArea(isIPhone: isIPhone))
                     }
-                } else {
-                    addBabyPlaceholder()
-                        .onTapGesture { isShowingAddBaby = true }
-                }
-                if index < maxBabySlots - 1 {
-                    Spacer()
                 }
             }
         }
-        .font(.system(size: 60))
     }
 
     // A simple placeholder tile acting as an Add Baby button
@@ -399,7 +211,7 @@ private extension ContentView {
     func diaperEditSheet(baby: BabyProfile) -> some View {
         VStack {
             DatePicker("Select Time", selection: .init(
-                get: { baby.lastDiaperChange?.timestamp ?? Date() },
+                get: { baby.lastDiaperChange?.timestamp ?? Date.current },
                 set: { viewModel.setDiaperTime(for: baby, to: $0) }
             ), displayedComponents: [.date, .hourAndMinute])
             .datePickerStyle(.wheel)
@@ -469,27 +281,29 @@ private extension ContentView {
     
     @ToolbarContentBuilder
     func toolbarContent() -> some ToolbarContent {
-        ToolbarItem(placement: .navigationBarTrailing) {
-            Button(action: { showingHistory = true }) {
-                Image(systemName: "list.bullet.clipboard")
-                    .imageScale(.large)
+        ToolbarItem(placement: .navigationBarLeading) {
+            HStack(spacing: 20) {
+                Button(action: { showingHistory = true }) {
+                    Image(systemName: "list.bullet.clipboard")
+                        .imageScale(.large)
+                }
+                .accessibilityLabel("History")
+                
+                Button(action: { showingSettings = true }) {
+                    Image(systemName: "gear")
+                        .imageScale(.large)
+                }
+                .accessibilityLabel("Settings")
+                
+                Button(action: { showingAnalysis = true }) {
+                    Image(systemName: "chart.xyaxis.line")
+                        .imageScale(.large)
+                }
+                .accessibilityLabel(Text("Analysis"))
             }
-            .accessibilityLabel("History")
         }
-        ToolbarItem(placement: .navigationBarTrailing) {
-            Button(action: { showingSettings = true }) {
-                Image(systemName: "gear")
-                    .imageScale(.large)
-            }
-            .accessibilityLabel("Settings")
-        }
-        ToolbarItem(placement: .navigationBarTrailing) {
-            Button(action: { showingAnalysis = true }) {
-                Image(systemName: "chart.xyaxis.line")
-                    .imageScale(.large)
-            }
-            .accessibilityLabel(Text("Analysis"))
-        }
+        
+        // ClockView is now an overlay, so we remove it from here
     }
     
     func handleFeedTap(for baby: BabyProfile) {
@@ -570,7 +384,7 @@ private struct AddBabyForm: View {
 
 // MARK: - Toast + Sharing Notifications
 
-private extension ContentView {
+private extension MainView {
     var babyObjectIDs: [NSManagedObjectID] {
         babies.map { $0.objectID }
     }
@@ -673,36 +487,36 @@ private struct ToastView: View {
 
 // MARK: - Preview
 
-#Preview("ContentView") {
+#Preview("MainView") {
     let controller = PersistenceController.preview
     let context = controller.viewContext
 
     context.performAndWait {
         let baby1 = BabyProfile(context: context, name: "연두")
+        baby1.feedTerm = 100
         let baby2 = BabyProfile(context: context, name: "초원")
 
-        let session1 = FeedSession(context: context, startTime: Date().addingTimeInterval(-60 * 60))
-        session1.endTime = Date().addingTimeInterval(-15 * 60)
+        let session1 = FeedSession(context: context, startTime: Date.current.addingTimeInterval(-60 * 60 * 4 - 60 * 48))
+        session1.endTime = Date.current.addingTimeInterval(-15 * 60)
         session1.amount = Measurement(value: Locale.current.measurementSystem == .us ? 4.0 : 120.0,
                                       unit: (Locale.current.measurementSystem == .us) ? .fluidOunces : .milliliters)
         session1.profile = baby1
 
-        let diaper1 = DiaperChange(context: context, timestamp: Date().addingTimeInterval(-30 * 60), type: .pee)
+        let diaper1 = DiaperChange(context: context, timestamp: Date.current.addingTimeInterval(-30 * 60), type: .pee)
         diaper1.profile = baby1
 
-        let session2 = FeedSession(context: context, startTime: Date().addingTimeInterval(-5 * 60))
+        let session2 = FeedSession(context: context, startTime: Date.current.addingTimeInterval(-5 * 60))
         session2.profile = baby2
 
-        let diaper2 = DiaperChange(context: context, timestamp: Date().addingTimeInterval(-10 * 60), type: .poo)
+        let diaper2 = DiaperChange(context: context, timestamp: Date.current.addingTimeInterval(-10 * 60), type: .poo)
         diaper2.profile = baby2
 
         try? context.save()
     }
 
-    let vm = ContentViewModel(context: context)
+    let vm = MainViewModel(context: context)
 
-    return ContentView(viewModel: vm)
+    return MainView(viewModel: vm)
         .environmentObject(AppSettings())
         .environment(\.managedObjectContext, context)
 }
-

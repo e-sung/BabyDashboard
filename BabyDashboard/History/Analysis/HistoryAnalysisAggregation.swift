@@ -44,7 +44,7 @@ func aggregateForChart(
 ) -> [DailyFeedPoint] {
 
     // Compute the current logical "today" and omit it from aggregation
-    let logicalToday = calendar.logicalStartOfDay(for: Date(), startOfDayHour: startOfDayHour, startOfDayMinute: startOfDayMinute)
+    let logicalToday = calendar.logicalStartOfDay(for: Date.current, startOfDayHour: startOfDayHour, startOfDayMinute: startOfDayMinute)
 
     // Compute the earliest logical day present in the feeds and omit it as well, since users often start mid-day
     let initialLogicalDay = feeds.map { calendar.logicalStartOfDay(for: $0.startTime, startOfDayHour: startOfDayHour, startOfDayMinute: startOfDayMinute) }.min()
@@ -86,7 +86,7 @@ func makePerSessionPoints(
     omitLogicalToday: Bool = false
 ) -> [FeedSessionPoint] {
 
-    let logicalToday = calendar.logicalStartOfDay(for: Date(), startOfDayHour: startOfDayHour, startOfDayMinute: startOfDayMinute)
+    let logicalToday = calendar.logicalStartOfDay(for: Date.current, startOfDayHour: startOfDayHour, startOfDayMinute: startOfDayMinute)
 
     var points: [FeedSessionPoint] = []
     points.reserveCapacity(feeds.count)

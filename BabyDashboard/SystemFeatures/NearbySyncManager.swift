@@ -56,7 +56,7 @@ final class NearbySyncManager: NSObject {
             guard let session = self.session, !session.connectedPeers.isEmpty else { return }
             let payload: [String: Any] = [
                 "type": "syncPing",
-                "ts": Date().timeIntervalSince1970
+                "ts": Date.current.timeIntervalSince1970
             ]
             if let data = try? JSONSerialization.data(withJSONObject: payload, options: []) {
                 try? session.send(data, toPeers: session.connectedPeers, with: .reliable)

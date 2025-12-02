@@ -1,322 +1,355 @@
 import SwiftUI
 import CoreData
 import Model
-#if canImport(UIKit)
-import UIKit
-#endif
 
-struct BabyStatusView: View {
+struct BabyStatusView2: View {
     @ObservedObject var baby: BabyProfile
-
-    @Binding var isFeedAnimating: Bool
-    @Binding var isDiaperAnimating: Bool
-
+    
+    // Animation States
+    var isFeedAnimating: Bool = false
+    var isDiaperAnimating: Bool = false
+    
+    // Actions
     let onFeedTap: () -> Void
     let onFeedLongPress: () -> Void
-    let onDiaperUpdateTap: () -> Void
-    let onDiaperEditTap: () -> Void
+    let onDiaperTap: () -> Void
     let onNameTap: () -> Void
     let onLastFeedTap: ((FeedSession) -> Void)?
-
+    let onLastDiaperTap: ((DiaperChange) -> Void)?
+    
     private let timeFormatter: DateFormatter = {
         let formatter = DateFormatter()
         formatter.dateFormat = "HH:mm"
         return formatter
     }()
-
-    private var isIPhone: Bool {
+    
+    private let diaperWarningThreshold: TimeInterval = 60 * 60 * 1 // 1 hours default
+    
+    private var isIPad: Bool {
         #if canImport(UIKit)
-        return UIDevice.current.userInterfaceIdiom == .phone
+        return UIDevice.current.userInterfaceIdiom == .pad
         #else
         return false
         #endif
     }
-
-    private var lastFeedTime: String {
-        guard let session = baby.lastFinishedFeedSession else { return "--:--" }
-        return timeFormatter.string(from: session.startTime)
-    }
-
-    private var lastDiaperTime: String {
-        guard let diaper = baby.lastDiaperChange else { return "--:--" }
-        return timeFormatter.string(from: diaper.timestamp)
-    }
-
-    private var lastFeedAmountString: String? {
-        guard let session = baby.lastFinishedFeedSession,
-              let amount = session.amount else { return nil }
-        return amount.formatted(.measurement(width: .abbreviated, usage: .asProvided, numberFormatStyle: .number.precision(.fractionLength(0))))
-    }
-
-    private var lastFeedDurationString: String? {
-        guard let session = baby.lastFinishedFeedSession,
-              let end = session.endTime else { return nil }
-        let duration = max(0, end.timeIntervalSince(session.startTime))
-        guard duration > 0 else { return nil }
-
-        let formatter = DateComponentsFormatter()
-        formatter.unitsStyle = .abbreviated
-        formatter.allowedUnits = [.hour, .minute]
-        return formatter.string(from: duration)
-    }
-
-    private let diaperWarningThreshold: TimeInterval = 60 * 60
-
+    
     var body: some View {
         TimelineView(.periodic(from: .now, by: 1.0)) { context in
             let now = Date.current
-
-            let shouldWarnFeed = WarningLogic.shouldWarnFeed(
-                now: now,
-                startOfLastFeed: baby.lastFinishedFeedSession?.startTime,
-                inProgress: baby.inProgressFeedSession != nil,
-                threshold: baby.feedTerm
-            )
-
-            let shouldWarnDiaper = WarningLogic.shouldWarnDiaper(
-                now: now,
-                lastDiaperTime: baby.lastDiaperChange?.timestamp,
-                threshold: diaperWarningThreshold
-            )
-
-            VStack(alignment: .leading) {
-                Text(baby.name)
-                    .font(isIPhone ? .largeTitle : .system(size: 40))
-                    .fontWeight(.bold)
-                    .onTapGesture(perform: onNameTap)
-
-                VStack(alignment: .leading, spacing: 6) {
-                    feedStateView(now: now, shouldWarn: shouldWarnFeed)
-                    diaperStateView(now: now, shouldWarn: shouldWarnDiaper)
+            
+            VStack(alignment: .leading, spacing: 20) {
+                // Header
+                Button {
+                    onNameTap()
+                } label: {
+                    Text(baby.name)
+                        .font(.system(size: isIPad ? 50 : 34, weight: .bold))
+                        .padding(.horizontal)
                 }
-                .font(isIPhone ? .title : .system(size: 60))
-            }
-        }
-    }
+                .foregroundStyle(.primary)
+                .accessibilityAddTraits(.isHeader)
 
-    @ViewBuilder
-    private func feedStateView(now: Date, shouldWarn: Bool) -> some View {
-        HStack(alignment: .center) {
-            Button(action: onFeedTap) {
-                ZStack(alignment: .topTrailing) {
-                    Text("🍼")
-                        .font(isIPhone ? .title : .system(size: 50))
-                    if shouldWarn {
-                        warningBadge()
-                            .offset(x: 6, y: -6)
-                    }
-                }
-            }
-            .buttonStyle(TappableIconStyle())
-            .accessibilityLabel("Log a feed")
-            .accessibilityHint("Tap to start or view feeding")
 
-            VStack(alignment: .leading) {
-                if let session = baby.inProgressFeedSession {
-                    Text("Feeding...")
-                        .fontWeight(.heavy)
-                        .foregroundColor(.blue)
-                    Text(formattedElapsingTime(from: now.timeIntervalSince(session.startTime)))
-                        .font(.title)
-                        .monospacedDigit()
-                } else {
-                    Text(lastFeedTime)
-                        .fontWeight(.heavy)
-                        .foregroundColor(shouldWarn ? .red : .primary)
-                    HStack {
-                        if let time = baby.lastFinishedFeedSession?.startTime {
-                            Text(formatElapsedTime(from: now.timeIntervalSince(time)))
-                                .font(.title)
+                VStack(spacing: 16) {
+                    // Feed Card
+                    StatusCard(
+                        icon: .image("bottle"),
+                        title: baby.inProgressFeedSession != nil ? String(localized: "Feeding") : String(localized: "Last Feed"),
+                        mainText: feedMainText(now: now),
+                        progressBarColor: .green,
+                        progress: feedProgress(now: now),
+                        secondaryProgress: feedSecondaryProgress(now: now),
+                        secondaryProgressColor: .blue,
+                        footerText: feedFooterText(now: now),
+                        criteriaLabel: feedCriteriaLabel,
+                        isAnimating: isFeedAnimating,
+                        shouldWarn: shouldWarnFeed,
+                        mainTextColor: baby.inProgressFeedSession != nil ? .blue : nil,
+                        accessibilityCriteriaLabel: feedAccessibilityCriteriaLabel,
+                        accessibilityHintText: "Double tap to start or stop feeding",
+                        onTap: onFeedTap,
+                        onFooterTap: {
+                            if baby.inProgressFeedSession != nil {
+                                return
+                            }
+                            if let session = baby.lastFinishedFeedSession {
+                                onLastFeedTap?(session)
+                            }
                         }
-                        if let amount = lastFeedAmountString,
-                           let duration = lastFeedDurationString,
-                           let session = baby.lastFinishedFeedSession {
-                            LastFeedDetailsView(amountString: amount, durationString: duration)
-                                .onTapGesture {
-                                    onLastFeedTap?(session)
-                                }
-                                .accessibilityIdentifier("LastFeedDetails")
+                    )
+                    .onLongPressGesture(perform: onFeedLongPress)
+                    
+                    // Diaper Card
+                    StatusCard(
+                        icon: .image("diaper"),
+                        title: String(localized:"Diaper"),
+                        mainText: diaperTimeAgo(now: now),
+                        progressBarColor: Color("diaperProgressColor"),
+                        progress: diaperProgress(now: now),
+                        footerText: diaperFooterText,
+                        criteriaLabel: "1h",
+                        isAnimating: isDiaperAnimating,
+                        shouldWarn: shouldWarnDiaper,
+                        warningColor: Color("diaperProgressColor"),
+                        accessibilityCriteriaLabel: "1 hour",
+                        accessibilityHintText: "Double tap to log a diaper change",
+
+                        onTap: onDiaperTap,
+                        onFooterTap: {
+                            if let diaper = baby.lastDiaperChange {
+                                onLastDiaperTap?(diaper)
+                            }
                         }
-                    }
+                    )
                 }
+                .padding(.horizontal)
             }
+            .padding(.vertical, 20)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .background(.regularMaterial)
+            .background(Color(uiColor: .systemGroupedBackground)) // Light gray background
+            .cornerRadius(20)
+            .shadow(color: Color.black.opacity(0.1), radius: 10, x: 0, y: 5)
         }
-        .onTapGesture(perform: onFeedTap)
-        .onLongPressGesture(perform: onFeedLongPress)
-        .scaleEffect(isFeedAnimating ? 0.9 : 1)
-        .animation(.easeInOut(duration: 0.3), value: isFeedAnimating)
+    }
+    
+    // MARK: - Computed Properties
+
+    private var shouldWarnFeed: Bool {
+        WarningLogic.shouldWarnFeed(
+            now: Date.current,
+            startOfLastFeed: baby.lastFinishedFeedSession?.startTime,
+            inProgress: baby.inProgressFeedSession != nil,
+            threshold: baby.feedTerm
+        )
     }
 
-    private func diaperStateView(now: Date, shouldWarn: Bool) -> some View {
-        HStack(alignment: .center, spacing: 15) {
-            Button(action: onDiaperUpdateTap) {
-                ZStack(alignment: .topTrailing) {
-                    Image("diaper")
-                        .resizable()
-                        .frame(width: 50, height: 50)
-                        .foregroundStyle(shouldWarn ? .red : .primary)
-                    if shouldWarn {
-                        warningBadge()
-                            .offset(x: 6, y: -6)
-                    }
-                }
-            }
-            .buttonStyle(TappableIconStyle())
-            .accessibilityLabel("Log a diaper change")
-            .accessibilityHint("Tap to add a diaper change")
-            .contextMenu {
-                Button("Edit diaper…", systemImage: "pencil", action: onDiaperEditTap)
-            }
-
-            VStack(alignment: .leading) {
-                Text(lastDiaperTime)
-                    .fontWeight(.heavy)
-                    .foregroundStyle(shouldWarn ? .yellow : .primary)
-                if let timestamp = baby.lastDiaperChange?.timestamp {
-                    Text(formatElapsedTime(from: now.timeIntervalSince(timestamp)))
-                        .font(.title)
-                }
-            }
-        }
-        .onTapGesture { onDiaperUpdateTap() }
-        .onLongPressGesture { onDiaperEditTap() }
-        .scaleEffect(isDiaperAnimating ? 0.9 : 1)
-        .animation(.easeInOut(duration: 0.3), value: isDiaperAnimating)
+    private var shouldWarnDiaper: Bool {
+        WarningLogic.shouldWarnDiaper(
+            now: Date.current,
+            lastDiaperTime: baby.lastDiaperChange?.timestamp,
+            threshold: diaperWarningThreshold
+        )
     }
-
-    private func warningBadge(size: CGFloat = 18, color: Color = .red) -> some View {
-        ZStack {
-            Circle()
-                .fill(color)
-                .frame(width: size, height: size)
-            Text("!")
-                .font(.system(size: size * 0.75, weight: .heavy, design: .rounded))
-                .foregroundColor(.white)
-                .offset(y: -0.5)
+    
+    private func feedMainText(now: Date) -> String {
+        if baby.inProgressFeedSession != nil {
+            let interval = now.timeIntervalSince(baby.inProgressFeedSession?.startTime ?? now)
+            return formattedElapsedIncludingSeconds(from: interval)
         }
-        .accessibilityLabel(Text("Warning"))
-        .accessibilityHidden(false)
-        .allowsHitTesting(false)
+        
+        guard let session = baby.lastFinishedFeedSession else { return "--" }
+        let interval = now.timeIntervalSince(session.startTime)
+        return formatElapsedTime(from: interval)
     }
+    
+    private func feedProgress(now: Date) -> Double {
+        let startTime: Date
+        if let current = baby.inProgressFeedSession {
+            startTime = current.startTime
+        } else if let finished = baby.lastFinishedFeedSession {
+            startTime = finished.startTime
+        } else {
+            return 0
+        }
+        
+        let interval = now.timeIntervalSince(startTime)
+        let term = baby.feedTerm
+        return interval / term
+    }
+    
+    private func feedSecondaryProgress(now: Date) -> Double? {
+        if let current = baby.inProgressFeedSession {
+            let interval = now.timeIntervalSince(current.startTime)
+            let term = baby.feedTerm
+            return min(interval / term, 1.0)
+        }
+        
+        guard let session = baby.lastFinishedFeedSession, let endTime = session.endTime else { return nil }
+        let duration = endTime.timeIntervalSince(session.startTime)
+        let term = baby.feedTerm
+        return min(duration / term, 1.0)
+    }
+    
+    private func feedFooterText(now: Date) -> String {
+        if baby.inProgressFeedSession != nil {
+            return ""
+        }
 
-    private func formattedElapsingTime(from interval: TimeInterval) -> String {
+        guard let session = baby.lastFinishedFeedSession else { return "No data" }
+        guard let endTime = session.endTime else { return "No Data" }
+        let duration = endTime.timeIntervalSince(session.startTime)
+        var text = formattedDuration(from: duration)
+        if let amount = session.amount {
+            text += " • \(amount.formatted(.measurement(width: .abbreviated, usage: .asProvided, numberFormatStyle: .number.precision(.fractionLength(0)))))".lowercased()
+        }
+        return text
+    }
+    
+    private var feedCriteriaLabel: String {
+        let term = baby.feedTerm
+        let hours = Int(term / 3600)
+        return "\(hours)h"
+    }
+    
+    private var feedAccessibilityCriteriaLabel: String {
+        let term = baby.feedTerm
+        let hours = Int(term / 3600)
+        return "\(hours) hours"
+    }
+    
+    private func diaperTimeAgo(now: Date) -> String {
+        guard let diaper = baby.lastDiaperChange else { return "--" }
+        let interval = now.timeIntervalSince(diaper.timestamp)
+        return formatElapsedTime(from: interval)
+    }
+    
+    private func diaperProgress(now: Date) -> Double {
+        guard let diaper = baby.lastDiaperChange else { return 0 }
+        let interval = now.timeIntervalSince(diaper.timestamp)
+        return min(interval / diaperWarningThreshold, 1.0)
+    }
+    
+    private var diaperFooterText: String {
+        guard let diaper = baby.lastDiaperChange else { return "No data" }
+        return "\(timeFormatter.string(from: diaper.timestamp))"
+    }
+    
+    private var diaperCriteriaLabel: String {
+        let hours = Int(diaperWarningThreshold / 3600)
+        return "\(hours)h"
+    }
+    
+    // MARK: - Helpers
+    
+    private func formattedDuration(from interval: TimeInterval) -> String {
         let formatter = DateComponentsFormatter()
-        formatter.allowedUnits = [.hour, .minute, .second]
+        formatter.allowedUnits = [.hour, .minute]
         formatter.unitsStyle = .abbreviated
         formatter.zeroFormattingBehavior = [.dropAll]
         guard let formatted = formatter.string(from: interval) else { return "" }
-        return String(localized: "\(formatted) passed")
+        return "\(formatted)간"
+    }
+    
+    private func formattedElapsingTime(from interval: TimeInterval) -> String {
+        let formatter = DateComponentsFormatter()
+        formatter.allowedUnits = [.hour, .minute]
+        formatter.unitsStyle = .abbreviated
+        formatter.zeroFormattingBehavior = [.dropAll]
+        guard let formatted = formatter.string(from: interval) else { return "" }
+        return "\(formatted) ago"
     }
 
     private func formatElapsedTime(from interval: TimeInterval) -> String {
         if interval < 60 {
-            return String(localized: "Just now")
+            return "Just now"
         }
         let formatter = DateComponentsFormatter()
         formatter.allowedUnits = [.hour, .minute]
-        formatter.unitsStyle = .short
+        formatter.unitsStyle = .abbreviated // e.g. "1h 20m"
         formatter.zeroFormattingBehavior = [.dropAll]
         if let formatted = formatter.string(from: interval) {
             return String(localized: "\(formatted) ago")
         }
-        return String(localized: "Just now")
+        return "Just now"
+    }
+
+    private func formattedElapsedIncludingSeconds(from interval: TimeInterval) -> String {
+        let formatter = DateComponentsFormatter()
+        formatter.allowedUnits = interval < 60 ? [.second] : [.hour, .minute, .second]
+        formatter.unitsStyle = .abbreviated
+        formatter.zeroFormattingBehavior = [.dropAll]
+        if let formatted = formatter.string(from: interval) {
+            return formatted
+        }
+        return "0s"
     }
 }
+
+
 
 #if DEBUG
-#Preview("Normal Status") {
-    let controller = PersistenceController.preview
-    let context = controller.viewContext
-    let baby = BabyProfile(context: context, name: "연두")
-    context.performAndWait {
+struct BabyStatusView2_Previews: PreviewProvider {
+    static var previews: some View {
+        let controller = PersistenceController.preview
+        let context = controller.viewContext
+        
+        // Scenario 1: Normal Data
+        let babyNormal = BabyProfile(context: context, name: "연두")
+        let session1 = FeedSession(context: context, startTime: Date.current.addingTimeInterval(-20 * 60))
+        session1.amount = Measurement(value: 140, unit: .milliliters)
+        session1.profile = babyNormal
+        
+        let diaper1 = DiaperChange(context: context, timestamp: Date.current.addingTimeInterval(-30 * 60), type: .pee)
+        diaper1.profile = babyNormal
+        
+        // Scenario 2: Empty Data
+        let babyEmpty = BabyProfile(context: context, name: "New Baby")
+        
+        // Scenario 3: Overdue / Warning (Simulated by long time ago)
+        let babyOverdue = BabyProfile(context: context, name: "Overdue")
+        let session2 = FeedSession(context: context, startTime: Date.current.addingTimeInterval(-5 * 60 * 60)) // 5 hours ago
+        session2.endTime = Date.current.addingTimeInterval(-4 * 60 * 60)
+        session2.profile = babyOverdue
+        let diaper2 = DiaperChange(context: context, timestamp: Date.current.addingTimeInterval(-6 * 60 * 60), type: .poo)
+        diaper2.profile = babyOverdue
+        
+        // Scenario 4: In Progress
+        let babyInProgress = BabyProfile(context: context, name: "Feeding")
+        let session3 = FeedSession(context: context, startTime: Date.current.addingTimeInterval(-10 * 60)) // Started 10 mins ago
+        session3.profile = babyInProgress
 
-        let session1 = FeedSession(context: context, startTime: Date().addingTimeInterval(-60 * 60))
-        session1.endTime = Date().addingTimeInterval(-15 * 60)
-        session1.amount = Measurement(value: Locale.current.measurementSystem == .us ? 4.0 : 120.0,
-                                      unit: (Locale.current.measurementSystem == .us) ? .fluidOunces : .milliliters)
-        session1.profile = baby
-
-        let diaper1 = DiaperChange(context: context, timestamp: Date().addingTimeInterval(-30 * 60), type: .pee)
-        diaper1.profile = baby
-
-        try? context.save()
-    }
-
-    struct Wrapper: View {
-        @State var feed = false
-        @State var diaper = false
-        let baby: BabyProfile
-        var body: some View {
-            BabyStatusView(
-                baby: baby,
-                isFeedAnimating: $feed,
-                isDiaperAnimating: $diaper,
+        return Group {
+            BabyStatusView2(
+                baby: babyNormal,
                 onFeedTap: {},
                 onFeedLongPress: {},
-                onDiaperUpdateTap: {},
-                onDiaperEditTap: {},
+                onDiaperTap: {},
                 onNameTap: {},
-                onLastFeedTap: { _ in }
+                onLastFeedTap: { _ in },
+                onLastDiaperTap: { _ in }
             )
-            .padding()
-            .background(.thinMaterial)
-            .clipShape(RoundedRectangle(cornerRadius: 16))
+            .previewDisplayName("Normal")
+            
+            BabyStatusView2(
+                baby: babyEmpty,
+                onFeedTap: {},
+                onFeedLongPress: {},
+                onDiaperTap: {},
+                onNameTap: {},
+                onLastFeedTap: { _ in },
+                onLastDiaperTap: { _ in }
+            )
+            .previewDisplayName("Empty")
+            
+            BabyStatusView2(
+                baby: babyOverdue,
+                onFeedTap: {},
+                onFeedLongPress: {},
+                onDiaperTap: {},
+                onNameTap: {},
+                onLastFeedTap: { _ in },
+                onLastDiaperTap: { _ in }
+            )
+            .previewDisplayName("Overdue")
+            
+            BabyStatusView2(
+                baby: babyInProgress,
+                onFeedTap: {},
+                onFeedLongPress: {},
+                onDiaperTap: {},
+                onNameTap: {},
+                onLastFeedTap: { _ in },
+                onLastDiaperTap: { _ in }
+            )
+            .previewDisplayName("In Progress")
         }
-    }
-
-    return PreviewWrapper(baby: baby)
         .environment(\.managedObjectContext, context)
-}
-
-#Preview("Initial (no data)") {
-    let controller = PersistenceController.preview
-    let context = controller.viewContext
-
-    var previewBaby: BabyProfile!
-    context.performAndWait {
-        previewBaby = BabyProfile(context: context, name: "초기")
-        try? context.save()
-    }
-
-    return PreviewWrapper(baby: previewBaby)
-        .environment(\.managedObjectContext, context)
-}
-
-fileprivate struct PreviewWrapper: View {
-    @State var feed = false
-    @State var diaper = false
-    let baby: BabyProfile
-    var body: some View {
-        BabyStatusView(
-            baby: baby,
-            isFeedAnimating: $feed,
-            isDiaperAnimating: $diaper,
-            onFeedTap: {},
-            onFeedLongPress: {},
-            onDiaperUpdateTap: {},
-            onDiaperEditTap: {},
-            onNameTap: {},
-            onLastFeedTap: { _ in }
-        )
+        .previewLayout(.sizeThatFits)
+        .previewInterfaceOrientation(.landscapeLeft)
         .padding()
-        .background(.thinMaterial)
-        .clipShape(RoundedRectangle(cornerRadius: 16))
+        .background(.background)
+        .environment(\.colorScheme, .dark)
     }
 }
 #endif
-
-private struct TappableIconStyle: ButtonStyle {
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .padding(8)
-            .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
-            .overlay(
-                RoundedRectangle(cornerRadius: 12, style: .continuous)
-                    .strokeBorder(.quaternary, lineWidth: 1)
-            )
-            .scaleEffect(configuration.isPressed ? 0.96 : 1)
-            .animation(.easeInOut(duration: 0.12), value: configuration.isPressed)
-            .contentShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-            .hoverEffect(.highlight)
-    }
-}

@@ -818,7 +818,7 @@
 			baseConfigurationReferenceAnchor = 087DCDCC2EBB352A00487EC1 /* Config */;
 			baseConfigurationReferenceRelativePath = Debug.xcconfig;
 			buildSettings = {
-				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIconDebug;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CLANG_OPTIMIZATION_PROFILE_FILE = "$(SRCROOT)/OptimizationProfiles/BabyDashboard.profdata";
 				CODE_SIGN_ENTITLEMENTS = BabyDashboard/BabyDashboard.entitlements;

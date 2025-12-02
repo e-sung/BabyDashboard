@@ -45,7 +45,7 @@ struct SettingsView: View {
                 var components = DateComponents()
                 components.hour = settings.startOfDayHour
                 components.minute = settings.startOfDayMinute
-                return Calendar.current.date(from: components) ?? Date()
+                return Calendar.current.date(from: components) ?? Date.current
             },
             set: { newDate in
                 let components = Calendar.current.dateComponents([.hour, .minute], from: newDate)
@@ -224,7 +224,7 @@ Errors: \(r.errors.count)
     private func defaultExportFilename() -> String {
         let df = DateFormatter()
         df.dateFormat = "yyyyMMdd-HHmmss"
-        let stamp = df.string(from: Date())
+        let stamp = df.string(from: Date.current)
         let kindName = exportKind?.displayName ?? "Data"
         return "Export-\(kindName)-\(stamp).csv"
     }
@@ -232,7 +232,7 @@ Errors: \(r.errors.count)
     private func timestampString() -> String {
         let df = DateFormatter()
         df.dateFormat = "yyyyMMdd-HHmmss"
-        return df.string(from: Date())
+        return df.string(from: Date.current)
     }
 
     #if DEBUG

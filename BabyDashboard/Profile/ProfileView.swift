@@ -8,22 +8,22 @@ struct ProfileView: View {
 
     @State private var name: String = ""
     @State private var showingDeleteConfirm = false
-    @State private var feedTermMinutes: Int = 180
+    #if DEBUG
+    @State private var feedTerm: TimeInterval = 180
+    #else
+    @State private var feedTerm: TimeInterval = 180 * 60
+    #endif
     @State private var showingShareSheet = false
     @State private var shareError: String?
 
-    private var canEditProfile: Bool {
-        viewModel.canEditProfile
-    }
-
-    private var saveDisabled: Bool {
-        name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || !canEditProfile
+    private var canDeleteProfile: Bool {
+        viewModel.canDeleteProfile
     }
 
     // Reusable localized formatter for hours/minutes
     private static let intervalFormatter: DateComponentsFormatter = {
         let f = DateComponentsFormatter()
-        f.allowedUnits = [.hour, .minute]
+        f.allowedUnits = [.hour, .minute, .second]
         f.unitsStyle = .short
         f.zeroFormattingBehavior = [.dropAll]
         return f
@@ -40,27 +40,25 @@ struct ProfileView: View {
                     TextField(String(localized: "Baby's Name"), text: $name)
                         .textInputAutocapitalization(.words)
                 }
-                .disabled(!canEditProfile)
 
                 Section(String(localized: "Feeding Interval")) {
                     Stepper(
-                        value: $feedTermMinutes,
-                        in: 30...480,
-                        step: 15
+                        value: $feedTerm,
+                        in: range,
+                        step: step,
                     ) {
-                        Text(formattedInterval(minutes: feedTermMinutes))
+                        Text(formattedInterval(seconds: feedTerm))
                     }
                     .accessibilityLabel(Text("Feeding Interval"))
-                    .accessibilityValue(Text(formattedInterval(minutes: feedTermMinutes)))
+                    .accessibilityValue(Text(formattedInterval(seconds: feedTerm)))
                     Text("Choose how long between feeds to use for progress and warnings.")
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                 }
-                .disabled(!canEditProfile)
 
                 sharingSection
 
-                if canEditProfile {
+                if canDeleteProfile {
                     Section {
                         Button(role: .destructive) {
                             showingDeleteConfirm = true
@@ -80,7 +78,8 @@ struct ProfileView: View {
             .navigationBarTitleDisplayMode(.inline)
             .onAppear {
                 name = viewModel.profile.name
-                feedTermMinutes = max(1, Int(viewModel.profile.feedTerm / 60))
+                let v = viewModel.profile.feedTerm
+                feedTerm = min(max(v, range.lowerBound), range.upperBound)
             }
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
@@ -88,7 +87,6 @@ struct ProfileView: View {
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button(String(localized: "Save")) { save() }
-                        .disabled(saveDisabled)
                 }
             }
             .alert(
@@ -170,28 +168,36 @@ struct ProfileView: View {
         }
     }
 
-    private func formattedInterval(minutes: Int) -> String {
-        let seconds = TimeInterval(minutes * 60)
+    private var step: TimeInterval {
+        #if DEBUG
+        return 10
+        #else
+        return 15 * 60
+        #endif
+    }
+
+    private var range: ClosedRange<TimeInterval> {
+        #if DEBUG
+        return 10...180
+        #else
+        return 1800...28800
+        #endif
+    }
+
+    private func formattedInterval(seconds: TimeInterval) -> String {
         if let s = Self.intervalFormatter.string(from: seconds) {
             return s
         }
-        let hours = minutes / 60
-        let mins = minutes % 60
-        if mins == 0 {
-            return String(localized: "\(hours) hr")
-        } else {
-            return String(localized: "\(hours) hr \(mins) min")
-        }
+        return String(localized: "\(Int(seconds / 60)) min")
     }
 
     private func save() {
-        guard canEditProfile else { return }
-        viewModel.saveProfile(name: name, feedTermMinutes: feedTermMinutes)
+        viewModel.saveProfile(name: name, feedTerm: feedTerm)
         dismiss()
     }
 
     private func deleteProfile() {
-        guard canEditProfile else { return }
+        guard canDeleteProfile else { return }
         viewModel.deleteProfile()
         dismiss()
     }

@@ -20,7 +20,7 @@ struct StartFeedingIntent: AppIntent {
             let dialog: LocalizedStringResource = "Could not find baby."
             return .result(value: String(localized: dialog), dialog: IntentDialog(dialog))
         }
-        ContentViewModel.shared.startFeeding(for: profile)
+        MainViewModel.shared.startFeeding(for: profile)
         let dialog: LocalizedStringResource = "Started feeding \(baby.name)."
         return .result(value: String(localized: dialog), dialog: IntentDialog(dialog))
     }
@@ -45,7 +45,7 @@ struct UpdateDiaperTimeIntent: AppIntent {
         }
         
         let diaperType = DiaperType(rawValue: type.rawValue) ?? .pee
-        ContentViewModel.shared.logDiaperChange(for: profile, type: diaperType)
+        MainViewModel.shared.logDiaperChange(for: profile, type: diaperType)
         
         // Localized diaper type name for interpolation
         let localizedTypeName: LocalizedStringResource = {
@@ -102,7 +102,7 @@ struct FinishFeedingIntent: AppIntent {
 
         let unit: UnitVolume = (Locale.current.measurementSystem == .us) ? .fluidOunces : .milliliters
         let measurement = Measurement(value: amount, unit: unit)
-        ContentViewModel.shared.finishFeeding(for: targetProfile, amount: measurement)
+        MainViewModel.shared.finishFeeding(for: targetProfile, amount: measurement)
 
         let dialog: LocalizedStringResource = "Fed \(targetProfile.name) \(amount.formatted())."
         return .result(

@@ -17,9 +17,9 @@ struct HistoryEditView: View {
     @State private var amountString: String = ""
     @State private var memoText: String = ""
     @State private var pendingInsertion: String? = nil
-    @State private var startTime: Date = Date()
-    @State private var endTime: Date = Date()
-    @State private var diaperTime: Date = Date()
+    @State private var startTime: Date = Date.current
+    @State private var endTime: Date = Date.current
+    @State private var diaperTime: Date = Date.current
     @State private var diaperType: DiaperType = .pee
 
     private let memoSectionID = "MemoSection"
@@ -164,7 +164,7 @@ struct HistoryEditView: View {
             amountString = String(format: "%.1f", session.amountValue)
             memoText = session.memoText ?? ""
             startTime = session.startTime
-            endTime = session.endTime ?? Date()
+            endTime = session.endTime ?? Date.current
         } else if let diaper = diaperChange {
             diaperTime = diaper.timestamp
             diaperType = diaper.diaperType

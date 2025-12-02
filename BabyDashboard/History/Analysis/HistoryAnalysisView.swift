@@ -23,8 +23,8 @@ struct HistoryAnalysisView: View {
         }
 
         func intervalEndingToday(calendar: Calendar = .current) -> DateInterval {
-            let endExclusive = calendar.startOfDay(for: Date()).addingTimeInterval(24 * 60 * 60)
-            let startInclusive = calendar.date(byAdding: .day, value: -(rawValue - 1), to: endExclusive) ?? Date()
+            let endExclusive = calendar.startOfDay(for: Date.current).addingTimeInterval(24 * 60 * 60)
+            let startInclusive = calendar.date(byAdding: .day, value: -(rawValue - 1), to: endExclusive) ?? Date.current
             return DateInterval(start: startInclusive, end: endExclusive)
         }
     }

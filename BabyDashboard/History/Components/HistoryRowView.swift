@@ -158,7 +158,7 @@ private struct FlowLayout: Layout {
 
 #Preview("Light") {
     // No need to construct PersistentIdentifier directly.
-    let now = Date()
+    let now = Date.current
     
     let feedEvent = HistoryEvent(
         id: UUID(),
@@ -201,7 +201,7 @@ private struct FlowLayout: Layout {
 }
 
 #Preview("Dark") {
-    let now = Date()
+    let now = Date.current
     
     let feedEvent = HistoryEvent(
         id: UUID(),

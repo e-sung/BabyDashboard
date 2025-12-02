@@ -34,16 +34,15 @@ final class ProfileViewModel: ObservableObject {
             .store(in: &cancellables)
     }
 
-    var canEditProfile: Bool {
+    var canDeleteProfile: Bool {
         shareInfo.role.allowsProfileEditing
     }
 
-    func saveProfile(name: String, feedTermMinutes: Int) {
-        guard canEditProfile else { return }
+    func saveProfile(name: String, feedTerm: TimeInterval) {
         let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return }
 
-        profile.feedTerm = TimeInterval(feedTermMinutes * 60)
+        profile.feedTerm = feedTerm
         profile.name = trimmed
         shareController.updateShareTitleIfNeeded(for: profile, newName: trimmed)
         shareController.refreshShareInfo(for: profile)
@@ -58,7 +57,7 @@ final class ProfileViewModel: ObservableObject {
     }
 
     func deleteProfile() {
-        guard canEditProfile else { return }
+        guard canDeleteProfile else { return }
         shareController.clearShareInfo(for: profile)
         context.delete(profile)
 

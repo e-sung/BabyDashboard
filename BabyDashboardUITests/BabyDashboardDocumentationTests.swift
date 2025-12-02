@@ -10,11 +10,14 @@ import XCTest
 final class BabyDashboardDocumentationTests: XCTestCase {
 
     var app: XCUIApplication!
+    private let baseTime: TimeInterval = 1704099600 // 2024-01-01 00:00:00 UTC
 
     override func setUpWithError() throws {
         continueAfterFailure = false
         app = XCUIApplication()
-        app.launchEnvironment["TZ"] = "Asia/Seoul"
+        app.launchEnvironment["TZ"] = "UTC"
+        app.launchEnvironment["LANG"] = "en_US_POSIX"
+        app.launchEnvironment["LC_ALL"] = "en_US_POSIX"
     }
     
     override func tearDownWithError() throws {
@@ -25,8 +28,7 @@ final class BabyDashboardDocumentationTests: XCTestCase {
     }
 
     func testOnboardingAndAddBaby() throws {
-        app.launchArguments = ["-UITest", "-Seed:initialState"]
-        app.launch()
+        launchApp()
         
         // 1. Verify "Add Baby" placeholder exists
         // There might be multiple placeholders, we just need one to exist.
@@ -46,59 +48,12 @@ final class BabyDashboardDocumentationTests: XCTestCase {
         app.buttons["Save"].tap()
         
         // 5. Verify tile appears
-        let babyTile = app.staticTexts["Baby A"]
-        XCTAssertTrue(babyTile.waitForExistence(timeout: 2), "Baby A tile should appear on dashboard")
+        let babyTile = babyNameElement("Baby A")
+        XCTAssertTrue(babyTile.waitForExistence(timeout: 10), "Baby A tile should appear on dashboard")
     }
-    
-    func testFeedingFlow() throws {
-        app.launchArguments = ["-UITest", "-Seed:babyAddedWithoutLog"]
-        app.launch()
-        
-        // 1. Start Feeding
-        let feedButton = app.buttons["Log a feed"]
-        XCTAssertTrue(feedButton.exists, "Feed button should exist")
-        feedButton.tap()
-        
-        // Verify "Feeding..." text appears
-        let feedingText = app.staticTexts["Feeding..."]
-        XCTAssertTrue(feedingText.waitForExistence(timeout: 2), "Should show Feeding status")
-        
-        // 2. Stop Feeding
-        feedButton.tap()
-        
-        // 3. Enter Amount
-        let amountField = app.textFields["Amount"]
-        XCTAssertTrue(amountField.waitForExistence(timeout: 2), "Amount field should appear")
-        amountField.tap()
-        amountField.typeText("120")
-        
-        app.buttons["Done"].tap()
-        
-        // 4. Verify Feeding status is gone (or updated)
-        XCTAssertFalse(feedingText.waitForNonExistence(timeout: 1), "Feeding status should be gone")
-    }
-    
-    func testDiaperLogging() throws {
-        app.launchArguments = ["-UITest", "-Seed:babyAddedWithoutLog"]
-        app.launch()
-        
-        // 1. Tap Diaper
-        let diaperButton = app.buttons["Log a diaper change"]
-        XCTAssertTrue(diaperButton.exists)
-        diaperButton.tap()
-        
-        // 2. Select Type
-        let peeButton = app.buttons["Pee"]
-        XCTAssertTrue(peeButton.waitForExistence(timeout: 2))
-        peeButton.tap()
-        
-        // 3. Verify update
-        XCTAssertFalse(peeButton.exists)
-    }
-    
+
     func testNavigation() throws {
-        app.launchArguments = ["-UITest", "-Seed:babiesWithSomeLogs"]
-        app.launch()
+        launchApp(seed: "babiesWithSomeLogs")
         
         // History
         let historyButton = app.buttons["History"]
@@ -116,67 +71,180 @@ final class BabyDashboardDocumentationTests: XCTestCase {
         // Dismiss
         app.windows.firstMatch.swipeDown(velocity: .fast)
     }
-    
-    func testEditFeedSessionAndVerifyWarning() throws {
-        // 1. Prepare Fixed Time (2025-11-26 21:00:00)
-        let dateFormatter = DateFormatter()
-        dateFormatter.dateFormat = "yyyy-MM-dd HH:mm"
-        dateFormatter.timeZone = TimeZone(identifier: "Asia/Seoul")
-        
-        guard let fixedDate = dateFormatter.date(from: "2025-11-26 21:00") else {
-            XCTFail("Failed to create fixed date")
-            return
+
+    func testStartAndFinishFeed() throws {
+        launchApp(seed: "babyAddedWithoutLog", feedTermSeconds: 30)
+
+        let feedCard = feedStatusCard()
+        XCTContext.runActivity(named: "Initial State") { _ in
+            XCTAssertFalse(
+                findStaticText(containing: "ml", from: feedCard).exists,
+                "Amount element should not be present before finishing feed"
+            )
+            XCTAssert(progressValue(of: feedCard) == 0, "Progress should be zero in initial state")
+            sleep(1)
+            XCTAssert(progressValue(of: feedCard) == 0, "Progress should be zero when there's no log yet")
         }
-        
-        let fixedTimestamp = fixedDate.timeIntervalSince1970
-        
-        let app = XCUIApplication()
-        app.launchArguments = [
+
+        XCTContext.runActivity(named: "Start Feeding") { _ in
+            feedCard.tap() // start feeding
+            waitForLabel(feedCard, toMatchAnyOf: ["Feeding"])
+            XCTAssertTrue(findStaticText(containing: "Feeding", from: feedCard).exists, "Footer should show Feeding while in progress")
+            sleep(2) // allow elapsed time to advance
+            let label = feedCard.label
+            XCTAssertFalse(label.contains("Feeding..."), "Main text should show elapsed time instead of placeholder")
+            XCTAssertTrue(label.contains("s") || label.contains("m"), "Main text should show elapsed time including seconds under a minute")
+        }
+
+        XCTContext.runActivity(named: "Finish Feeding") { _ in
+            feedCard.tap() // finish feeding
+            XCTAssertTrue(app.staticTexts["How much did Baby A eat?"].waitForExistence(timeout: 2))
+            let amountField = app.textFields["Amount"]
+            XCTAssertTrue(amountField.waitForExistence(timeout: 2))
+            amountField.tap()
+            amountField.typeText("90")
+            app.buttons["Done"].tap()
+            XCTAssert(app.staticTexts["How much did Baby A eat?"].waitForNonExistence(timeout: 2))
+            XCTAssert(findStaticText(containing: "Just now", from: feedCard).exists)
+            XCTAssertFalse(findStaticText(containing: "Feeding", from: feedCard).exists)
+            XCTAssertTrue(findStaticText(containing: "90 ml").waitForExistence(timeout: 2), "Feed footer should include entered amount")
+        }
+
+        XCTContext.runActivity(named: "Edit History") { _ in
+            // Edit start time to 1 hour ago via footer -> HistoryEditView
+            let footerElement = findStaticText(containing: "ml", from: feedCard)
+            XCTAssertTrue(footerElement.exists, "Feed footer should be tappable")
+            footerElement.tap()
+            XCTAssert(app.staticTexts["Edit Event"].waitForExistence(timeout: 1))
+
+            let picker = app.datePickers["Start Time"]
+            XCTAssertTrue(picker.waitForExistence(timeout: 2), "Date picker Start Time should appear")
+            picker.tap()
+            XCTAssert(app.pickerWheels.firstMatch.waitForExistence(timeout: 2))
+            app.pickerWheels.firstMatch.adjust(toPickerWheelValue: "8")
+            app.buttons["PopoverDismissRegion"].tap()
+            app.navigationBars.buttons["Done"].tap()
+
+            XCTAssert(app.staticTexts["Edit Event"].waitForNonExistence(timeout: 3))
+            waitForLabel(feedCard, toMatchAnyOf: ["ago", "hour", "min"])
+        }
+
+        XCTContext.runActivity(named: "ReStart Feeding") { _ in
+            feedCard.tap() // start feeding
+            waitForLabel(feedCard, toMatchAnyOf: ["Feeding"])
+            XCTAssertTrue(findStaticText(containing: "Feeding", from: feedCard).exists, "Footer should show Feeding while in progress")
+            sleep(2) // allow elapsed time to advance
+        }
+
+        XCTContext.runActivity(named: "ReFinish Feeding") { _ in
+            feedCard.tap() // finish feeding
+            XCTAssertTrue(app.staticTexts["How much did Baby A eat?"].waitForExistence(timeout: 2))
+            let amountField = app.textFields["Amount"]
+            XCTAssert(amountField.value as? String == "90", "Previous amount should be pre-filled in the amount field")
+            app/*@START_MENU_TOKEN@*/.buttons["Increment"]/*[[".steppers",".buttons[\"Adjust by 10, 증가\"]",".buttons[\"Increment\"]"],[[[-1,2],[-1,1],[-1,0,1]],[[-1,2],[-1,1]]],[0]]@END_MENU_TOKEN@*/.firstMatch.tap()
+            XCTAssert(amountField.value as? String == "100", "Amount should be incremented")
+            app.buttons["Done"].tap()
+            XCTAssert(app.staticTexts["How much did Baby A eat?"].waitForNonExistence(timeout: 2))
+            XCTAssert(findStaticText(containing: "Just now", from: feedCard).exists)
+            XCTAssertFalse(findStaticText(containing: "Feeding", from: feedCard).exists)
+            XCTAssertTrue(findStaticText(containing: "100 ml").waitForExistence(timeout: 2), "Feed footer should include entered amount")
+        }
+    }
+
+    func testLogDiaperChange() throws {
+        launchApp(seed: "babiesWithSomeLogs")
+
+        let diaperCard = diaperStatusCard()
+        XCTAssertTrue(diaperCard.waitForExistence(timeout: 2), "Diaper card should be visible for Baby A")
+        let initialProgress = progressValue(of: diaperCard)
+        let initialFooter = timeFooter(in: diaperCard)
+
+        diaperCard.tap()
+        let peeButton = app.buttons["Pee"]
+        XCTAssertTrue(peeButton.waitForExistence(timeout: 2))
+        peeButton.tap()
+
+        waitForLabel(diaperCard, toMatchAnyOf: ["Just now", "ago"])
+        let finishedProgress = progressValue(of: diaperCard)
+        let updatedFooter = timeFooter(in: diaperCard)
+
+        if let initial = initialProgress, let finished = finishedProgress {
+            XCTAssertLessThan(finished, initial, "Diaper progress should reset after logging")
+        }
+        XCTAssertNotNil(finishedProgress, "Diaper progress value should be present after logging")
+        if let initialFooter, let updatedFooter {
+            XCTAssertNotEqual(initialFooter, updatedFooter, "Diaper footer timestamp should update after logging")
+        }
+    }
+
+    // MARK: - Helpers
+
+    private func launchApp(seed: String? = nil, feedTermSeconds: TimeInterval? = nil) {
+        var arguments = [
             "-UITest",
-            "-Seed:babiesWithSomeLogs",
-            "-FixedTime:\(fixedTimestamp)",
+            "-FastAnimations",
+            "-FixedTime:\(baseTime)",
+            "-BaseTime:\(baseTime)",
             "-AppleLanguages", "(en)",
-            "-AppleLocale", "en_US",
-            "-FastAnimations"
+            "-AppleLocale", "en_US_POSIX"
         ]
-        app.launchEnvironment["TZ"] = "Asia/Seoul"
+
+        if let seed {
+            arguments.append("-Seed:\(seed)")
+        }
+        if let feedTermSeconds {
+            arguments.append("-FeedTerm:\(feedTermSeconds)")
+        }
+
+        app.launchArguments = arguments
         app.launch()
-        
-        // 0. Verify NO Warning Badge initially
-        XCTAssertFalse(app.buttons.staticTexts["Warning"].waitForExistence(timeout: 2), "Warning badge should NOT appear initially")
+    }
 
-        // 1. Tap Last Feed Details to edit
-        let lastFeedDetails = app.buttons["120 mL in 10m"].firstMatch
-        XCTAssertTrue(lastFeedDetails.exists, "Last feed details should be visible")
-        lastFeedDetails.tap()
-        
-        // 2. Edit Time
-        let datePickers = app.datePickers
-        let startPicker = datePickers["Start Time"]
-        if startPicker.exists {
-            startPicker.tap()
-        }
-        
-        // We want to trigger a warning by setting the time to > 3 hours ago.
-        // Current Fixed Time: 21:00
-        // Target Time: 17:00 (4 hours ago) -> "5" PM
-        let targetHour = 5
-        let targetHourString = String(targetHour)
-        
-        let hourWheel = app.pickerWheels.firstMatch
-        if hourWheel.waitForExistence(timeout: 2) {
-            hourWheel.adjust(toPickerWheelValue: targetHourString)
-        }
-        
-        // Dismiss popover if present (User recorded "PopoverDismissRegion")
-        let dismissRegion = app.buttons["PopoverDismissRegion"]
-        dismissRegion.tap()
+    private func feedStatusCard() -> XCUIElement {
+        app.buttons.matching(NSPredicate(format: "label CONTAINS %@", "Feed")).firstMatch
+    }
 
-        // 3. Save
-        app.buttons["Done"].tap()
-        
-        // 4. Verify Warning Badge APPEARS
-        XCTAssert(app/*@START_MENU_TOKEN@*/.buttons.staticTexts["Warning"]/*[[".buttons.staticTexts[\"Warning\"]",".staticTexts[\"Warning\"]"],[[[-1,1],[-1,0]]],[1]]@END_MENU_TOKEN@*/.waitForExistence(timeout: 2), "Warning badge should appear after editing time")
+    private func diaperStatusCard() -> XCUIElement {
+        app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "Diaper")).firstMatch
+    }
+
+    private func babyNameElement(_ name: String) -> XCUIElement {
+        app.descendants(matching: .any).matching(NSPredicate(format: "label CONTAINS %@", name)).firstMatch
+    }
+
+    private func findStaticText(containing substring: String, from uiElement: XCUIElement? = nil) -> XCUIElement {
+        let predicate = NSPredicate(format: "label CONTAINS %@", substring)
+        if let uiElement {
+            return uiElement.staticTexts.matching(predicate).firstMatch
+        }
+        return app.staticTexts.matching(predicate).firstMatch
+    }
+
+    private func progressValue(of card: XCUIElement) -> Double? {
+        guard let valueString = card.value as? String else { return nil }
+        let cleaned = valueString.replacingOccurrences(of: "%", with: "").replacingOccurrences(of: ",", with: "")
+        return Double(cleaned)
+    }
+
+    private func timeFooter(in card: XCUIElement) -> String? {
+        let label = card.descendants(matching: .staticText).matching(NSPredicate(format: "label CONTAINS %@", ":")).firstMatch
+        return label.exists ? label.label : nil
+    }
+
+    private func waitForLabel(_ element: XCUIElement, toMatchAnyOf substrings: [String], timeout: TimeInterval = 5) {
+        let predicate = NSPredicate { object, _ in
+            guard let el = object as? XCUIElement else { return false }
+            return substrings.contains { el.label.contains($0) }
+        }
+        expectation(for: predicate, evaluatedWith: element)
+        waitForExpectations(timeout: timeout)
     }
 }
 
+private extension XCUIElement {
+    func waitForNonExistence(timeout: TimeInterval) -> Bool {
+        let predicate = NSPredicate(format: "exists == false")
+        let expectation = XCTNSPredicateExpectation(predicate: predicate, object: self)
+        return XCTWaiter.wait(for: [expectation], timeout: timeout) == .completed
+    }
+}

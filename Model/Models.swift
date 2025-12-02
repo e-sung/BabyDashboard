@@ -94,13 +94,13 @@ public extension BabyProfile {
         self.id = id
         self.name = name
         self.feedTerm = 3 * 3600
-        self.createdAt = Date()
+        self.createdAt = Date.current
     }
 
     override func awakeFromInsert() {
         super.awakeFromInsert()
         id = UUID()
-        createdAt = Date()
+        createdAt = Date.current
         if feedTerm == 0 {
             feedTerm = 3 * 3600
         }
@@ -114,6 +114,10 @@ public extension BabyProfile {
     var diaperChangesArray: [DiaperChange] {
         guard let set = diaperChanges as? Set<DiaperChange> else { return [] }
         return Array(set)
+    }
+
+    var sessionBeforeCurrentInProgressSession: FeedSession? {
+        return feedSessionsArray.filter{ $0.endTime != nil }.sorted(by: { $0.startTime > $1.startTime }).last
     }
 
     var inProgressFeedSession: FeedSession? {
@@ -150,7 +154,7 @@ public extension FeedSession {
     override func awakeFromInsert() {
         super.awakeFromInsert()
         uuid = UUID()
-        startTime = Date()
+        startTime = Date.current
     }
 
     var amount: Measurement<UnitVolume>? {
@@ -219,7 +223,7 @@ public extension DiaperChange {
 
     override func awakeFromInsert() {
         super.awakeFromInsert()
-        timestamp = Date()
+        timestamp = Date.current
         type = DiaperType.pee.rawValue
         uuid = UUID()
     }

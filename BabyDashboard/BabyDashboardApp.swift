@@ -20,12 +20,11 @@ struct BabyDashboardApp: App {
 
     var body: some Scene {
         WindowGroup {
-            ContentView(
-                viewModel: ContentViewModel.shared
+            MainView(
+                viewModel: MainViewModel.shared
             )
             .environment(\.managedObjectContext, persistenceController.viewContext)
             .environmentObject(settings)
-            .preferredColorScheme(.dark)
             .task {
                 // Start nearby sync on launch
                 NearbySyncManager.shared.start()

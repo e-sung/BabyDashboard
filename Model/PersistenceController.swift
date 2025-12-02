@@ -89,10 +89,18 @@ public final class PersistenceController {
         let context = container.viewContext
         let args = ProcessInfo.processInfo.arguments
         
+        var feedTerm: Double?
+        if let termArg = args.first(where: { $0.hasPrefix("-FeedTerm:") }),
+           let termValue = Double(termArg.dropFirst("-FeedTerm:".count)) {
+            feedTerm = termValue
+        }
+        
         if args.contains("-Seed:babyAddedWithoutLog") {
-            let _ = BabyProfile(context: context, name: "Baby A")
+            let baby = BabyProfile(context: context, name: "Baby A")
+            if let feedTerm { baby.feedTerm = feedTerm }
         } else if args.contains("-Seed:babiesWithSomeLogs") {
             let baby = BabyProfile(context: context, name: "Baby A")
+            if let feedTerm { baby.feedTerm = feedTerm }
             
             // Add some logs
             let now = Date.current

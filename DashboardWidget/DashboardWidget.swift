@@ -16,14 +16,14 @@ struct Provider: AppIntentTimelineProvider {
 
     func placeholder(in context: Context) -> SimpleEntry {
         SimpleEntry(
-            date: Date(),
+            date: Date.current,
             configuration: .forPreview(id: UUID(), name: "Baby"),
             snapshot: WidgetBabySnapshot(
                 id: UUID(),
                 name: "Baby",
                 totalProgress: 0.5,
                 feedingProgress: 0.2,
-                updatedAt: Date(),
+                updatedAt: Date.current,
                 feedTerm: 3 * 3600,
                 isFeeding: false
             )
@@ -35,7 +35,7 @@ struct Provider: AppIntentTimelineProvider {
         guard let baby else {
             return placeholder(in: context)
         }
-        let now = Date()
+        let now = Date.current
         let snap = WidgetCache.readSnapshot(for: baby.id) ??
                    WidgetBabySnapshot(
                         id: baby.id,
@@ -52,7 +52,7 @@ struct Provider: AppIntentTimelineProvider {
     }
 
     func timeline(for configuration: ConfigurationAppIntent, in context: Context) async -> Timeline<SimpleEntry> {
-        let now = Date()
+        let now = Date.current
         let minute: TimeInterval = 60
         let horizonMinutes = 180
 

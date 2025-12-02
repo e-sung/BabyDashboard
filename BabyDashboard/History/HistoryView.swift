@@ -310,6 +310,7 @@ struct HistoryView: View {
             }
         }
         .padding(.vertical, 4)
+        .accessibilityAddTraits(.isHeader)
     }
 
     private func logicalDaySpanTitle(start: Date, calendar: Calendar = .current) -> String {
@@ -502,10 +503,10 @@ private struct AddHistorySheet: View {
 
     @State private var addType: AddType = .feed
     @State private var selectedBabyID: UUID?
-    @State private var feedStart: Date = Date()
-    @State private var feedEnd: Date = Date().addingTimeInterval(15 * 60)
+    @State private var feedStart: Date = Date.current
+    @State private var feedEnd: Date = Date.current.addingTimeInterval(15 * 60)
     @State private var amountString: String = ""
-    @State private var diaperTime: Date = Date()
+    @State private var diaperTime: Date = Date.current
     @State private var diaperType: DiaperType = .pee
 
     private var localeUnit: UnitVolume {
