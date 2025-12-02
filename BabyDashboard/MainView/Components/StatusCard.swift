@@ -52,7 +52,7 @@ struct StatusCard: View {
         Button {
             onTap?()
         } label: {
-            VStack(alignment: .leading, spacing: 12) {
+            VStack(alignment: .leading, spacing: 24) {
                 HeaderView(
                     icon: icon,
                     title: title,
@@ -74,8 +74,8 @@ struct StatusCard: View {
                 )
 
             }
-            .padding(20)
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .padding(40)
+            .frame(maxWidth: .infinity)
             .background(Color(uiColor: .systemBackground))
             .cornerRadius(20)
             .shadow(color: Color.primary.opacity(0.1), radius: 10, x: 5, y: 5)
@@ -153,31 +153,15 @@ private struct HeaderView: View {
                     }
                 }
                 .accessibilityLabel(footerText)
-                .font(isIPad ? .title : .caption)
-                .dynamicTypeSize(.large)
+                .font(isIPad ? .body : .caption)
 
                 Text(mainText)
-                    .font(isIPad ? .custom("Pretendard-Black", size: 65, relativeTo: .largeTitle) : .largeTitle.weight(.black))
+                    .font(isIPad ? .custom("Pretendard-Black", size: 70, relativeTo: .largeTitle) : .largeTitle.weight(.black))
                     .foregroundStyle(shouldWarn ? warningColor : (mainTextColor ?? .primary))
                     .lineLimit(1)
                     .minimumScaleFactor(0.5)
             }
         }
-    }
-    
-    private func warningBadge(size: CGFloat = 18) -> some View {
-        ZStack {
-            Circle()
-                .fill(warningColor)
-                .frame(width: size, height: size)
-            Text("!")
-                .font(.system(size: size * 0.75, weight: .heavy, design: .rounded))
-                .foregroundColor(.white)
-                .offset(y: -0.5)
-        }
-        .accessibilityLabel(Text("Warning"))
-        .accessibilityHidden(false)
-        .allowsHitTesting(false)
     }
 }
 

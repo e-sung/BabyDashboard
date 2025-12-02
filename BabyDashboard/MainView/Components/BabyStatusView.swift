@@ -102,10 +102,10 @@ struct BabyStatusView2: View {
                         }
                     )
                 }
-                .padding(.horizontal)
+                .padding(.horizontal, 20)
             }
             .padding(.vertical, 20)
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .frame(maxWidth: .infinity)
             .background(.regularMaterial)
             .background(Color(uiColor: .systemGroupedBackground)) // Light gray background
             .cornerRadius(20)
@@ -239,12 +239,12 @@ struct BabyStatusView2: View {
         formatter.unitsStyle = .abbreviated
         formatter.zeroFormattingBehavior = [.dropAll]
         guard let formatted = formatter.string(from: interval) else { return "" }
-        return "\(formatted) ago"
+        return String(localized: "\(formatted) ago")
     }
 
     private func formatElapsedTime(from interval: TimeInterval) -> String {
         if interval < 60 {
-            return "Just now"
+            return String(localized: "Just now")
         }
         let formatter = DateComponentsFormatter()
         formatter.allowedUnits = [.hour, .minute]
@@ -253,7 +253,7 @@ struct BabyStatusView2: View {
         if let formatted = formatter.string(from: interval) {
             return String(localized: "\(formatted) ago")
         }
-        return "Just now"
+        return String(localized: "Just now")
     }
 
     private func formattedElapsedIncludingSeconds(from interval: TimeInterval) -> String {
