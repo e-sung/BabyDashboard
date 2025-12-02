@@ -46,7 +46,9 @@ public extension HistoryEvent {
 
         var detailsText: String
         if let amount = session.amount {
-            detailsText = "\(String(format: "%.1f", amount.value)) \(amount.unit.symbol) over \(durationMinutes) min"
+            let preferredUnit = UnitUtils.preferredUnit
+            let converted = amount.converted(to: preferredUnit)
+            detailsText = "\(UnitUtils.format(measurement: converted)) over \(durationMinutes) min"
         } else if session.isInProgress {
             detailsText = "In progress for \(durationMinutes) min"
         } else {

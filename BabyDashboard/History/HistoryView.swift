@@ -116,7 +116,6 @@ struct HistoryView: View {
             events: filteredEvents,
             feedSessions: Array(feedSessions),
             diaperChanges: Array(diaperChanges),
-            targetUnit: (Locale.current.measurementSystem == .us) ? .fluidOunces : .milliliters,
             calendar: Calendar.current,
             startOfDayHour: settings.startOfDayHour,
             startOfDayMinute: settings.startOfDayMinute
@@ -510,7 +509,7 @@ private struct AddHistorySheet: View {
     @State private var diaperType: DiaperType = .pee
 
     private var localeUnit: UnitVolume {
-        (Locale.current.measurementSystem == .us) ? .fluidOunces : .milliliters
+        UnitUtils.preferredUnit
     }
 
     var body: some View {

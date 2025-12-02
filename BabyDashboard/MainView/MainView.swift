@@ -255,7 +255,7 @@ private extension MainView {
 
             Button("Done") {
                 if let amountValue = Double(feedAmountString) {
-                    let unit: UnitVolume = (Locale.current.measurementSystem == .us) ? .fluidOunces : .milliliters
+                    let unit = UnitUtils.preferredUnit
                     let measurement = Measurement(value: amountValue, unit: unit)
                     viewModel.finishFeeding(for: baby, amount: measurement)
                     finishingFeedFor = nil

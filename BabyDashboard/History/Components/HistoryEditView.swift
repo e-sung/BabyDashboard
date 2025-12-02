@@ -110,20 +110,13 @@ struct HistoryEditView: View {
             HStack {
                 TextField("Amount", text: $amountString)
                     .keyboardType(.decimalPad)
-                Text(session.amountUnitSymbol ?? currentVolumeUnitSymbol)
+                Text(UnitUtils.preferredUnit.symbol)
             }
         }
         .onChange(of: amountString) { _, newValue in
             if let value = Double(newValue) {
-                let unit: UnitVolume = {
-                    if let symbol = session.amountUnitSymbol,
-                       let resolved = unitVolume(from: symbol) {
-                        return resolved
-                    }
-                    return (Locale.current.measurementSystem == .us) ? .fluidOunces : .milliliters
-                }()
-                session.amountValue = value
-                session.amountUnitSymbol = unit.symbol
+                let unit = UnitUtils.preferredUnit
+                session.amount = Measurement(value: value, unit: unit)
             }
         }
     }
@@ -161,7 +154,9 @@ struct HistoryEditView: View {
 
     private func setupInitialState() {
         if let session = feedSession {
-            amountString = String(format: "%.1f", session.amountValue)
+            let preferredUnit = UnitUtils.preferredUnit
+            let amount = session.amount?.converted(to: preferredUnit).value ?? 0
+            amountString = String(format: "%.1f", amount)
             memoText = session.memoText ?? ""
             startTime = session.startTime
             endTime = session.endTime ?? Date.current

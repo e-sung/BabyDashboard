@@ -100,7 +100,7 @@ struct FinishFeedingIntent: AppIntent {
             return .result(value: String(localized: dialog), dialog: IntentDialog(dialog))
         }
 
-        let unit: UnitVolume = (Locale.current.measurementSystem == .us) ? .fluidOunces : .milliliters
+        let unit: UnitVolume = UnitUtils.preferredUnit
         let measurement = Measurement(value: amount, unit: unit)
         MainViewModel.shared.finishFeeding(for: targetProfile, amount: measurement)
 
