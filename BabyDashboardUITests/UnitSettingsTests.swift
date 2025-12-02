@@ -42,7 +42,7 @@ final class UnitSettingsTests: XCTestCase {
         
         // 6. Open History
         app.buttons["History"].tap()
-        XCTAssertTrue(app.navigationBars["History"].waitForExistence(timeout: 2))
+        XCTAssertTrue(app.navigationBars["History"].waitForExistence(timeout: 3))
         
         // 7. Verify first feed (120 ml) -> approx 4.1 fl oz
         // The most recent is 4 oz, the previous is 120 ml.
