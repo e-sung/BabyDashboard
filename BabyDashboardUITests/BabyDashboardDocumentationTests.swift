@@ -140,9 +140,9 @@ final class BabyDashboardDocumentationTests: XCTestCase {
             feedCard.tap() // finish feeding
             XCTAssertTrue(app.staticTexts["How much did Baby A eat?"].waitForExistence(timeout: 2))
             let amountField = app.textFields["Amount"]
-            XCTAssert(amountField.value as? String == "90", "Previous amount should be pre-filled in the amount field")
+            XCTAssert(amountField.value as? String == "90.0", "Previous amount should be pre-filled in the amount field")
             app/*@START_MENU_TOKEN@*/.buttons["Increment"]/*[[".steppers",".buttons[\"Adjust by 10, 증가\"]",".buttons[\"Increment\"]"],[[[-1,2],[-1,1],[-1,0,1]],[[-1,2],[-1,1]]],[0]]@END_MENU_TOKEN@*/.firstMatch.tap()
-            XCTAssert(amountField.value as? String == "100", "Amount should be incremented")
+            XCTAssert(amountField.value as? String == "100.0", "Amount should be incremented")
             app.buttons["Done"].tap()
             XCTAssert(app.staticTexts["How much did Baby A eat?"].waitForNonExistence(timeout: 2))
             XCTAssert(findStaticText(containing: "Just now", from: feedCard).exists)
