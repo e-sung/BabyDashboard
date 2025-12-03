@@ -2,10 +2,12 @@ import SwiftUI
 import CoreData
 import Model
 import Charts
+import StoreKit
 
 struct HistoryAnalysisView: View {
     @Environment(\.managedObjectContext) private var viewContext
     @EnvironmentObject var settings: AppSettings
+    @Environment(\.requestReview) private var requestReview
 
     enum RangePreset: Int, CaseIterable, Identifiable {
         case days30 = 30

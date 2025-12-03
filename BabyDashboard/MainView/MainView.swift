@@ -4,6 +4,7 @@ import CoreData
 import Model
 import WidgetKit
 import CloudKit
+import StoreKit
 
 // MainViewModel is defined in ContentView.swift (or should be extracted to its own file)
 
@@ -16,6 +17,8 @@ struct MainView: View {
     @EnvironmentObject var settings: AppSettings
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.requestReview) private var requestReview
+
 
     // Size class environment for conditional UI
     @Environment(\.horizontalSizeClass) private var hSizeClass
@@ -93,6 +96,21 @@ struct MainView: View {
             }
             // New: present analysis
             .sheet(isPresented: $showingAnalysis) {
+                // Request review when user dismisses the analysis view
+                // Only triggers if user has 7+ days of feed sessions and hasn't been asked before
+                Task { @MainActor in
+                    ReviewRequestManager.shared.requestReviewIfEligible(
+                        context: viewContext,
+                        requestReview: {
+                            #if canImport(UIKit)
+                            if let scene = UIApplication.shared.connectedScenes.first as? UIWindowScene {
+                                SKStoreReviewController.requestReview(in: scene)
+                            }
+                            #endif
+                        }
+                    )
+                }
+            } content: {
                 NavigationView {
                     HistoryAnalysisView()
                 }
@@ -304,7 +322,7 @@ private extension MainView {
     
     @ToolbarContentBuilder
     func toolbarContent() -> some ToolbarContent {
-        ToolbarItem(placement: .navigationBarLeading) {
+        ToolbarItem(placement: isIPhone ? .navigationBarTrailing : .navigationBarLeading) {
             HStack(spacing: 20) {
                 Button(action: { showingHistory = true }) {
                     Image(systemName: "list.bullet.clipboard")
