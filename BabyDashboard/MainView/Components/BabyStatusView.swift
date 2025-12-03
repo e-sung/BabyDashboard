@@ -71,9 +71,8 @@ struct BabyStatusView2: View {
                         onTap: onFeedTap,
                         onFooterTap: {
                             if baby.inProgressFeedSession != nil {
-                                return
-                            }
-                            if let session = baby.lastFinishedFeedSession {
+                                onLastFeedTap?(baby.inProgressFeedSession!)
+                            } else if let session = baby.lastFinishedFeedSession {
                                 onLastFeedTap?(session)
                             }
                         }

@@ -21,6 +21,7 @@ struct HistoryEditView: View {
     @State private var endTime: Date = Date.current
     @State private var diaperTime: Date = Date.current
     @State private var diaperType: DiaperType = .pee
+    @State private var showingDeleteAlert: Bool = false
 
     private let memoSectionID = "MemoSection"
 
@@ -52,6 +53,14 @@ struct HistoryEditView: View {
                     } else if let diaper = diaperChange {
                         diaperEditor(for: diaper)
                     }
+                    Section {
+                        Button(role: .destructive) {
+                            showingDeleteAlert = true
+                        } label: {
+                            Text(String(localized: "Delete Event"))
+                                .frame(maxWidth: .infinity, alignment: .center)
+                        }
+                    }
                 }
                 .navigationTitle("Edit Event")
                 .toolbar {
@@ -78,6 +87,14 @@ struct HistoryEditView: View {
                     withAnimation {
                         proxy.scrollTo(memoSectionID, anchor: .bottom)
                     }
+                }
+                .alert(String(localized: "Delete this event?"), isPresented: $showingDeleteAlert) {
+                    Button(String(localized: "Delete"), role: .destructive) {
+                        deleteAndDismiss()
+                    }
+                    Button(String(localized: "Cancel"), role: .cancel) { }
+                } message: {
+                    Text(String(localized: "This action cannot be undone."))
                 }
             }
         }
@@ -184,6 +201,21 @@ struct HistoryEditView: View {
             assertionFailure(error.localizedDescription)
         }
 
+        NearbySyncManager.shared.sendPing()
+        dismiss()
+    }
+
+    private func deleteAndDismiss() {
+        if let session = feedSession {
+            viewContext.delete(session)
+        } else if let diaper = diaperChange {
+            viewContext.delete(diaper)
+        }
+        do {
+            try viewContext.save()
+        } catch {
+            assertionFailure(error.localizedDescription)
+        }
         NearbySyncManager.shared.sendPing()
         dismiss()
     }

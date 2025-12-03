@@ -34,6 +34,9 @@ struct MainView: View {
     @State private var showingHistory = false
     @State private var editingFeedSession: FeedSession? = nil
     @State private var editingDiaperChange: DiaperChange? = nil
+    
+    @State private var sessionToDelete: FeedSession? = nil
+    @State private var showDeleteAlert: Bool = false
 
     @State private var highlightedBabyID: NSManagedObjectID? = nil
     @State private var knownBabyIDs: Set<NSManagedObjectID> = []
@@ -123,6 +126,21 @@ struct MainView: View {
                 Button("Poo") { viewModel.logDiaperChange(for: baby, type: .poo) }
             }
         }
+        .alert("Do you want to cancel this Feed Session?", isPresented: $showDeleteAlert, presenting: sessionToDelete) { session in
+            Button(String(localized: "Yes"), role: .destructive) {
+                viewContext.delete(session)
+                do {
+                    try viewContext.save()
+                    NearbySyncManager.shared.sendPing()
+                } catch {
+                    debugPrint(error.localizedDescription)
+                }
+                sessionToDelete = nil
+            }
+            Button(String(localized: "No"), role: .cancel) {
+                sessionToDelete = nil
+            }
+        }
         .onAppear {
             ShareController.shared.primeShareInfoCache()
             cacheKnownBabies()
@@ -166,7 +184,12 @@ private extension MainView {
                                 onDiaperTap: { changingDiaperFor = baby },
                                 onNameTap: { editingProfile = baby },
                                 onLastFeedTap: { session in
-                                    editingFeedSession = session
+                                    if session.isInProgress {
+                                        sessionToDelete = session
+                                        showDeleteAlert = true
+                                    } else {
+                                        editingFeedSession = session
+                                    }
                                 },
                                 onLastDiaperTap: { change in
                                     editingDiaperChange = change
