@@ -16,6 +16,24 @@ public class CustomEventType: NSManagedObject {}
 @objc(CustomEvent)
 public class CustomEvent: NSManagedObject {}
 
+public protocol Hashtagable {
+    var memoText: String? { get }
+}
+
+public extension Hashtagable {
+    var hashtags: [String] {
+        guard let memoText, !memoText.isEmpty else { return [] }
+        let pattern = #"(?<!\w)#([\p{L}\p{N}_]+)"#
+        guard let regex = try? NSRegularExpression(pattern: pattern, options: []) else { return [] }
+        let nsText = memoText as NSString
+        let matches = regex.matches(in: memoText, options: [], range: NSRange(location: 0, length: nsText.length))
+        var tags: [String] = matches.map { nsText.substring(with: $0.range(at: 0)) }
+        var seen = Set<String>()
+        tags = tags.filter { seen.insert($0.lowercased()).inserted }
+        return tags
+    }
+}
+
 extension BabyProfile {
     @nonobjc public class func fetchRequest() -> NSFetchRequest<BabyProfile> {
         NSFetchRequest<BabyProfile>(entityName: "BabyProfile")
@@ -97,7 +115,7 @@ extension FeedSession {
     @NSManaged public var profile: BabyProfile?
 }
 
-extension FeedSession: Identifiable {}
+extension FeedSession: Identifiable, Hashtagable {}
 
 extension DiaperChange {
     @nonobjc public class func fetchRequest() -> NSFetchRequest<DiaperChange> {
@@ -111,7 +129,7 @@ extension DiaperChange {
     @NSManaged public var profile: BabyProfile?
 }
 
-extension DiaperChange: Identifiable {}
+extension DiaperChange: Identifiable, Hashtagable {}
 
 public enum DiaperType: String, Codable {
     case pee
@@ -228,17 +246,7 @@ public extension FeedSession {
         endTime == nil
     }
 
-    var hashtags: [String] {
-        guard let memoText, !memoText.isEmpty else { return [] }
-        let pattern = #"(?<!\w)#([\p{L}\p{N}_]+)"#
-        guard let regex = try? NSRegularExpression(pattern: pattern, options: []) else { return [] }
-        let nsText = memoText as NSString
-        let matches = regex.matches(in: memoText, options: [], range: NSRange(location: 0, length: nsText.length))
-        var tags: [String] = matches.map { nsText.substring(with: $0.range(at: 0)) }
-        var seen = Set<String>()
-        tags = tags.filter { seen.insert($0.lowercased()).inserted }
-        return tags
-    }
+
 
     private func canonicalUnit(from symbol: String) -> UnitVolume? {
         let trimmed = symbol.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -280,17 +288,6 @@ public extension DiaperChange {
         set { type = newValue.rawValue }
     }
 
-    var hashtags: [String] {
-        guard let memoText, !memoText.isEmpty else { return [] }
-        let pattern = #"(?<!\w)#([\p{L}\p{N}_]+)"#
-        guard let regex = try? NSRegularExpression(pattern: pattern, options: []) else { return [] }
-        let nsText = memoText as NSString
-        let matches = regex.matches(in: memoText, options: [], range: NSRange(location: 0, length: nsText.length))
-        var tags: [String] = matches.map { nsText.substring(with: $0.range(at: 0)) }
-        var seen = Set<String>()
-        tags = tags.filter { seen.insert($0.lowercased()).inserted }
-        return tags
-    }
 }
 
 // MARK: - CustomEventType helpers
@@ -347,17 +344,6 @@ public extension CustomEvent {
         timestamp = Date.current
     }
 
-    var hashtags: [String] {
-        guard let memoText, !memoText.isEmpty else { return [] }
-        let pattern = #"(?<!\w)#([\p{L}\p{N}_]+)"#
-        guard let regex = try? NSRegularExpression(pattern: pattern, options: []) else { return [] }
-        let nsText = memoText as NSString
-        let matches = regex.matches(in: memoText, options: [], range: NSRange(location: 0, length: nsText.length))
-        var tags: [String] = matches.map { nsText.substring(with: $0.range(at: 0)) }
-        var seen = Set<String>()
-        tags = tags.filter { seen.insert($0.lowercased()).inserted }
-        return tags
-    }
 }
 
 extension CustomEvent {
@@ -372,4 +358,4 @@ extension CustomEvent {
     @NSManaged public var eventType: CustomEventType?
 }
 
-extension CustomEvent: Identifiable {}
+extension CustomEvent: Identifiable, Hashtagable {}
