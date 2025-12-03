@@ -10,6 +10,30 @@ public class FeedSession: NSManagedObject {}
 @objc(DiaperChange)
 public class DiaperChange: NSManagedObject {}
 
+@objc(CustomEventType)
+public class CustomEventType: NSManagedObject {}
+
+@objc(CustomEvent)
+public class CustomEvent: NSManagedObject {}
+
+public protocol Hashtagable {
+    var memoText: String? { get }
+}
+
+public extension Hashtagable {
+    var hashtags: [String] {
+        guard let memoText, !memoText.isEmpty else { return [] }
+        let pattern = #"(?<!\w)#([\p{L}\p{N}_]+)"#
+        guard let regex = try? NSRegularExpression(pattern: pattern, options: []) else { return [] }
+        let nsText = memoText as NSString
+        let matches = regex.matches(in: memoText, options: [], range: NSRange(location: 0, length: nsText.length))
+        var tags: [String] = matches.map { nsText.substring(with: $0.range(at: 0)) }
+        var seen = Set<String>()
+        tags = tags.filter { seen.insert($0.lowercased()).inserted }
+        return tags
+    }
+}
+
 extension BabyProfile {
     @nonobjc public class func fetchRequest() -> NSFetchRequest<BabyProfile> {
         NSFetchRequest<BabyProfile>(entityName: "BabyProfile")
@@ -19,6 +43,8 @@ extension BabyProfile {
     @NSManaged public var feedTerm: TimeInterval
     @NSManaged public var id: UUID
     @NSManaged public var name: String
+    @NSManaged public var customEventTypes: NSSet?
+    @NSManaged public var customEvents: NSSet?
     @NSManaged public var diaperChanges: NSSet?
     @NSManaged public var feedSessions: NSSet?
 }
@@ -47,6 +73,30 @@ extension BabyProfile {
 
     @objc(removeFeedSessions:)
     @NSManaged public func removeFromFeedSessions(_ values: NSSet)
+
+    @objc(addCustomEventTypesObject:)
+    @NSManaged public func addToCustomEventTypes(_ value: CustomEventType)
+
+    @objc(removeCustomEventTypesObject:)
+    @NSManaged public func removeFromCustomEventTypes(_ value: CustomEventType)
+
+    @objc(addCustomEventTypes:)
+    @NSManaged public func addToCustomEventTypes(_ values: NSSet)
+
+    @objc(removeCustomEventTypes:)
+    @NSManaged public func removeFromCustomEventTypes(_ values: NSSet)
+
+    @objc(addCustomEventsObject:)
+    @NSManaged public func addToCustomEvents(_ value: CustomEvent)
+
+    @objc(removeCustomEventsObject:)
+    @NSManaged public func removeFromCustomEvents(_ value: CustomEvent)
+
+    @objc(addCustomEvents:)
+    @NSManaged public func addToCustomEvents(_ values: NSSet)
+
+    @objc(removeCustomEvents:)
+    @NSManaged public func removeFromCustomEvents(_ values: NSSet)
 }
 
 extension BabyProfile: Identifiable {}
@@ -65,7 +115,7 @@ extension FeedSession {
     @NSManaged public var profile: BabyProfile?
 }
 
-extension FeedSession: Identifiable {}
+extension FeedSession: Identifiable, Hashtagable {}
 
 extension DiaperChange {
     @nonobjc public class func fetchRequest() -> NSFetchRequest<DiaperChange> {
@@ -75,10 +125,11 @@ extension DiaperChange {
     @NSManaged public var timestamp: Date
     @NSManaged public var type: String
     @NSManaged public var uuid: UUID
+    @NSManaged public var memoText: String?
     @NSManaged public var profile: BabyProfile?
 }
 
-extension DiaperChange: Identifiable {}
+extension DiaperChange: Identifiable, Hashtagable {}
 
 public enum DiaperType: String, Codable {
     case pee
@@ -111,6 +162,16 @@ public extension BabyProfile {
         return Array(set)
     }
 
+    var customEventTypesArray: [CustomEventType] {
+        guard let set = customEventTypes as? Set<CustomEventType> else { return [] }
+        return Array(set).sorted(by: { $0.createdAt < $1.createdAt })
+    }
+
+    var customEventsArray: [CustomEvent] {
+        guard let set = customEvents as? Set<CustomEvent> else { return [] }
+        return Array(set)
+    }
+
     var diaperChangesArray: [DiaperChange] {
         guard let set = diaperChanges as? Set<DiaperChange> else { return [] }
         return Array(set)
@@ -139,6 +200,10 @@ public extension BabyProfile {
 
     var lastDiaperChange: DiaperChange? {
         diaperChangesArray.sorted(by: { $0.timestamp > $1.timestamp }).first
+    }
+
+    var lastCustomEvent: CustomEvent? {
+        customEventsArray.sorted(by: { $0.timestamp > $1.timestamp }).first
     }
 }
 
@@ -181,17 +246,7 @@ public extension FeedSession {
         endTime == nil
     }
 
-    var hashtags: [String] {
-        guard let memoText, !memoText.isEmpty else { return [] }
-        let pattern = #"(?<!\w)#([\p{L}\p{N}_]+)"#
-        guard let regex = try? NSRegularExpression(pattern: pattern, options: []) else { return [] }
-        let nsText = memoText as NSString
-        let matches = regex.matches(in: memoText, options: [], range: NSRange(location: 0, length: nsText.length))
-        var tags: [String] = matches.map { nsText.substring(with: $0.range(at: 0)) }
-        var seen = Set<String>()
-        tags = tags.filter { seen.insert($0.lowercased()).inserted }
-        return tags
-    }
+
 
     private func canonicalUnit(from symbol: String) -> UnitVolume? {
         let trimmed = symbol.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -232,4 +287,75 @@ public extension DiaperChange {
         get { DiaperType(rawValue: type) ?? .pee }
         set { type = newValue.rawValue }
     }
+
 }
+
+// MARK: - CustomEventType helpers
+
+public extension CustomEventType {
+    convenience init(context: NSManagedObjectContext, name: String, emoji: String) {
+        self.init(context: context)
+        self.id = UUID()
+        self.name = name
+        self.emoji = emoji
+        self.createdAt = Date.current
+    }
+
+    override func awakeFromInsert() {
+        super.awakeFromInsert()
+        id = UUID()
+        createdAt = Date.current
+    }
+
+    var eventsArray: [CustomEvent] {
+        guard let set = events as? Set<CustomEvent> else { return [] }
+        return Array(set)
+    }
+}
+
+extension CustomEventType {
+    @nonobjc public class func fetchRequest() -> NSFetchRequest<CustomEventType> {
+        NSFetchRequest<CustomEventType>(entityName: "CustomEventType")
+    }
+
+    @NSManaged public var id: UUID
+    @NSManaged public var name: String
+    @NSManaged public var emoji: String
+    @NSManaged public var createdAt: Date
+    @NSManaged public var profile: BabyProfile?
+    @NSManaged public var events: NSSet?
+}
+
+extension CustomEventType: Identifiable {}
+
+// MARK: - CustomEvent helpers
+
+public extension CustomEvent {
+    convenience init(context: NSManagedObjectContext, timestamp: Date, eventType: CustomEventType) {
+        self.init(context: context)
+        self.uuid = UUID()
+        self.timestamp = timestamp
+        self.eventType = eventType
+    }
+
+    override func awakeFromInsert() {
+        super.awakeFromInsert()
+        uuid = UUID()
+        timestamp = Date.current
+    }
+
+}
+
+extension CustomEvent {
+    @nonobjc public class func fetchRequest() -> NSFetchRequest<CustomEvent> {
+        NSFetchRequest<CustomEvent>(entityName: "CustomEvent")
+    }
+
+    @NSManaged public var uuid: UUID
+    @NSManaged public var timestamp: Date
+    @NSManaged public var memoText: String?
+    @NSManaged public var profile: BabyProfile?
+    @NSManaged public var eventType: CustomEventType?
+}
+
+extension CustomEvent: Identifiable, Hashtagable {}

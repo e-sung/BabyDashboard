@@ -131,6 +131,48 @@ struct UndoLastActionIntent: AppIntent {
     }
 }
 
+struct LogCustomEventIntent: AppIntent {
+    static var title: LocalizedStringResource = "Log Custom Event"
+    static var description = IntentDescription("Logs a custom event for a baby.")
+    static var openAppWhenRun: Bool = true
+
+    @Parameter(title: "Baby")
+    var baby: BabyProfileEntity
+
+    @Parameter(title: "Event Type")
+    var eventType: CustomEventTypeEntity
+
+    @MainActor
+    func perform() async throws -> some IntentResult & ReturnsValue<String> & ProvidesDialog {
+        guard let profile = await fetchProfile(for: baby.id) else {
+            let dialog: LocalizedStringResource = "Could not find baby."
+            return .result(value: String(localized: dialog), dialog: IntentDialog(dialog))
+        }
+
+        // Fetch the CustomEventType from Core Data
+        let context = PersistenceController.shared.viewContext
+        let request: NSFetchRequest<CustomEventType> = CustomEventType.fetchRequest()
+        request.predicate = NSPredicate(format: "id == %@", eventType.id as CVarArg)
+        request.fetchLimit = 1
+        
+        guard let customEventType = try? context.fetch(request).first else {
+            let dialog: LocalizedStringResource = "Could not find event type."
+            return .result(value: String(localized: dialog), dialog: IntentDialog(dialog))
+        }
+
+        // Validate that the event type belongs to the selected baby
+        guard customEventType.profile?.id == baby.id else {
+            let dialog: LocalizedStringResource = "Event type does not belong to the selected baby."
+            return .result(value: String(localized: dialog), dialog: IntentDialog(dialog))
+        }
+
+        MainViewModel.shared.logCustomEvent(for: profile, eventType: customEventType)
+        
+        let dialog: LocalizedStringResource = "Logged \(eventType.emoji) \(eventType.name) for \(baby.name)"
+        return .result(value: String(localized: dialog), dialog: IntentDialog(dialog))
+    }
+}
+
 // MARK: - Helper Functions for Intents
 
 @MainActor
@@ -187,6 +229,14 @@ struct BabyMonitorShortcuts: AppShortcutsProvider {
             ],
             shortTitle: "Log Diaper Change",
             systemImageName: "record.circle"
+        )
+        AppShortcut(
+            intent: LogCustomEventIntent(),
+            phrases: [
+                "Log custom event for \(.applicationName)"
+            ],
+            shortTitle: "Log Custom Event",
+            systemImageName: "star.circle.fill"
         )
         AppShortcut(
             intent: UndoLastActionIntent(),

@@ -5,6 +5,7 @@ import Model
 enum HistoryEditModel {
     case feed(FeedSession)
     case diaper(DiaperChange)
+    case customEvent(CustomEvent)
 }
 
 struct HistoryEditView: View {
@@ -21,6 +22,7 @@ struct HistoryEditView: View {
     @State private var endTime: Date = Date.current
     @State private var diaperTime: Date = Date.current
     @State private var diaperType: DiaperType = .pee
+    @State private var customEventTime: Date = Date.current
     @State private var showingDeleteAlert: Bool = false
 
     private let memoSectionID = "MemoSection"
@@ -32,6 +34,11 @@ struct HistoryEditView: View {
 
     private var diaperChange: DiaperChange? {
         if case .diaper(let change) = model { return change }
+        return nil
+    }
+
+    private var customEvent: CustomEvent? {
+        if case .customEvent(let event) = model { return event }
         return nil
     }
 
@@ -52,6 +59,12 @@ struct HistoryEditView: View {
                             .id(memoSectionID)
                     } else if let diaper = diaperChange {
                         diaperEditor(for: diaper)
+                        memoEditorForDiaper(for: diaper)
+                            .id(memoSectionID)
+                    } else if let customEvent = customEvent {
+                        customEventEditor(for: customEvent)
+                        memoEditorForCustomEvent(for: customEvent)
+                            .id(memoSectionID)
                     }
                     Section {
                         Button(role: .destructive) {
@@ -169,6 +182,59 @@ struct HistoryEditView: View {
         }
     }
 
+    @ViewBuilder
+    private func customEventEditor(for event: CustomEvent) -> some View {
+        Section("Event Type") {
+            HStack {
+                if let emoji = event.eventType?.emoji {
+                    Text(emoji)
+                        .font(.title2)
+                }
+                Text(event.eventType?.name ?? "Unknown")
+                    .font(.body)
+                Spacer()
+            }
+            .foregroundStyle(.secondary)
+        }
+        Section("Time") {
+            DatePicker("Time", selection: $customEventTime)
+        }
+    }
+
+    @ViewBuilder
+    private func memoEditorForDiaper(for diaper: DiaperChange) -> some View {
+        Section("Memo") {
+            HashtagTextView(
+                text: $memoText,
+                pendingInsertion: $pendingInsertion,
+                hashtagAttributes: hashtagAttributes,
+                recentHashtags: settings.recentHashtags
+            )
+            .frame(minHeight: 120)
+            .accessibilityLabel(Text("Memo"))
+            .onChange(of: memoText) { _, newText in
+                diaper.memoText = newText
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func memoEditorForCustomEvent(for event: CustomEvent) -> some View {
+        Section("Memo") {
+            HashtagTextView(
+                text: $memoText,
+                pendingInsertion: $pendingInsertion,
+                hashtagAttributes: hashtagAttributes,
+                recentHashtags: settings.recentHashtags
+            )
+            .frame(minHeight: 120)
+            .accessibilityLabel(Text("Memo"))
+            .onChange(of: memoText) { _, newText in
+                event.memoText = newText
+            }
+        }
+    }
+
     private func setupInitialState() {
         if let session = feedSession {
             let preferredUnit = UnitUtils.preferredUnit
@@ -181,6 +247,10 @@ struct HistoryEditView: View {
         } else if let diaper = diaperChange {
             diaperTime = diaper.timestamp
             diaperType = diaper.diaperType
+            memoText = diaper.memoText ?? ""
+        } else if let event = customEvent {
+            customEventTime = event.timestamp
+            memoText = event.memoText ?? ""
         }
     }
 
@@ -193,6 +263,12 @@ struct HistoryEditView: View {
         } else if let diaper = diaperChange {
             diaper.timestamp = diaperTime
             diaper.diaperType = diaperType
+            diaper.memoText = memoText
+            settings.addRecentHashtags(from: memoText)
+        } else if let event = customEvent {
+            event.timestamp = customEventTime
+            event.memoText = memoText
+            settings.addRecentHashtags(from: memoText)
         }
 
         do {
@@ -210,6 +286,8 @@ struct HistoryEditView: View {
             viewContext.delete(session)
         } else if let diaper = diaperChange {
             viewContext.delete(diaper)
+        } else if let event = customEvent {
+            viewContext.delete(event)
         }
         do {
             try viewContext.save()

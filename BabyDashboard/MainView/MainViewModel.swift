@@ -83,6 +83,12 @@ class MainViewModel: ObservableObject {
         triggerAnimation(for: baby.id, type: .diaper)
     }
     
+    func logCustomEvent(for baby: BabyProfile, eventType: CustomEventType) {
+        let newEvent = CustomEvent(context: viewContext, timestamp: Date.current, eventType: eventType)
+        newEvent.profile = baby
+        saveAndPing()
+    }
+    
     func setDiaperTime(for baby: BabyProfile, to date: Date) {
         if let lastChange = baby.lastDiaperChange {
             lastChange.timestamp = date
