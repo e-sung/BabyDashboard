@@ -39,6 +39,7 @@ struct BabyDashboardApp: App {
                         }
                 }
             }
+            .applyDynamicTypeSize(settings.preferredFontScale.dynamicTypeSize)
             .preferredColorScheme(.dark)
         }
         .onChange(of: scenePhase) { _, newPhase in

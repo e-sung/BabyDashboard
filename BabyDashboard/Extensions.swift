@@ -14,3 +14,14 @@ extension Double {
         Measurement(value: self, unit: UnitUtils.preferredUnit)
     }
 }
+
+extension View {
+    @ViewBuilder
+    func applyDynamicTypeSize(_ size: DynamicTypeSize?) -> some View {
+        if let size = size {
+            self.dynamicTypeSize(size)
+        } else {
+            self
+        }
+    }
+}

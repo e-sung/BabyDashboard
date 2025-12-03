@@ -153,6 +153,7 @@ private struct HeaderView: View {
                     }
                 }
                 .accessibilityLabel(footerText)
+                .dynamicTypeSize(...DynamicTypeSize.accessibility1)
                 .font(isIPad ? .body : .caption)
 
                 Text(mainText)

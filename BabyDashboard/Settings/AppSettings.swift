@@ -1,5 +1,9 @@
 import Foundation
 import Combine
+import SwiftUI
+#if canImport(UIKit)
+import UIKit
+#endif
 
 final class AppSettings: ObservableObject {
     // Keys
@@ -8,6 +12,7 @@ final class AppSettings: ObservableObject {
         static let startOfDayMinute = "startOfDayMinute"
         static let didSeedBabiesOnce = "didSeedBabiesOnce" // iCloud-wide seed guard
         static let recentHashtags = "recentHashtags"
+        static let preferredFontScale = "preferredFontScale"
     }
 
     // Backing stores
@@ -41,6 +46,12 @@ final class AppSettings: ObservableObject {
         }
     }
 
+    @Published var preferredFontScale: AppFontScale {
+        didSet {
+            write(value: preferredFontScale.rawValue, forKey: Keys.preferredFontScale)
+        }
+    }
+
     private var notificationObserver: NSObjectProtocol?
 
     init() {
@@ -62,16 +73,24 @@ final class AppSettings: ObservableObject {
             ?? local.array(forKey: Keys.recentHashtags) as? [String]
             ?? []
 
+        let fontScaleRaw = (ubiquitous.string(forKey: Keys.preferredFontScale))
+            ?? local.string(forKey: Keys.preferredFontScale)
+            ?? AppFontScale.system.rawValue
+
         self.startOfDayHour = hour
         self.startOfDayMinute = minute
         self.didSeedBabiesOnce = seeded
+        self.didSeedBabiesOnce = seeded
         self.recentHashtags = hashtags
+        self.preferredFontScale = AppFontScale(rawValue: fontScaleRaw) ?? .system
 
         // Keep local store consistent with the chosen initial values
         local.set(hour, forKey: Keys.startOfDayHour)
         local.set(minute, forKey: Keys.startOfDayMinute)
         local.set(seeded, forKey: Keys.didSeedBabiesOnce)
+        local.set(seeded, forKey: Keys.didSeedBabiesOnce)
         local.set(hashtags, forKey: Keys.recentHashtags)
+        local.set(fontScaleRaw, forKey: Keys.preferredFontScale)
 
         // Observe incoming iCloud KVS changes
         notificationObserver = NotificationCenter.default.addObserver(
@@ -110,7 +129,16 @@ final class AppSettings: ObservableObject {
                    let newTags = self.ubiquitous.array(forKey: Keys.recentHashtags) as? [String],
                    self.recentHashtags != newTags {
                     self.recentHashtags = newTags
+                    self.recentHashtags = newTags
                     self.local.set(newTags, forKey: Keys.recentHashtags)
+                }
+
+                if changedKeys.contains(Keys.preferredFontScale),
+                   let newScaleRaw = self.ubiquitous.string(forKey: Keys.preferredFontScale),
+                   let newScale = AppFontScale(rawValue: newScaleRaw),
+                   self.preferredFontScale != newScale {
+                    self.preferredFontScale = newScale
+                    self.local.set(newScaleRaw, forKey: Keys.preferredFontScale)
                 }
             }
         }
@@ -138,6 +166,12 @@ final class AppSettings: ObservableObject {
     private func write(array: [String], forKey key: String) {
         local.set(array, forKey: key)
         ubiquitous.set(array, forKey: key)
+        ubiquitous.synchronize()
+    }
+
+    private func write(value: String, forKey key: String) {
+        local.set(value, forKey: key)
+        ubiquitous.set(value, forKey: key)
         ubiquitous.synchronize()
     }
 
@@ -176,6 +210,81 @@ final class AppSettings: ObservableObject {
     }
 }
 
+enum AppFontScale: String, CaseIterable, Identifiable {
+    case system
+    case xSmall
+    case small
+    case medium
+    case large
+    case xLarge
+    case xxLarge
+    case xxxLarge
+    case accessibility1
+    case accessibility2
+    case accessibility3
+    case accessibility4
+    case accessibility5
+
+    var id: String { rawValue }
+
+    var label: String {
+        switch self {
+        case .system: return "System Default"
+        case .xSmall: return "Extra Small"
+        case .small: return "Small"
+        case .medium: return "Medium"
+        case .large: return "Large"
+        case .xLarge: return "Extra Large"
+        case .xxLarge: return "Extra Extra Large"
+        case .xxxLarge: return "Extra Extra Extra Large"
+        case .accessibility1: return "Accessibility Medium"
+        case .accessibility2: return "Accessibility Large"
+        case .accessibility3: return "Accessibility Extra Large"
+        case .accessibility4: return "Accessibility Extra Extra Large"
+        case .accessibility5: return "Accessibility Extra Extra Extra Large"
+        }
+    }
+
+    var dynamicTypeSize: DynamicTypeSize? {
+        switch self {
+        case .system:
+            #if canImport(UIKit)
+            let category = UIApplication.shared.preferredContentSizeCategory
+            switch category {
+            case .extraSmall: return .xSmall
+            case .small: return .small
+            case .medium: return .medium
+            case .large: return .large
+            case .extraLarge: return .xLarge
+            case .extraExtraLarge: return .xxLarge
+            case .extraExtraExtraLarge: return .xxxLarge
+            case .accessibilityMedium: return .accessibility1
+            case .accessibilityLarge: return .accessibility2
+            case .accessibilityExtraLarge: return .accessibility3
+            case .accessibilityExtraExtraLarge: return .accessibility4
+            case .accessibilityExtraExtraExtraLarge: return .accessibility5
+            default:
+                return nil
+            }
+            #else
+            return nil
+            #endif
+        case .xSmall: return .xSmall
+        case .small: return .small
+        case .medium: return .medium
+        case .large: return .large
+        case .xLarge: return .xLarge
+        case .xxLarge: return .xxLarge
+        case .xxxLarge: return .xxxLarge
+        case .accessibility1: return .accessibility1
+        case .accessibility2: return .accessibility2
+        case .accessibility3: return .accessibility3
+        case .accessibility4: return .accessibility4
+        case .accessibility5: return .accessibility5
+        }
+    }
+}
+
 #if DEBUG
 extension AppSettings {
     func resetAll() {
@@ -187,12 +296,16 @@ extension AppSettings {
         local.removeObject(forKey: Keys.startOfDayHour)
         local.removeObject(forKey: Keys.startOfDayMinute)
         local.removeObject(forKey: Keys.didSeedBabiesOnce)
+        local.removeObject(forKey: Keys.didSeedBabiesOnce)
         local.removeObject(forKey: Keys.recentHashtags)
+        local.removeObject(forKey: Keys.preferredFontScale)
 
         ubiquitous.removeObject(forKey: Keys.startOfDayHour)
         ubiquitous.removeObject(forKey: Keys.startOfDayMinute)
         ubiquitous.removeObject(forKey: Keys.didSeedBabiesOnce)
+        ubiquitous.removeObject(forKey: Keys.didSeedBabiesOnce)
         ubiquitous.removeObject(forKey: Keys.recentHashtags)
+        ubiquitous.removeObject(forKey: Keys.preferredFontScale)
         ubiquitous.synchronize()
     }
 }

@@ -74,6 +74,40 @@ struct SettingsView: View {
                     .pickerStyle(.segmented)
                 }
 
+                Section(header: Text("Appearance")) {
+                    VStack(spacing: 12) {
+                        HStack {
+                            Image(systemName: "textformat.size.smaller")
+                            Spacer()
+                            Text(settings.preferredFontScale.label)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                            Spacer()
+                            Image(systemName: "textformat.size.larger")
+                        }
+                        .font(.body)
+                        .foregroundStyle(.secondary)
+                        
+                        Slider(
+                            value: Binding(
+                                get: {
+                                    Double(AppFontScale.allCases.firstIndex(of: settings.preferredFontScale) ?? 0)
+                                },
+                                set: { newValue in
+                                    let index = Int(round(newValue))
+                                    if index >= 0 && index < AppFontScale.allCases.count {
+                                        settings.preferredFontScale = AppFontScale.allCases[index]
+                                    }
+                                }
+                            ),
+                            in: 0...Double(AppFontScale.allCases.count - 1),
+                            step: 1
+                        )
+                        .accessibilityIdentifier("FontSizeSlider")
+                    }
+                    .padding(.vertical, 8)
+                }
+
                 Section(header: Text("Siri & Shortcuts")) {
                     Text("Add shortcuts to quickly start and finish feedings, or log diaper changes using Siri or the Shortcuts app.")
                         .font(.subheadline)

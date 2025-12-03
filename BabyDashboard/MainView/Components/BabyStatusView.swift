@@ -4,7 +4,8 @@ import Model
 
 struct BabyStatusView2: View {
     @ObservedObject var baby: BabyProfile
-    
+    @EnvironmentObject var settings: AppSettings
+
     // Animation States
     var isFeedAnimating: Bool = false
     var isDiaperAnimating: Bool = false
@@ -224,43 +225,56 @@ struct BabyStatusView2: View {
     
     // MARK: - Helpers
     
-    private func formattedDuration(from interval: TimeInterval) -> String {
+    private var isLargeDynamicType: Bool {
+        if let size = settings.preferredFontScale.dynamicTypeSize {
+            return size > .accessibility3
+        }
+        return false
+    }
+
+    private func makeComponentsFormatter(allowedUnits: NSCalendar.Unit) -> DateComponentsFormatter {
         let formatter = DateComponentsFormatter()
-        formatter.allowedUnits = [.hour, .minute]
+        formatter.allowedUnits = allowedUnits
         formatter.unitsStyle = .abbreviated
+        if isLargeDynamicType {
+            var enCalendar = Calendar(identifier: .gregorian)
+            enCalendar.locale = Locale(identifier: "en_US_POSIX")
+            formatter.calendar = enCalendar
+        }
         formatter.zeroFormattingBehavior = [.dropAll]
+        return formatter
+    }
+    
+    private func formattedDuration(from interval: TimeInterval) -> String {
+        let formatter = makeComponentsFormatter(allowedUnits: [.hour, .minute])
         guard let formatted = formatter.string(from: interval) else { return "" }
         return String(localized: "in \(formatted)")
     }
     
     private func formattedElapsingTime(from interval: TimeInterval) -> String {
-        let formatter = DateComponentsFormatter()
-        formatter.allowedUnits = [.hour, .minute]
-        formatter.unitsStyle = .abbreviated
-        formatter.zeroFormattingBehavior = [.dropAll]
+        let formatter = makeComponentsFormatter(allowedUnits: [.hour, .minute])
         guard let formatted = formatter.string(from: interval) else { return "" }
+        if isLargeDynamicType {
+            return formatted
+        }
         return String(localized: "\(formatted) ago")
     }
 
     private func formatElapsedTime(from interval: TimeInterval) -> String {
-        if interval < 60 {
-            return String(localized: "Just now")
-        }
-        let formatter = DateComponentsFormatter()
-        formatter.allowedUnits = [.hour, .minute]
-        formatter.unitsStyle = .abbreviated // e.g. "1h 20m"
-        formatter.zeroFormattingBehavior = [.dropAll]
+        if interval < 60 { return String(localized: "Just now") }
+        let formatter = makeComponentsFormatter(allowedUnits: [.hour, .minute])
         if let formatted = formatter.string(from: interval) {
+            if isLargeDynamicType {
+                return formatted
+            }
             return String(localized: "\(formatted) ago")
         }
         return String(localized: "Just now")
     }
 
     private func formattedElapsedIncludingSeconds(from interval: TimeInterval) -> String {
-        let formatter = DateComponentsFormatter()
-        formatter.allowedUnits = interval < 60 ? [.second] : [.hour, .minute, .second]
-        formatter.unitsStyle = .abbreviated
-        formatter.zeroFormattingBehavior = [.dropAll]
+        let units: NSCalendar.Unit = interval < 60 ? [.second] : [.hour, .minute, .second]
+        let formatter = makeComponentsFormatter(allowedUnits: units)
         if let formatted = formatter.string(from: interval) {
             return formatted
         }
@@ -312,6 +326,7 @@ struct BabyStatusView2_Previews: PreviewProvider {
                 onLastDiaperTap: { _ in }
             )
             .previewDisplayName("Normal")
+            .environmentObject(AppSettings())
             
             BabyStatusView2(
                 baby: babyEmpty,
@@ -323,6 +338,7 @@ struct BabyStatusView2_Previews: PreviewProvider {
                 onLastDiaperTap: { _ in }
             )
             .previewDisplayName("Empty")
+            .environmentObject(AppSettings())
             
             BabyStatusView2(
                 baby: babyOverdue,
@@ -334,6 +350,7 @@ struct BabyStatusView2_Previews: PreviewProvider {
                 onLastDiaperTap: { _ in }
             )
             .previewDisplayName("Overdue")
+            .environmentObject(AppSettings())
             
             BabyStatusView2(
                 baby: babyInProgress,
@@ -345,6 +362,7 @@ struct BabyStatusView2_Previews: PreviewProvider {
                 onLastDiaperTap: { _ in }
             )
             .previewDisplayName("In Progress")
+            .environmentObject(AppSettings())
         }
         .environment(\.managedObjectContext, context)
         .previewLayout(.sizeThatFits)
@@ -355,3 +373,4 @@ struct BabyStatusView2_Previews: PreviewProvider {
     }
 }
 #endif
+
