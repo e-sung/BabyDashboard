@@ -337,13 +337,12 @@ public extension CustomEvent {
         self.timestamp = timestamp
         self.eventType = eventType
     }
-
+    
     override func awakeFromInsert() {
         super.awakeFromInsert()
         uuid = UUID()
         timestamp = Date.current
     }
-
 }
 
 extension CustomEvent {
@@ -359,3 +358,4 @@ extension CustomEvent {
 }
 
 extension CustomEvent: Identifiable, Hashtagable {}
+
