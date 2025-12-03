@@ -358,4 +358,3 @@ extension CustomEvent {
 }
 
 extension CustomEvent: Identifiable, Hashtagable {}
-
