@@ -22,6 +22,11 @@ struct HistoryView: View {
         animation: .default
     ) private var babies: FetchedResults<BabyProfile>
 
+    @FetchRequest(
+        fetchRequest: HistoryView.makeCustomEventRequest(),
+        animation: .default
+    ) private var customEvents: FetchedResults<CustomEvent>
+
     @State private var eventToEdit: HistoryEvent?
     @State private var selectedBabyID: UUID? = nil
     @State private var selectedEventFilter: EventFilter = .all
@@ -66,7 +71,8 @@ struct HistoryView: View {
     private var historyEvents: [HistoryEvent] {
         let feedEvents = feedSessions.map { HistoryEvent(from: $0) }
         let diaperEvents = diaperChanges.map { HistoryEvent(from: $0) }
-        return (feedEvents + diaperEvents).sorted(by: { $0.date > $1.date })
+        let customEventsList = customEvents.map { HistoryEvent(from: $0) }
+        return (feedEvents + diaperEvents + customEventsList).sorted(by: { $0.date > $1.date })
     }
 
     private var filteredEvents: [HistoryEvent] {
@@ -82,6 +88,11 @@ struct HistoryView: View {
                 case .diaper:
                     if let change = diaperChanges.first(where: { $0.objectID == event.underlyingObjectId }) {
                         return change.profile?.id == selectedBabyID
+                    }
+                    return false
+                case .customEvent:
+                    if let customEvent = customEvents.first(where: { $0.objectID == event.underlyingObjectId }) {
+                        return customEvent.profile?.id == selectedBabyID
                     }
                     return false
                 @unknown default:
@@ -195,7 +206,8 @@ struct HistoryView: View {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Done") { dismiss() }
                 }
-                ToolbarItem(placement: .primaryAction) {
+                ToolbarItemGroup(placement: .primaryAction) {
+                    // Filters
                     Button { isShowingFilters = true } label: {
                         Image(systemName: hasActiveFilters ? "line.3.horizontal.decrease.circle.fill" : "line.3.horizontal.decrease.circle")
                             .symbolRenderingMode(.hierarchical)
@@ -203,9 +215,8 @@ struct HistoryView: View {
                             .foregroundStyle(hasActiveFilters ? AnyShapeStyle(.tint) : AnyShapeStyle(.secondary))
                     }
                     .accessibilityLabel(Text("Filters"))
-//                    .accessibilityValue(Text(filtersAccessibilityValue))
-                }
-                ToolbarItem(placement: .primaryAction) {
+                    
+                    // Add Event
                     Button { isShowingAddSheet = true } label: {
                         Image(systemName: "plus")
                     }
@@ -345,6 +356,10 @@ struct HistoryView: View {
             if let change = diaperChanges.first(where: { $0.objectID == event.underlyingObjectId }) {
                 return .diaper(change)
             }
+        case .customEvent:
+            if let customEvent = customEvents.first(where: { $0.objectID == event.underlyingObjectId }) {
+                return .customEvent(customEvent)
+            }
         @unknown default:
             return nil
         }
@@ -363,6 +378,10 @@ struct HistoryView: View {
             case .diaper:
                 if let change = diaperChanges.first(where: { $0.objectID == event.underlyingObjectId }) {
                     viewContext.delete(change)
+                }
+            case .customEvent:
+                if let customEvent = customEvents.first(where: { $0.objectID == event.underlyingObjectId }) {
+                    viewContext.delete(customEvent)
                 }
             @unknown default:
                 break
@@ -443,6 +462,12 @@ private extension HistoryView {
         request.sortDescriptors = [NSSortDescriptor(key: "createdAt", ascending: true)]
         return request
     }
+
+    static func makeCustomEventRequest() -> NSFetchRequest<CustomEvent> {
+        let request: NSFetchRequest<CustomEvent> = CustomEvent.fetchRequest()
+        request.sortDescriptors = [NSSortDescriptor(key: "timestamp", ascending: false)]
+        return request
+    }
 }
 
 private struct FilterSheet: View {
@@ -482,12 +507,13 @@ private struct FilterSheet: View {
 
 private struct AddHistorySheet: View {
     enum AddType: String, CaseIterable, Identifiable {
-        case feed, diaper
+        case feed, diaper, customEvent
         var id: String { rawValue }
         var title: String {
             switch self {
             case .feed: return String(localized: "Feed")
             case .diaper: return String(localized: "Diaper")
+            case .customEvent: return String(localized: "Custom Event")
             }
         }
     }
@@ -507,6 +533,11 @@ private struct AddHistorySheet: View {
     @State private var amountString: String = ""
     @State private var diaperTime: Date = Date.current
     @State private var diaperType: DiaperType = .pee
+    @State private var customEventTime: Date = Date.current
+    @State private var selectedCustomEventType: CustomEventType?
+    @State private var availableCustomEventTypes: [CustomEventType] = []
+    @State private var memoText: String = ""
+    @State private var isShowingAddEventType = false
 
     var body: some View {
         NavigationView {
@@ -542,7 +573,7 @@ private struct AddHistorySheet: View {
                                 .foregroundStyle(.secondary)
                         }
                     }
-                } else {
+                } else if addType == .diaper {
                     Section(String(localized: "Time")) {
                         DatePicker(String(localized: "Time"), selection: $diaperTime)
                     }
@@ -552,6 +583,61 @@ private struct AddHistorySheet: View {
                             Text(String(localized: "Poo")).tag(DiaperType.poo)
                         }
                         .pickerStyle(.segmented)
+                    }
+                    Section(String(localized: "Memo")) {
+                        TextField(String(localized: "Add notes or #hashtags"), text: $memoText, axis: .vertical)
+                            .lineLimit(3...6)
+                    }
+                } else if addType == .customEvent {
+                    Section(String(localized: "Event Type")) {
+                        if availableCustomEventTypes.isEmpty {
+                            Button {
+                                isShowingAddEventType = true
+                            } label: {
+                                HStack {
+                                    Image(systemName: "plus.circle.fill")
+                                        .foregroundStyle(.blue)
+                                    Text("Create First Event Type")
+                                        .foregroundStyle(.primary)
+                                    Spacer()
+                                }
+                            }
+                        } else {
+                            Picker(String(localized: "Event Type"), selection: $selectedCustomEventType) {
+                                ForEach(availableCustomEventTypes) { eventType in
+                                    HStack {
+                                        Text(eventType.emoji)
+                                        Text(eventType.name)
+                                    }
+                                    .tag(Optional(eventType))
+                                }
+                                
+                                // Add new event type option
+                                HStack {
+                                    Image(systemName: "plus.circle.fill")
+                                    Text("Add New EventType...")
+                                }
+                                .tag(Optional<CustomEventType>.none)
+                            }
+                            .onChange(of: selectedCustomEventType) { oldValue, newValue in
+                                // If user selected the "Add New" option (nil), show sheet
+                                if newValue == nil && oldValue != nil {
+                                    isShowingAddEventType = true
+                                    // Restore previous selection
+                                    selectedCustomEventType = oldValue
+                                }
+                            }
+                        }
+                    }
+                    
+                    if !availableCustomEventTypes.isEmpty {
+                        Section(String(localized: "Time")) {
+                            DatePicker(String(localized: "Time"), selection: $customEventTime)
+                        }
+                        Section(String(localized: "Memo")) {
+                            TextField(String(localized: "Add notes or #hashtags"), text: $memoText, axis: .vertical)
+                                .lineLimit(3...6)
+                        }
                     }
                 }
             }
@@ -576,10 +662,26 @@ private struct AddHistorySheet: View {
                 if feedEnd < feedStart {
                     feedEnd = feedStart.addingTimeInterval(15 * 60)
                 }
+                // Load custom event types for the selected baby
+                updateAvailableCustomEventTypes()
+            }
+            .onChange(of: selectedBabyID) { _, _ in
+                updateAvailableCustomEventTypes()
             }
             .onChange(of: feedStart) { _, newStart in
                 if feedEnd < newStart {
-                    feedEnd = newStart
+                    feedEnd = newStart.addingTimeInterval(15 * 60)
+                }
+            }
+            .sheet(isPresented: $isShowingAddEventType) {
+                if let babyID = selectedBabyID,
+                   let baby = babies.first(where: { $0.id == babyID }) {
+                    AddCustomEventTypeSheet(baby: baby) {
+                        isShowingAddEventType = false
+                        // Refresh available types
+                        updateAvailableCustomEventTypes()
+                    }
+                    .environment(\.managedObjectContext, context)
                 }
             }
         }
@@ -594,6 +696,8 @@ private struct AddHistorySheet: View {
             return true
         case .diaper:
             return true
+        case .customEvent:
+            return selectedCustomEventType != nil
         }
     }
 
@@ -610,8 +714,28 @@ private struct AddHistorySheet: View {
         case .diaper:
             let change = DiaperChange(context: context, timestamp: diaperTime, type: diaperType)
             change.profile = baby
+            change.memoText = memoText.isEmpty ? nil : memoText
+        case .customEvent:
+            guard let eventType = selectedCustomEventType else { return }
+            let event = CustomEvent(context: context, timestamp: customEventTime, eventType: eventType)
+            event.profile = baby
+            event.memoText = memoText.isEmpty ? nil : memoText
         }
         onSave()
         dismiss()
+    }
+
+    private func updateAvailableCustomEventTypes() {
+        guard let babyID = selectedBabyID,
+              let baby = babies.first(where: { $0.id == babyID }) else {
+            availableCustomEventTypes = []
+            selectedCustomEventType = nil
+            return
+        }
+        availableCustomEventTypes = baby.customEventTypesArray
+        // Auto-select first type if available and nothing selected
+        if selectedCustomEventType == nil {
+            selectedCustomEventType = availableCustomEventTypes.first
+        }
     }
 }

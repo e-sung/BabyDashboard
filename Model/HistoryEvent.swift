@@ -1,7 +1,7 @@
 import Foundation
 import CoreData
 
-public enum HistoryEventType { case feed, diaper }
+public enum HistoryEventType { case feed, diaper, customEvent }
 
 public struct HistoryEvent: Identifiable, Hashable, Equatable {
     public let id: UUID
@@ -10,6 +10,7 @@ public struct HistoryEvent: Identifiable, Hashable, Equatable {
     public let type: HistoryEventType
     public let details: String
     public let diaperType: DiaperType?
+    public let emoji: String?
     public let hashtags: [String]
     public let underlyingObjectId: NSManagedObjectID?
 
@@ -21,7 +22,8 @@ public struct HistoryEvent: Identifiable, Hashable, Equatable {
         details: String,
         diaperType: DiaperType?,
         underlyingObjectId: NSManagedObjectID?,
-        hashtags: [String] = []
+        hashtags: [String] = [],
+        emoji: String? = nil
     ) {
         self.id = id
         self.date = date
@@ -31,6 +33,7 @@ public struct HistoryEvent: Identifiable, Hashable, Equatable {
         self.diaperType = diaperType
         self.underlyingObjectId = underlyingObjectId
         self.hashtags = hashtags
+        self.emoji = emoji
     }
 
     public func hash(into hasher: inout Hasher) {
@@ -79,7 +82,24 @@ public extension HistoryEvent {
             details: detailsText,
             diaperType: diaper,
             underlyingObjectId: diaperChange.objectID,
-            hashtags: []
+            hashtags: diaperChange.hashtags
+        )
+    }
+
+    init(from customEvent: CustomEvent) {
+        let eventTypeName = customEvent.eventType?.name ?? "Unknown"
+        let emoji = customEvent.eventType?.emoji ?? "📝"
+
+        self.init(
+            id: customEvent.uuid,
+            date: customEvent.timestamp,
+            babyName: customEvent.profile?.name ?? "Unknown",
+            type: .customEvent,
+            details: eventTypeName,
+            diaperType: nil,
+            underlyingObjectId: customEvent.objectID,
+            hashtags: customEvent.hashtags,
+            emoji: emoji
         )
     }
 }

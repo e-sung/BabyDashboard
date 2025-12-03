@@ -48,3 +48,57 @@ enum DiaperTypeAppEnum: String, AppEnum {
         .poo: "Poo"
     ]
 }
+
+struct CustomEventTypeEntity: AppEntity {
+    let id: UUID
+    let name: String
+    let emoji: String
+    let babyId: UUID
+
+    static var typeDisplayRepresentation: TypeDisplayRepresentation = "Custom Event Type"
+    static var defaultQuery = CustomEventTypeQuery()
+
+    var displayRepresentation: DisplayRepresentation {
+        DisplayRepresentation(title: "\(emoji) \(name)")
+    }
+}
+
+struct CustomEventTypeQuery: EntityQuery {
+    @MainActor
+    private var viewContext: NSManagedObjectContext {
+        PersistenceController.shared.viewContext
+    }
+
+    @MainActor
+    func entities(for identifiers: [UUID]) async throws -> [CustomEventTypeEntity] {
+        let request: NSFetchRequest<CustomEventType> = CustomEventType.fetchRequest()
+        let eventTypes = try viewContext.fetch(request)
+        return eventTypes
+            .filter { identifiers.contains($0.id) }
+            .compactMap { eventType in
+                guard let babyId = eventType.profile?.id else { return nil }
+                return CustomEventTypeEntity(
+                    id: eventType.id,
+                    name: eventType.name,
+                    emoji: eventType.emoji,
+                    babyId: babyId
+                )
+            }
+    }
+
+    @MainActor
+    func suggestedEntities() async throws -> [CustomEventTypeEntity] {
+        let request: NSFetchRequest<CustomEventType> = CustomEventType.fetchRequest()
+        request.sortDescriptors = [NSSortDescriptor(key: #keyPath(CustomEventType.createdAt), ascending: true)]
+        let eventTypes = try viewContext.fetch(request)
+        return eventTypes.compactMap { eventType in
+            guard let babyId = eventType.profile?.id else { return nil }
+            return CustomEventTypeEntity(
+                id: eventType.id,
+                name: eventType.name,
+                emoji: eventType.emoji,
+                babyId: babyId
+            )
+        }
+    }
+}

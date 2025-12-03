@@ -6,12 +6,18 @@ struct HistoryRowView: View {
 
     var body: some View {
         HStack(spacing: 15) {
-            if event.type == .diaper {
+            // Custom events use emoji from the event type
+            if event.type == .customEvent, let emoji = event.emoji {
+                Text(emoji)
+                    .font(.title2)
+                    .frame(width: 30)
+            }
+            else if event.type == .diaper {
                 Image("diaper")
                     .resizable()
                     .frame(width: 30, height: 30)
             }
-            if event.type == .feed {
+            else if event.type == .feed {
                 Text("🍼")
                     .font(.title2)
                     .frame(width: 30)
