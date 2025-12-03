@@ -286,7 +286,7 @@ struct HistoryAnalysisView: View {
         let unit = targetUnit
         yAxisFormatter = { value in
             let measurement = Measurement(value: value, unit: unit)
-            return measurement.formatted(.measurement(width: .abbreviated, usage: .asProvided, numberFormatStyle: .number.precision(.fractionLength(0))))
+            return measurement.formatted(.measurement(width: .abbreviated, usage: .asProvided, numberFormatStyle: .number.precision(.fractionLength(UnitUtils.baseFractionLength))))
         }
     }
 

@@ -15,7 +15,14 @@ public struct UnitUtils {
             UserDefaults.standard.set(newValue.symbol, forKey: preferredUnitKey)
         }
     }
-    
+
+    public static var baseFractionLength: Int {
+        if preferredUnit == .fluidOunces {
+            return 1
+        }
+        return 0
+    }
+
     public static func format(measurement: Measurement<UnitVolume>) -> String {
         let formatter = MeasurementFormatter()
         formatter.unitOptions = .providedUnit

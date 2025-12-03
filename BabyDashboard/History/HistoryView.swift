@@ -296,7 +296,7 @@ struct HistoryView: View {
                         .fontWeight(.semibold)
                     Spacer()
                     if let total = section.feedTotalsByBaby[name] {
-                        Text(total.formatted(.measurement(width: .abbreviated, usage: .asProvided, numberFormatStyle: .number.precision(.fractionLength(UnitUtils.preferredUnit == .fluidOunces ? 1 : 0 )))))
+                        Text(total.formatted(.measurement(width: .abbreviated, usage: .asProvided, numberFormatStyle: .number.precision(.fractionLength(UnitUtils.baseFractionLength)))))
                             .font(.subheadline)
                     }
                     let diaperCount = section.diaperCountsByBaby[name, default: 0]

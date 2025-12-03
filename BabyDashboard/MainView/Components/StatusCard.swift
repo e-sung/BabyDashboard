@@ -1,4 +1,5 @@
 import SwiftUI
+import Model
 
 enum StatusIcon {
     case emoji(String)
@@ -82,7 +83,7 @@ struct StatusCard: View {
         }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(Text("\(title), \(mainText)"))
-        .accessibilityValue(Text(progress, format: .percent.precision(.fractionLength(0))))
+        .accessibilityValue(Text(progress, format: .percent.precision(.fractionLength(UnitUtils.baseFractionLength))))
         .accessibilityHint(Text(accessibilityHintText))
         .accessibilityCustomContent("Last Session summary", footerText)
         .accessibilityCustomContent("Interval", criteriaLabel)

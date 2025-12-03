@@ -231,7 +231,7 @@ private extension MainView {
             set: { newValue in
                 let clamped = max(0, newValue)
                 // Format as integer string
-                feedAmountString = clamped.formatted(.number.precision(.fractionLength(0)))
+                feedAmountString = clamped.formatted(.number.precision(.fractionLength(UnitUtils.baseFractionLength)))
             }
         )
 
@@ -269,7 +269,7 @@ private extension MainView {
             guard let latestFeedAmount = baby.lastFinishedFeedSession?.amountValue else {
                 return
             }
-            feedAmountString = latestFeedAmount.formatted(.number.precision(.fractionLength(0)))
+            feedAmountString = latestFeedAmount.formatted(.number.precision(.fractionLength(UnitUtils.baseFractionLength)))
         }
     }
     

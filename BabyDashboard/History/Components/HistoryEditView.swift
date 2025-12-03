@@ -156,7 +156,8 @@ struct HistoryEditView: View {
         if let session = feedSession {
             let preferredUnit = UnitUtils.preferredUnit
             let amount = session.amount?.converted(to: preferredUnit).value ?? 0
-            amountString = String(format: "%.1f", amount)
+            let format = "%.\(UnitUtils.baseFractionLength)f"
+            amountString = String(format: format, amount)
             memoText = session.memoText ?? ""
             startTime = session.startTime
             endTime = session.endTime ?? Date.current
