@@ -14,6 +14,7 @@ struct BabyDashboardApp: App {
     @UIApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
 
     @StateObject private var settings = AppSettings()
+    @StateObject private var forceUpdateManager = ForceUpdateManager()
     @Environment(\.scenePhase) private var scenePhase
 
     private let persistenceController = PersistenceController.shared
@@ -26,8 +27,14 @@ struct BabyDashboardApp: App {
             .environment(\.managedObjectContext, persistenceController.viewContext)
             .environmentObject(settings)
             .task {
+                // Check for force update on launch
+                await forceUpdateManager.checkForUpdate()
+                
                 // Start nearby sync on launch
                 NearbySyncManager.shared.start()
+            }
+            .fullScreenCover(isPresented: $forceUpdateManager.updateRequired) {
+                ForceUpdateView()
             }
             .onAppear {
                 if ProcessInfo.processInfo.arguments.contains("-FastAnimations") {
