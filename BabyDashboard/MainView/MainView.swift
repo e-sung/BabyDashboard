@@ -520,3 +520,4 @@ private struct ToastView: View {
         .environmentObject(AppSettings())
         .environment(\.managedObjectContext, context)
 }
+
