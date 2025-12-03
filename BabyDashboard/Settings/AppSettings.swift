@@ -80,14 +80,12 @@ final class AppSettings: ObservableObject {
         self.startOfDayHour = hour
         self.startOfDayMinute = minute
         self.didSeedBabiesOnce = seeded
-        self.didSeedBabiesOnce = seeded
         self.recentHashtags = hashtags
         self.preferredFontScale = AppFontScale(rawValue: fontScaleRaw) ?? .system
 
         // Keep local store consistent with the chosen initial values
         local.set(hour, forKey: Keys.startOfDayHour)
         local.set(minute, forKey: Keys.startOfDayMinute)
-        local.set(seeded, forKey: Keys.didSeedBabiesOnce)
         local.set(seeded, forKey: Keys.didSeedBabiesOnce)
         local.set(hashtags, forKey: Keys.recentHashtags)
         local.set(fontScaleRaw, forKey: Keys.preferredFontScale)
@@ -296,13 +294,11 @@ extension AppSettings {
         local.removeObject(forKey: Keys.startOfDayHour)
         local.removeObject(forKey: Keys.startOfDayMinute)
         local.removeObject(forKey: Keys.didSeedBabiesOnce)
-        local.removeObject(forKey: Keys.didSeedBabiesOnce)
         local.removeObject(forKey: Keys.recentHashtags)
         local.removeObject(forKey: Keys.preferredFontScale)
 
         ubiquitous.removeObject(forKey: Keys.startOfDayHour)
         ubiquitous.removeObject(forKey: Keys.startOfDayMinute)
-        ubiquitous.removeObject(forKey: Keys.didSeedBabiesOnce)
         ubiquitous.removeObject(forKey: Keys.didSeedBabiesOnce)
         ubiquitous.removeObject(forKey: Keys.recentHashtags)
         ubiquitous.removeObject(forKey: Keys.preferredFontScale)
