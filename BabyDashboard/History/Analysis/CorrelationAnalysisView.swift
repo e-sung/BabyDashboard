@@ -28,24 +28,115 @@ struct CorrelationAnalysisView: View {
     
     var body: some View {
         Form {
-            Section("Configuration") {
-                Picker("Baby", selection: $viewModel.selectedBabyID) {
+            // Section 1: Baby Selection
+            Section("Baby") {
+                Picker("Select Baby", selection: $viewModel.selectedBabyID) {
                     Text("All Babies").tag(UUID?.none)
                     ForEach(babies) { baby in
                         Text(baby.name).tag(UUID?.some(baby.id))
                     }
                 }
                 .onChange(of: viewModel.selectedBabyID) { _, _ in viewModel.loadHashtags(context: viewContext) }
-                
-                Button {
-                    viewModel.showingHashtagSelection = true
-                } label: {
-                    HStack {
-                        Text("Source Hashtags")
-                        Spacer()
-                        Text("\(viewModel.selectedHashtags.count) selected")
-                            .foregroundStyle(.secondary)
+            }
+            
+            // Section 2: Correlation Definition
+            if !viewModel.availableHashtags.isEmpty {
+                Section("Analyze correlation of") {
+                    HStack(alignment: .top) {
+                        // Left: Source Hashtags
+                        VStack {
+                            Text("Hashtags")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                            
+                            Button {
+                                viewModel.showingHashtagSelection = true
+                            } label: {
+                                VStack(alignment: .leading, spacing: 4) {
+                                    if viewModel.selectedHashtags.isEmpty {
+                                        VStack {
+                                            Image(systemName: "number")
+                                                .font(.largeTitle)
+                                            Text("0 Selected")
+                                                .font(.caption)
+                                        }
+                                        .frame(maxWidth: .infinity)
+                                    } else {
+                                        let sortedTags = viewModel.selectedHashtags.sorted()
+                                        let displayTags = sortedTags.prefix(viewModel.selectedHashtags.count > 5 ? 4 : 5)
+
+                                        VStack {
+                                            Image(systemName: "number")
+                                                .font(.largeTitle)
+                                            FlowLayout(spacing: 6, rowSpacing: 6) {
+                                                ForEach(displayTags, id: \.self) { tag in
+                                                    TagCapsule(text: tag.hasPrefix("#") ? tag : "#\(tag)")
+                                                }
+                                            }
+                                            .accessibilityElement(children: .contain)
+                                        }
+
+                                        if viewModel.selectedHashtags.count > 5 {
+                                            Text("...and \(viewModel.selectedHashtags.count - 4) selected")
+                                                .font(.caption2)
+                                                .foregroundStyle(.secondary)
+                                                .padding(.leading, 4)
+                                        }
+                                    }
+                                }
+                                .frame(maxWidth: .infinity, minHeight: 60, alignment: viewModel.selectedHashtags.isEmpty ? .center : .leading)
+                                .padding(.vertical, 8)
+                                .padding(.horizontal, 4)
+                                .background(Color(uiColor: .secondarySystemBackground))
+                                .cornerRadius(8)
+                            }
+                            .buttonStyle(.plain)
+                        }
+                        
+                        // Center: Arrow
+                        VStack {
+                            Spacer()
+                            Image(systemName: "arrow.left.and.right")
+                                .foregroundStyle(.secondary)
+                                .padding(.top, 24)
+                            Spacer()
+                        }
+                        
+                        // Right: Target Event
+                        VStack {
+                            Text("Target")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                            
+                            Button {
+                                viewModel.showingTargetSelection = true
+                            } label: {
+                                VStack {
+                                    if viewModel.targetType == .feedAmount {
+                                        Text("🍼")
+                                            .font(.largeTitle)
+                                    } else if let id = viewModel.targetCustomEventTypeID,
+                                              let event = customEventTypes.first(where: { $0.id == id }) {
+                                        Text(event.emoji)
+                                            .font(.largeTitle)
+                                    } else {
+                                        Image(systemName: "target")
+                                            .font(.largeTitle)
+                                    }
+                                    
+                                    Text(viewModel.targetSummary)
+                                        .font(.caption)
+                                        .multilineTextAlignment(.center)
+                                }
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 8)
+                                .background(Color(uiColor: .secondarySystemBackground))
+                                .cornerRadius(8)
+                            }
+                            .buttonStyle(.plain)
+                        }
                     }
+                    .padding(.vertical, 4)
                 }
                 .sheet(isPresented: $viewModel.showingHashtagSelection) {
                     NavigationView {
@@ -59,54 +150,47 @@ struct CorrelationAnalysisView: View {
                             }
                     }
                 }
-                
-                Picker("Target Type", selection: $viewModel.targetType) {
-                    ForEach(TargetType.allCases) { type in
-                        Text(type.rawValue).tag(type)
+                .sheet(isPresented: $viewModel.showingTargetSelection) {
+                    NavigationView {
+                        TargetSelectionView(viewModel: viewModel, customEventTypes: customEventTypes)
+                            .toolbar {
+                                ToolbarItem(placement: .confirmationAction) {
+                                    Button("Done") {
+                                        viewModel.showingTargetSelection = false
+                                    }
+                                }
+                            }
                     }
                 }
-                
-                if viewModel.targetType == .customEvent || viewModel.targetType == .customEventWithHashtag {
-                    Picker("Event Type", selection: $viewModel.targetCustomEventTypeID) {
-                        Text("Select Event...").tag(UUID?.none)
-                        ForEach(customEventTypes) { type in
-                            Text(type.emoji + " " + type.name).tag(UUID?.some(type.id))
-                        }
-                    }
-                }
-                
-                if viewModel.targetType == .customEventWithHashtag {
-                    TextField("Target Hashtag (e.g. severe)", text: $viewModel.targetHashtag)
-                        .autocorrectionDisabled()
-                        .textInputAutocapitalization(.never)
-                }
-                
-                if viewModel.targetType != .feedAmount {
-                    Picker("Time Window", selection: $viewModel.timeWindow) {
-                        Text("30 min").tag(1800.0)
-                        Text("1 hour").tag(3600.0)
-                        Text("2 hours").tag(7200.0)
-                        Text("4 hours").tag(14400.0)
-                        Text("12 hours").tag(43200.0)
-                        Text("24 hours").tag(86400.0)
-                    }
-                }
-                
-                Button {
-                    viewModel.runAnalysis(context: viewContext)
-                } label: {
-                    if viewModel.isAnalyzing {
-                        ProgressView()
-                    } else {
-                        Text("Analyze")
-                            .frame(maxWidth: .infinity)
-                    }
-                }
-                .disabled(viewModel.isAnalyzing || viewModel.selectedHashtags.isEmpty || (viewModel.targetType != .feedAmount && viewModel.targetCustomEventTypeID == nil))
             }
             
+
+            
+            // Section 5: Analyze Button
+            if canAnalyze {
+                Section {
+                    Button {
+                        viewModel.runAnalysis(context: viewContext)
+                    } label: {
+                        if viewModel.isAnalyzing {
+                            HStack {
+                                Spacer()
+                                ProgressView()
+                                Spacer()
+                            }
+                        } else {
+                            Text("Analyze")
+                                .frame(maxWidth: .infinity)
+                                .fontWeight(.bold)
+                        }
+                    }
+                    .disabled(viewModel.isAnalyzing)
+                }
+            }
+            
+            // Section 6: Results
             if !viewModel.results.isEmpty {
-                Section("Correlation Coefficient") {
+                Section("Analysis Results") {
                     Chart(viewModel.results) { result in
                         BarMark(
                             x: .value("Hashtag", result.hashtag),
@@ -149,10 +233,6 @@ struct CorrelationAnalysisView: View {
                                     Text("(Significant)")
                                         .font(.caption)
                                         .foregroundStyle(.green)
-                                } else {
-                                    Text("(Not Significant)")
-                                        .font(.caption)
-                                        .foregroundStyle(.secondary)
                                 }
                                 
                                 Spacer()
@@ -171,20 +251,20 @@ struct CorrelationAnalysisView: View {
                         .padding(.vertical, 4)
                     }
                 }
-            } else if !viewModel.isAnalyzing {
-                EmptyView()
             }
         }
         .navigationTitle("Correlation Analysis")
         .onAppear {
             viewModel.loadHashtags(context: viewContext)
-            // Default to Vomit if available and not set
-            if viewModel.targetCustomEventTypeID == nil {
-                if let vomitType = customEventTypes.first(where: { $0.name.localizedCaseInsensitiveContains("vomit") }) {
-                    viewModel.targetCustomEventTypeID = vomitType.id
-                }
-            }
         }
+    }
+    
+
+    
+    private var canAnalyze: Bool {
+        guard !viewModel.selectedHashtags.isEmpty else { return false }
+        if viewModel.targetType == .feedAmount { return true }
+        return viewModel.targetCustomEventTypeID != nil
     }
 }
 
@@ -221,5 +301,41 @@ struct HashtagSelectionView: View {
             }
         }
         .navigationTitle("Select Hashtags")
+    }
+}
+
+struct TargetSelectionView: View {
+    @ObservedObject var viewModel: CorrelationAnalysisViewModel
+    var customEventTypes: FetchedResults<CustomEventType>
+    
+    var body: some View {
+        Form {
+            Section("Target Type") {
+                Picker("Type", selection: $viewModel.targetType) {
+                    ForEach(CorrelationAnalysisView.TargetType.allCases) { type in
+                        Text(type.rawValue).tag(type)
+                    }
+                }
+                .pickerStyle(.inline)
+            }
+            
+            if viewModel.targetType == .customEvent || viewModel.targetType == .customEventWithHashtag {
+                Section("Event Details") {
+                    Picker("Event Type", selection: $viewModel.targetCustomEventTypeID) {
+                        Text("Select Event...").tag(UUID?.none)
+                        ForEach(customEventTypes) { type in
+                            Text(type.emoji + " " + type.name).tag(UUID?.some(type.id))
+                        }
+                    }
+                    
+                    if viewModel.targetType == .customEventWithHashtag {
+                        TextField("Target Hashtag (e.g. severe)", text: $viewModel.targetHashtag)
+                            .autocorrectionDisabled()
+                            .textInputAutocapitalization(.never)
+                    }
+                }
+            }
+        }
+        .navigationTitle("Select Target")
     }
 }

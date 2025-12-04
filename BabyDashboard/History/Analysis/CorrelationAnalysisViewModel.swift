@@ -18,9 +18,7 @@ class CorrelationAnalysisViewModel: ObservableObject {
     @Published var targetHashtag: String = "" {
         didSet { saveState() }
     }
-    @Published var timeWindow: TimeInterval = 3600 {
-        didSet { saveState() }
-    }
+
     @Published var selectedBabyID: UUID? {
         didSet { saveState() }
     }
@@ -30,6 +28,18 @@ class CorrelationAnalysisViewModel: ObservableObject {
     @Published var isAnalyzing = false
     @Published var availableHashtags: [String] = []
     @Published var showingHashtagSelection = false
+    @Published var showingTargetSelection = false
+    
+    var targetSummary: String {
+        switch targetType {
+        case .customEvent:
+            return "Custom Event"
+        case .customEventWithHashtag:
+            return "Event + Hashtag"
+        case .feedAmount:
+            return "Feed Amount"
+        }
+    }
     
     private var analysisTask: Task<Void, Never>?
     private let userDefaultsKey = "CorrelationAnalysisState"
@@ -37,6 +47,8 @@ class CorrelationAnalysisViewModel: ObservableObject {
     init() {
         loadState()
     }
+    
+    // MARK: - Actions
     
     // MARK: - Actions
     
@@ -79,7 +91,7 @@ class CorrelationAnalysisViewModel: ObservableObject {
             let newResults = await analyzer.analyze(
                 sourceHashtags: Array(selectedHashtags),
                 target: target,
-                timeWindow: timeWindow,
+
                 dateInterval: interval,
                 babyID: selectedBabyID
             )
@@ -96,7 +108,7 @@ class CorrelationAnalysisViewModel: ObservableObject {
         let targetTypeRawValue: String
         let targetCustomEventTypeID: UUID?
         let targetHashtag: String
-        let timeWindow: TimeInterval
+
         let selectedBabyID: UUID?
     }
     
@@ -106,7 +118,7 @@ class CorrelationAnalysisViewModel: ObservableObject {
             targetTypeRawValue: targetType.rawValue,
             targetCustomEventTypeID: targetCustomEventTypeID,
             targetHashtag: targetHashtag,
-            timeWindow: timeWindow,
+
             selectedBabyID: selectedBabyID
         )
         
@@ -127,7 +139,7 @@ class CorrelationAnalysisViewModel: ObservableObject {
         }
         self.targetCustomEventTypeID = state.targetCustomEventTypeID
         self.targetHashtag = state.targetHashtag
-        self.timeWindow = state.timeWindow
+
         self.selectedBabyID = state.selectedBabyID
     }
 }

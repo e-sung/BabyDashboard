@@ -66,7 +66,7 @@ actor CorrelationAnalyzer {
     func analyze(
         sourceHashtags: [String],
         target: CorrelationTarget,
-        timeWindow: TimeInterval,
+        timeWindow: TimeInterval = 3600,
         dateInterval: DateInterval,
         babyID: UUID?
     ) async -> [CorrelationResult] {

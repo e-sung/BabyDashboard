@@ -46,7 +46,7 @@ struct CorrelationAnalyzerTests {
         let results = await analyzer.analyze(
             sourceHashtags: ["branda"],
             target: .customEvent(typeID: vomitType.id),
-            timeWindow: 3600,
+
             dateInterval: dateInterval,
             babyID: baby.id
         )
@@ -97,7 +97,7 @@ struct CorrelationAnalyzerTests {
         let results = await analyzer.analyze(
             sourceHashtags: ["branda"],
             target: .feedAmount,
-            timeWindow: 0, // Should be ignored
+
             dateInterval: dateInterval,
             babyID: baby.id
         )
