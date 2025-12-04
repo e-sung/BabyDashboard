@@ -97,13 +97,15 @@ struct CorrelationAnalysisView: View {
                         .textInputAutocapitalization(.never)
                 }
                 
-                Picker("Time Window", selection: $timeWindow) {
-                    Text("30 min").tag(1800.0)
-                    Text("1 hour").tag(3600.0)
-                    Text("2 hours").tag(7200.0)
-                    Text("4 hours").tag(14400.0)
-                    Text("12 hours").tag(43200.0)
-                    Text("24 hours").tag(86400.0)
+                if targetType != .feedAmount {
+                    Picker("Time Window", selection: $timeWindow) {
+                        Text("30 min").tag(1800.0)
+                        Text("1 hour").tag(3600.0)
+                        Text("2 hours").tag(7200.0)
+                        Text("4 hours").tag(14400.0)
+                        Text("12 hours").tag(43200.0)
+                        Text("24 hours").tag(86400.0)
+                    }
                 }
                 
                 Button {
@@ -120,47 +122,69 @@ struct CorrelationAnalysisView: View {
             }
             
             if !results.isEmpty {
-                Section("Results") {
+                Section("Correlation Coefficient") {
                     Chart(results) { result in
-                        if targetType == .feedAmount {
-                            BarMark(
-                                x: .value("Hashtag", result.hashtag),
-                                y: .value("Avg Amount", result.averageValue ?? 0)
-                            )
-                        } else {
-                            BarMark(
-                                x: .value("Hashtag", result.hashtag),
-                                y: .value("Percentage", result.percentage * 100)
-                            )
+                        BarMark(
+                            x: .value("Hashtag", result.hashtag),
+                            y: .value("Correlation", result.correlationCoefficient)
+                        )
+                        .foregroundStyle(result.correlationCoefficient > 0 ? .green : .red)
+                        .annotation(position: .overlay) {
+                            Text(result.correlationCoefficient.formatted(.number.precision(.fractionLength(2))))
+                                .font(.caption2)
+                                .foregroundStyle(.white)
                         }
                     }
+                    .chartYScale(domain: -1.0...1.0)
                     .frame(height: 200)
                     .padding(.vertical)
                     
+                    Text("Values close to 1.0 indicate strong positive correlation. Values close to -1.0 indicate strong negative correlation.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                
+                Section("Detailed Stats") {
                     ForEach(results) { result in
-                        HStack {
-                            Text("#" + result.hashtag)
-                                .font(.headline)
-                            Spacer()
-                            VStack(alignment: .trailing) {
-                                if targetType == .feedAmount {
-                                    if let avg = result.averageValue {
-                                        Text("\(Int(avg)) ml")
-                                    } else {
-                                        Text("N/A")
-                                    }
-                                    Text("\(result.correlatedCount) feeds")
+                        VStack(alignment: .leading, spacing: 4) {
+                            HStack {
+                                Text("#" + result.hashtag)
+                                    .font(.headline)
+                                Spacer()
+                                Text("r = \(result.correlationCoefficient.formatted(.number.precision(.fractionLength(2))))")
+                                    .fontWeight(.bold)
+                                    .foregroundStyle(result.correlationCoefficient > 0 ? .green : .red)
+                            }
+                            
+                            HStack {
+                                Text("P-value: \(result.pValue.formatted(.number.precision(.fractionLength(3))))")
+                                    .font(.caption)
+                                    .foregroundStyle(result.pValue < 0.05 ? .primary : .secondary)
+                                
+                                if result.pValue < 0.05 {
+                                    Text("(Significant)")
                                         .font(.caption)
-                                        .foregroundStyle(.secondary)
+                                        .foregroundStyle(.green)
                                 } else {
-                                    Text(result.percentage.formatted(.percent.precision(.fractionLength(0))))
-                                        .foregroundStyle(result.percentage > 0.5 ? .red : .primary)
-                                    Text("\(result.correlatedCount) / \(result.totalCount)")
+                                    Text("(Not Significant)")
                                         .font(.caption)
                                         .foregroundStyle(.secondary)
                                 }
+                                
+                                Spacer()
+                                
+                                if targetType == .feedAmount {
+                                    if let avg = result.averageValue {
+                                        Text("Avg: \(Int(avg)) ml")
+                                            .font(.caption)
+                                    }
+                                } else {
+                                    Text("\(result.percentage.formatted(.percent)) (\(result.correlatedCount)/\(result.totalCount))")
+                                        .font(.caption)
+                                }
                             }
                         }
+                        .padding(.vertical, 4)
                     }
                 }
             } else if !isAnalyzing {

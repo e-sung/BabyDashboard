@@ -11,9 +11,15 @@ enum CorrelationTarget: Equatable, Hashable, Sendable {
 struct CorrelationResult: Identifiable, Sendable {
     let id = UUID()
     let hashtag: String
+    
+    // Raw Counts
     let totalCount: Int
     let correlatedCount: Int
     let averageValue: Double?
+    
+    // Statistics
+    let correlationCoefficient: Double // Phi or Point-Biserial (-1 to 1)
+    let pValue: Double // Significance (0 to 1)
     
     var percentage: Double {
         guard totalCount > 0 else { return 0 }
@@ -66,122 +72,157 @@ actor CorrelationAnalyzer {
     ) async -> [CorrelationResult] {
         
         await context.perform {
-            // 1. Fetch Source Events (Any event containing one of the source hashtags)
-            // We fetch ALL events in the window and filter in memory for simplicity and flexibility
-            let allSourceEvents = self.fetchAllEvents(dateInterval: dateInterval, babyID: babyID)
+            // 1. Fetch Data
+            // For Feed Amount, we only care about FeedSessions.
+            // For others, we need all events.
             
-            // 2. Fetch Target Events
-            let targetFetchInterval = DateInterval(
-                start: dateInterval.start,
-                end: dateInterval.end.addingTimeInterval(timeWindow)
-            )
+            var allSourceEvents: [HistoryEvent] = []
+            var allFeedSessions: [FeedSession] = []
             
-            var targetEvents: [HistoryEvent] = []
-            var targetFeeds: [FeedSession] = []
-            
-            switch target {
-            case .customEvent(let typeID), .customEventWithHashtag(let typeID, _):
-                targetEvents = self.fetchEvents(
-                    type: .customEvent,
-                    customEventTypeID: typeID,
-                    dateInterval: targetFetchInterval,
-                    babyID: babyID
-                )
-            case .feedAmount:
-                // For feed amount, we need the actual FeedSession objects to get amounts
+            if target == .feedAmount {
                 let req: NSFetchRequest<FeedSession> = FeedSession.fetchRequest()
-                req.predicate = self.makePredicate(dateInterval: targetFetchInterval, babyID: babyID)
-                targetFeeds = (try? self.context.fetch(req)) ?? []
+                req.predicate = self.makePredicate(dateInterval: dateInterval, babyID: babyID)
+                allFeedSessions = (try? self.context.fetch(req)) ?? []
+            } else {
+                allSourceEvents = self.fetchAllEvents(dateInterval: dateInterval, babyID: babyID)
             }
             
-            // 3. Analyze
+            // 2. Fetch Target Events (Only for non-FeedAmount targets)
+            var targetEvents: [HistoryEvent] = []
+            if target != .feedAmount {
+                let targetFetchInterval = DateInterval(
+                    start: dateInterval.start,
+                    end: dateInterval.end.addingTimeInterval(timeWindow)
+                )
+                
+                switch target {
+                case .customEvent(let typeID), .customEventWithHashtag(let typeID, _):
+                    targetEvents = self.fetchEvents(
+                        type: .customEvent,
+                        customEventTypeID: typeID,
+                        dateInterval: targetFetchInterval,
+                        babyID: babyID
+                    )
+                default: break
+                }
+            }
+            
+            // 3. Analyze per Hashtag
             var results: [CorrelationResult] = []
             
             for hashtag in sourceHashtags {
-                // Filter source events for this hashtag
-                let sources = allSourceEvents.filter { $0.hashtags.contains(hashtag) }
-                let totalCount = sources.count
                 
-                guard totalCount > 0 else {
-                    results.append(CorrelationResult(hashtag: hashtag, totalCount: 0, correlatedCount: 0, averageValue: nil))
-                    continue
-                }
-                
-                var correlatedCount = 0
-                var totalValue: Double = 0
-                var valueCount = 0
-                
-                for source in sources {
-                    let windowEnd = source.date.addingTimeInterval(timeWindow)
+                if target == .feedAmount {
+                    // --- Feed Amount Logic (Direct Correlation) ---
                     
-                    switch target {
-                    case .customEvent:
-                        let hasCorrelation = targetEvents.contains { target in
-                            target.date > source.date && target.date <= windowEnd
-                        }
-                        if hasCorrelation { correlatedCount += 1 }
-                        
-                    case .customEventWithHashtag(_, let targetTag):
-                        let hasCorrelation = targetEvents.contains { target in
-                            target.date > source.date && target.date <= windowEnd && target.hashtags.contains(targetTag)
-                        }
-                        if hasCorrelation { correlatedCount += 1 }
-                        
-                    case .feedAmount:
-                        // Find the FIRST feed that started after source.date within window
-                        let nextFeed = targetFeeds
-                            .filter { $0.startTime > source.date && $0.startTime <= windowEnd }
-                            .sorted { $0.startTime < $1.startTime }
-                            .first
-                        
-                        if let feed = nextFeed {
-                            correlatedCount += 1
-                            // Convert to preferred unit (e.g. ml)
-                            // For simplicity, let's use base unit (ml) value if available, or just amountValue
-                            // Ideally we should normalize units. Assuming amountValue is stored consistently or we use the helper.
-                            // Let's use the amount property which handles conversion if we had a context, but here we have the object.
-                            // We'll trust amountValue is what we want or we can use the helper if we were in the same context.
-                            // Since we are in perform block, we can access properties.
-                            if let amount = feed.amount {
-                                totalValue += amount.converted(to: .milliliters).value
-                                valueCount += 1
-                            }
-                        }
+                    // Group A: Feeds WITH hashtag
+                    let groupA = allFeedSessions.filter { $0.hashtags.contains(hashtag) }
+                    // Group B: Feeds WITHOUT hashtag
+                    let groupB = allFeedSessions.filter { !$0.hashtags.contains(hashtag) }
+                    
+                    let totalCount = groupA.count
+                    guard totalCount > 0 else {
+                        results.append(CorrelationResult(hashtag: hashtag, totalCount: 0, correlatedCount: 0, averageValue: nil, correlationCoefficient: 0, pValue: 1.0))
+                        continue
                     }
+                    
+                    // Extract amounts (convert to ml)
+                    let valuesA = groupA.compactMap { $0.amount?.converted(to: .milliliters).value }
+                    let valuesB = groupB.compactMap { $0.amount?.converted(to: .milliliters).value }
+                    
+                    let avgA = valuesA.isEmpty ? nil : valuesA.reduce(0, +) / Double(valuesA.count)
+                    
+                    if valuesB.isEmpty {
+                        results.append(CorrelationResult(hashtag: hashtag, totalCount: totalCount, correlatedCount: valuesA.count, averageValue: avgA, correlationCoefficient: 0, pValue: 1.0))
+                        continue
+                    }
+                    
+                    let correlation = StatisticsUtils.calculatePointBiserialCorrelation(group1: valuesA, group0: valuesB)
+                    let pValue = StatisticsUtils.calculateTTestPValue(group1: valuesA, group0: valuesB)
+                    
+                    results.append(CorrelationResult(
+                        hashtag: hashtag,
+                        totalCount: totalCount,
+                        correlatedCount: valuesA.count,
+                        averageValue: avgA,
+                        correlationCoefficient: correlation.isNaN ? 0 : correlation,
+                        pValue: pValue.isNaN ? 1.0 : pValue
+                    ))
+                    
+                } else {
+                    // --- Event Correlation Logic (Time Window) ---
+                    
+                    let groupA = allSourceEvents.filter { $0.hashtags.contains(hashtag) }
+                    let groupB = allSourceEvents.filter { !$0.hashtags.contains(hashtag) }
+                    
+                    let totalCount = groupA.count
+                    guard totalCount > 0 else {
+                        results.append(CorrelationResult(hashtag: hashtag, totalCount: 0, correlatedCount: 0, averageValue: nil, correlationCoefficient: 0, pValue: 1.0))
+                        continue
+                    }
+                    
+                    let (correlatedA, notCorrelatedA) = self.getBinaryCounts(for: groupA, targetEvents: targetEvents, target: target, timeWindow: timeWindow)
+                    let (correlatedB, notCorrelatedB) = self.getBinaryCounts(for: groupB, targetEvents: targetEvents, target: target, timeWindow: timeWindow)
+                    
+                    let a = correlatedA
+                    let b = notCorrelatedA
+                    let c = correlatedB
+                    let d = notCorrelatedB
+                    
+                    let phi = StatisticsUtils.calculatePhiCoefficient(a: a, b: b, c: c, d: d)
+                    let p = StatisticsUtils.calculateChiSquarePValue(a: a, b: b, c: c, d: d)
+                    
+                    results.append(CorrelationResult(
+                        hashtag: hashtag,
+                        totalCount: totalCount,
+                        correlatedCount: correlatedA,
+                        averageValue: nil,
+                        correlationCoefficient: phi.isNaN ? 0 : phi,
+                        pValue: p.isNaN ? 1.0 : p
+                    ))
                 }
-                
-                let avgValue: Double? = valueCount > 0 ? totalValue / Double(valueCount) : nil
-                
-                results.append(CorrelationResult(
-                    hashtag: hashtag,
-                    totalCount: totalCount,
-                    correlatedCount: correlatedCount,
-                    averageValue: avgValue
-                ))
             }
             
-            return results.sorted {
-                if target == .feedAmount {
-                    return ($0.averageValue ?? 0) > ($1.averageValue ?? 0)
-                } else {
-                    return $0.percentage > $1.percentage
+            return results.sorted { abs($0.correlationCoefficient) > abs($1.correlationCoefficient) }
+        }
+    }
+    
+    // MARK: - Helpers
+    
+    private func getBinaryCounts(for sources: [HistoryEvent], targetEvents: [HistoryEvent], target: CorrelationTarget, timeWindow: TimeInterval) -> (correlated: Int, notCorrelated: Int) {
+        var correlated = 0
+        var notCorrelated = 0
+        
+        for source in sources {
+            let windowEnd = source.date.addingTimeInterval(timeWindow)
+            var hasCorrelation = false
+            
+            switch target {
+            case .customEvent:
+                hasCorrelation = targetEvents.contains { target in
+                    target.date > source.date && target.date <= windowEnd
                 }
+            case .customEventWithHashtag(_, let targetTag):
+                hasCorrelation = targetEvents.contains { target in
+                    target.date > source.date && target.date <= windowEnd && target.hashtags.contains(targetTag)
+                }
+            default: break
+            }
+            
+            if hasCorrelation {
+                correlated += 1
+            } else {
+                notCorrelated += 1
             }
         }
+        return (correlated, notCorrelated)
     }
     
     private func makePredicate(dateInterval: DateInterval, babyID: UUID?) -> NSPredicate {
         var predicates = [
             NSPredicate(format: "timestamp >= %@ AND timestamp < %@", argumentArray: [dateInterval.start, dateInterval.end])
         ]
-        // FeedSession uses startTime, others use timestamp. We need to handle this.
-        // Actually, let's just use a helper that returns the correct key based on entity?
-        // Or just hardcode since we know the caller.
-        // The fetchAllHashtags uses specific requests, so we can adjust there.
-        // Wait, fetchAllHashtags calls this.
-        // Let's make this generic or just inline it in fetchAllHashtags.
-        // I'll inline it or make it smarter.
-        return NSPredicate(value: true) // Placeholder, logic moved to specific fetchers
+        return NSPredicate(value: true) // Placeholder
     }
     
     private func fetchAllEvents(dateInterval: DateInterval, babyID: UUID?) -> [HistoryEvent] {
@@ -223,7 +264,6 @@ actor CorrelationAnalyzer {
         dateInterval: DateInterval,
         babyID: UUID?
     ) -> [HistoryEvent] {
-        // Reuse existing logic but adapted
         var events: [HistoryEvent] = []
         
         switch type {

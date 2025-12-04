@@ -13,8 +13,10 @@ struct HistoryEditView: View {
     @Environment(\.managedObjectContext) private var viewContext
     @EnvironmentObject var settings: AppSettings
 
-    let model: HistoryEditModel
+    let model: HistoryEditModel?
+    let babies: [BabyProfile]
 
+    // MARK: - State for Editing & Adding
     @State private var amountString: String = ""
     @State private var memoText: String = ""
     @State private var pendingInsertion: String? = nil
@@ -24,8 +26,30 @@ struct HistoryEditView: View {
     @State private var diaperType: DiaperType = .pee
     @State private var customEventTime: Date = Date.current
     @State private var showingDeleteAlert: Bool = false
+    
+    // MARK: - State for Adding Only
+    enum AddType: String, CaseIterable, Identifiable {
+        case feed, diaper, customEvent
+        var id: String { rawValue }
+        var title: String {
+            switch self {
+            case .feed: return String(localized: "Feed")
+            case .diaper: return String(localized: "Diaper")
+            case .customEvent: return String(localized: "Custom Event")
+            }
+        }
+    }
+    
+    @State private var addType: AddType = .feed
+    @State private var selectedBabyID: UUID?
+    @State private var selectedCustomEventType: CustomEventType?
+    @State private var availableCustomEventTypes: [CustomEventType] = []
+    @State private var isShowingAddEventType = false
 
     private let memoSectionID = "MemoSection"
+
+    // MARK: - Computed Properties
+    private var isEditing: Bool { model != nil }
 
     private var feedSession: FeedSession? {
         if case .feed(let session) = model { return session }
@@ -48,46 +72,106 @@ struct HistoryEditView: View {
             .font: UIFont.preferredFont(forTextStyle: .body).bold()
         ]
     }
+    
+    private var canSave: Bool {
+        if isEditing {
+            if feedSession != nil {
+                return endTime >= startTime
+            }
+            return true
+        } else {
+            // Add Mode Validation
+            guard let _ = babies.first(where: { $0.id == selectedBabyID }) else { return false }
+            switch addType {
+            case .feed:
+                guard endTime >= startTime else { return false }
+                guard let value = Double(amountString), value >= 0 else { return false }
+                return true
+            case .diaper:
+                return true
+            case .customEvent:
+                return selectedCustomEventType != nil
+            }
+        }
+    }
 
     var body: some View {
         NavigationView {
             ScrollViewReader { proxy in
                 Form {
-                    if let session = feedSession {
-                        feedEditor(for: session)
-                        memoEditor(for: session)
-                            .id(memoSectionID)
-                    } else if let diaper = diaperChange {
-                        diaperEditor(for: diaper)
-                        memoEditorForDiaper(for: diaper)
-                            .id(memoSectionID)
-                    } else if let customEvent = customEvent {
-                        customEventEditor(for: customEvent)
-                        memoEditorForCustomEvent(for: customEvent)
-                            .id(memoSectionID)
+                    if !isEditing {
+                        addModeSections
                     }
-                    Section {
-                        Button(role: .destructive) {
-                            showingDeleteAlert = true
-                        } label: {
-                            Text(String(localized: "Delete Event"))
-                                .frame(maxWidth: .infinity, alignment: .center)
+                    
+                    // Content Sections
+                    if isEditing {
+                        if let session = feedSession {
+                            feedEditor(for: session)
+                            memoEditor
+                                .id(memoSectionID)
+                        } else if let diaper = diaperChange {
+                            diaperEditor(for: diaper)
+                            memoEditor
+                                .id(memoSectionID)
+                        } else if let customEvent = customEvent {
+                            customEventEditor(for: customEvent)
+                            memoEditor
+                                .id(memoSectionID)
+                        }
+                    } else {
+                        // Add Mode Editors
+                        switch addType {
+                        case .feed:
+                            feedEditorContent
+                            memoEditor
+                                .id(memoSectionID)
+                        case .diaper:
+                            diaperEditorContent
+                            memoEditor
+                                .id(memoSectionID)
+                        case .customEvent:
+                            customEventEditorContent
+                            if !availableCustomEventTypes.isEmpty {
+                                memoEditor
+                                    .id(memoSectionID)
+                            }
+                        }
+                    }
+                    
+                    if isEditing {
+                        Section {
+                            Button(role: .destructive) {
+                                showingDeleteAlert = true
+                            } label: {
+                                Text(String(localized: "Delete Event"))
+                                    .frame(maxWidth: .infinity, alignment: .center)
+                            }
                         }
                     }
                 }
-                .navigationTitle("Edit Event")
+                .navigationTitle(isEditing ? "Edit Event" : "Add Event")
+                .navigationBarTitleDisplayMode(.inline)
                 .toolbar {
-                    ToolbarItem(placement: .confirmationAction) {
-                        Button("Done") {
-                            saveAndDismiss()
-                        }
-                        .disabled({
-                            if feedSession != nil {
-                                return endTime < startTime
+                    if isEditing {
+                        ToolbarItem(placement: .confirmationAction) {
+                            Button("Done") {
+                                saveAndDismiss()
                             }
-                            return false
-                        }())
-                        .keyboardShortcut(.defaultAction)
+                            .disabled(!canSave)
+                            .keyboardShortcut(.defaultAction)
+                        }
+                    } else {
+                        ToolbarItem(placement: .cancellationAction) {
+                            Button("Cancel") {
+                                dismiss()
+                            }
+                        }
+                        ToolbarItem(placement: .confirmationAction) {
+                            Button("Save") {
+                                saveAndDismiss()
+                            }
+                            .disabled(!canSave)
+                        }
                     }
                 }
                 .onAppear(perform: setupInitialState)
@@ -109,12 +193,50 @@ struct HistoryEditView: View {
                 } message: {
                     Text(String(localized: "This action cannot be undone."))
                 }
+                .sheet(isPresented: $isShowingAddEventType) {
+                    if let babyID = selectedBabyID,
+                       let baby = babies.first(where: { $0.id == babyID }) {
+                        AddCustomEventTypeSheet(baby: baby) {
+                            isShowingAddEventType = false
+                            updateAvailableCustomEventTypes()
+                        }
+                        .environment(\.managedObjectContext, viewContext)
+                    }
+                }
+                .onChange(of: selectedBabyID) { _, _ in
+                    updateAvailableCustomEventTypes()
+                }
             }
         }
     }
 
+    // MARK: - Add Mode Sections
     @ViewBuilder
-    private func feedEditor(for session: FeedSession) -> some View {
+    private var addModeSections: some View {
+        Section(String(localized: "Event")) {
+            Picker(String(localized: "Type"), selection: $addType) {
+                ForEach(AddType.allCases) { Text($0.title).tag($0) }
+            }
+            .pickerStyle(.segmented)
+        }
+
+        Section(String(localized: "Baby")) {
+            Picker(String(localized: "Baby"), selection: Binding<UUID?>(
+                get: { selectedBabyID },
+                set: { selectedBabyID = $0 }
+            )) {
+                ForEach(babies.map { ($0.id, $0.name) }, id: \.0) { id, name in
+                    Text(name).tag(UUID?.some(id))
+                }
+            }
+        }
+    }
+
+    // MARK: - Editor Content (Shared or Specific)
+    
+    // Feed Editor Content (Used for both Edit and Add)
+    @ViewBuilder
+    private var feedEditorContent: some View {
         Section("Time") {
             DatePicker(
                 "Start Time",
@@ -143,33 +265,11 @@ struct HistoryEditView: View {
                 Text(UnitUtils.preferredUnit.symbol)
             }
         }
-        .onChange(of: amountString) { _, newValue in
-            if let value = Double(newValue) {
-                let unit = UnitUtils.preferredUnit
-                session.amount = Measurement(value: value, unit: unit)
-            }
-        }
     }
-
+    
+    // Diaper Editor Content
     @ViewBuilder
-    private func memoEditor(for session: FeedSession) -> some View {
-        Section("Memo") {
-            HashtagTextView(
-                text: $memoText,
-                pendingInsertion: $pendingInsertion,
-                hashtagAttributes: hashtagAttributes,
-                recentHashtags: settings.recentHashtags
-            )
-            .frame(minHeight: 120)
-            .accessibilityLabel(Text("Memo"))
-            .onChange(of: memoText) { _, newText in
-                session.memoText = newText
-            }
-        }
-    }
-
-    @ViewBuilder
-    private func diaperEditor(for diaper: DiaperChange) -> some View {
+    private var diaperEditorContent: some View {
         Section("Time") {
             DatePicker("Time", selection: $diaperTime)
         }
@@ -180,6 +280,74 @@ struct HistoryEditView: View {
             }
             .pickerStyle(.segmented)
         }
+    }
+    
+    // Custom Event Editor Content
+    @ViewBuilder
+    private var customEventEditorContent: some View {
+        if !isEditing {
+            Section(String(localized: "Event Type")) {
+                if availableCustomEventTypes.isEmpty {
+                    Button {
+                        isShowingAddEventType = true
+                    } label: {
+                        HStack {
+                            Image(systemName: "plus.circle.fill")
+                                .foregroundStyle(.blue)
+                            Text("Create First Event Type")
+                                .foregroundStyle(.primary)
+                            Spacer()
+                        }
+                    }
+                } else {
+                    Picker(String(localized: "Event Type"), selection: $selectedCustomEventType) {
+                        ForEach(availableCustomEventTypes) { eventType in
+                            HStack {
+                                Text(eventType.emoji)
+                                Text(eventType.name)
+                            }
+                            .tag(Optional(eventType))
+                        }
+                        
+                        // Add new event type option
+                        HStack {
+                            Image(systemName: "plus.circle.fill")
+                            Text("Add New EventType...")
+                        }
+                        .tag(Optional<CustomEventType>.none)
+                    }
+                    .onChange(of: selectedCustomEventType) { oldValue, newValue in
+                        if newValue == nil && oldValue != nil {
+                            isShowingAddEventType = true
+                            selectedCustomEventType = oldValue
+                        }
+                    }
+                }
+            }
+        }
+        
+        if isEditing || !availableCustomEventTypes.isEmpty {
+            Section("Time") {
+                DatePicker("Time", selection: $customEventTime)
+            }
+        }
+    }
+
+    // MARK: - Existing Editor Wrappers (For Edit Mode)
+    @ViewBuilder
+    private func feedEditor(for session: FeedSession) -> some View {
+        feedEditorContent
+        .onChange(of: amountString) { _, newValue in
+            if let value = Double(newValue) {
+                let unit = UnitUtils.preferredUnit
+                session.amount = Measurement(value: value, unit: unit)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func diaperEditor(for diaper: DiaperChange) -> some View {
+        diaperEditorContent
     }
 
     @ViewBuilder
@@ -196,13 +364,12 @@ struct HistoryEditView: View {
             }
             .foregroundStyle(.secondary)
         }
-        Section("Time") {
-            DatePicker("Time", selection: $customEventTime)
-        }
+        customEventEditorContent
     }
 
+    // MARK: - Memo Editor (Shared)
     @ViewBuilder
-    private func memoEditorForDiaper(for diaper: DiaperChange) -> some View {
+    private var memoEditor: some View {
         Section("Memo") {
             HashtagTextView(
                 text: $memoText,
@@ -213,24 +380,13 @@ struct HistoryEditView: View {
             .frame(minHeight: 120)
             .accessibilityLabel(Text("Memo"))
             .onChange(of: memoText) { _, newText in
-                diaper.memoText = newText
-            }
-        }
-    }
-
-    @ViewBuilder
-    private func memoEditorForCustomEvent(for event: CustomEvent) -> some View {
-        Section("Memo") {
-            HashtagTextView(
-                text: $memoText,
-                pendingInsertion: $pendingInsertion,
-                hashtagAttributes: hashtagAttributes,
-                recentHashtags: settings.recentHashtags
-            )
-            .frame(minHeight: 120)
-            .accessibilityLabel(Text("Memo"))
-            .onChange(of: memoText) { _, newText in
-                event.memoText = newText
+                if let session = feedSession {
+                    session.memoText = newText
+                } else if let diaper = diaperChange {
+                    diaper.memoText = newText
+                } else if let event = customEvent {
+                    event.memoText = newText
+                }
             }
         }
     }
@@ -251,24 +407,76 @@ struct HistoryEditView: View {
         } else if let event = customEvent {
             customEventTime = event.timestamp
             memoText = event.memoText ?? ""
+        } else {
+            // Add Mode Defaults
+            selectedBabyID = babies.first?.id
+            // Default duration for new feed
+            if addType == .feed && endTime <= startTime {
+                endTime = startTime.addingTimeInterval(15 * 60)
+            }
+            updateAvailableCustomEventTypes()
+        }
+    }
+    
+    private func updateAvailableCustomEventTypes() {
+        guard let babyID = selectedBabyID,
+              let baby = babies.first(where: { $0.id == babyID }) else {
+            availableCustomEventTypes = []
+            selectedCustomEventType = nil
+            return
+        }
+        availableCustomEventTypes = baby.customEventTypesArray
+        if selectedCustomEventType == nil {
+            selectedCustomEventType = availableCustomEventTypes.first
         }
     }
 
     private func saveAndDismiss() {
-        if let session = feedSession {
-            session.startTime = startTime
-            session.endTime = endTime
-            session.memoText = memoText
-            settings.addRecentHashtags(from: memoText)
-        } else if let diaper = diaperChange {
-            diaper.timestamp = diaperTime
-            diaper.diaperType = diaperType
-            diaper.memoText = memoText
-            settings.addRecentHashtags(from: memoText)
-        } else if let event = customEvent {
-            event.timestamp = customEventTime
-            event.memoText = memoText
-            settings.addRecentHashtags(from: memoText)
+        if isEditing {
+            if let session = feedSession {
+                session.startTime = startTime
+                session.endTime = endTime
+                session.memoText = memoText
+                settings.addRecentHashtags(from: memoText)
+            } else if let diaper = diaperChange {
+                diaper.timestamp = diaperTime
+                diaper.diaperType = diaperType
+                diaper.memoText = memoText
+                settings.addRecentHashtags(from: memoText)
+            } else if let event = customEvent {
+                event.timestamp = customEventTime
+                event.memoText = memoText
+                settings.addRecentHashtags(from: memoText)
+            }
+        } else {
+            // Add Mode Save
+            guard let baby = babies.first(where: { $0.id == selectedBabyID }) else { return }
+            
+            switch addType {
+            case .feed:
+                let session = FeedSession(context: viewContext, startTime: startTime)
+                session.endTime = endTime
+                if let value = Double(amountString) {
+                    session.amount = Measurement(value: value, unit: UnitUtils.preferredUnit)
+                }
+                session.profile = baby
+                session.memoText = memoText.isEmpty ? nil : memoText
+                
+            case .diaper:
+                let change = DiaperChange(context: viewContext, timestamp: diaperTime, type: diaperType)
+                change.profile = baby
+                change.memoText = memoText.isEmpty ? nil : memoText
+                
+            case .customEvent:
+                guard let eventType = selectedCustomEventType else { return }
+                let event = CustomEvent(context: viewContext, timestamp: customEventTime, eventType: eventType)
+                event.profile = baby
+                event.memoText = memoText.isEmpty ? nil : memoText
+            }
+            
+            if !memoText.isEmpty {
+                settings.addRecentHashtags(from: memoText)
+            }
         }
 
         do {

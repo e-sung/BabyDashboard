@@ -11,35 +11,40 @@ struct CorrelationAnalyzerTests {
     let persistenceController = PersistenceController(inMemory: true)
     var context: NSManagedObjectContext { persistenceController.viewContext }
     
-    @Test("Analyzes correlation between Hashtag and Custom Event")
-    func analyzeHashtagToCustomEvent() async throws {
+    @Test("Analyzes statistical correlation (Phi Coefficient)")
+    func analyzeStatisticalCorrelation() async throws {
         // Given
         let baby = BabyProfile(context: context, name: "TestBaby")
         let vomitType = CustomEventType(context: context, name: "Vomit", emoji: "🤮")
         let now = Date()
         
-        // Feed 1: #BrandA -> Vomit (Correlated)
-        let feed1 = FeedSession(context: context, startTime: now.addingTimeInterval(-3600))
-        feed1.endTime = now.addingTimeInterval(-3000)
-        feed1.memoText = "Milk #BrandA"
-        feed1.profile = baby
+        // Scenario: #BrandA causes vomit (Perfect Positive Correlation)
+        // 5 feeds with #BrandA -> 5 Vomits
+        // 5 feeds without #BrandA -> 0 Vomits
         
-        let vomit1 = CustomEvent(context: context, timestamp: now.addingTimeInterval(-1800), eventType: vomitType)
-        vomit1.profile = baby
+        for i in 0..<5 {
+            let feed = FeedSession(context: context, startTime: now.addingTimeInterval(-Double(i)*3600 - 10000))
+            feed.memoText = "Milk #BrandA"
+            feed.profile = baby
+            
+            let vomit = CustomEvent(context: context, timestamp: now.addingTimeInterval(-Double(i)*3600 - 9000), eventType: vomitType)
+            vomit.profile = baby
+        }
         
-        // Feed 2: #BrandB -> No Vomit
-        let feed2 = FeedSession(context: context, startTime: now.addingTimeInterval(-7200))
-        feed2.memoText = "Milk #BrandB"
-        feed2.profile = baby
+        for i in 0..<5 {
+            let feed = FeedSession(context: context, startTime: now.addingTimeInterval(-Double(i)*3600 - 50000))
+            feed.memoText = "Milk #BrandB" // No vomit
+            feed.profile = baby
+        }
         
         try context.save()
         
         let analyzer = CorrelationAnalyzer(context: context)
-        let dateInterval = DateInterval(start: now.addingTimeInterval(-86400), end: now)
+        let dateInterval = DateInterval(start: now.addingTimeInterval(-100000), end: now)
         
         // When
         let results = await analyzer.analyze(
-            sourceHashtags: ["branda", "brandb"],
+            sourceHashtags: ["branda"],
             target: .customEvent(typeID: vomitType.id),
             timeWindow: 3600,
             dateInterval: dateInterval,
@@ -48,58 +53,64 @@ struct CorrelationAnalyzerTests {
         
         // Then
         let brandA = results.first(where: { $0.hashtag == "branda" })
-        let brandB = results.first(where: { $0.hashtag == "brandb" })
         
-        #expect(brandA?.correlatedCount == 1)
-        #expect(brandA?.percentage == 1.0)
+        // Contingency Table:
+        //       | Yes | No
+        // Has A |  5  | 0
+        // No A  |  0  | 5 (BrandB feeds)
+        // Phi should be 1.0
         
-        #expect(brandB?.correlatedCount == 0)
-        #expect(brandB?.percentage == 0.0)
+        #expect(brandA?.correlationCoefficient == 1.0)
+        #expect(brandA?.pValue ?? 1.0 < 0.05) // Should be significant
     }
     
-    @Test("Analyzes Feed Amount correlation")
-    func analyzeFeedAmount() async throws {
+    @Test("Analyzes Feed Amount correlation (Direct)")
+    func analyzeFeedAmountCorrelation() async throws {
         // Given
         let baby = BabyProfile(context: context, name: "TestBaby")
         let now = Date()
         
-        // Feed 1: #BrandA -> Next Feed is 100ml
-        let feed1 = FeedSession(context: context, startTime: now.addingTimeInterval(-7200))
-        feed1.memoText = "#BrandA"
-        feed1.profile = baby
+        // Scenario: #BrandA feeds are 150ml, Others are 50ml
         
-        let nextFeed1 = FeedSession(context: context, startTime: now.addingTimeInterval(-5400)) // 30 mins later
-        nextFeed1.amount = Measurement(value: 100, unit: .milliliters)
-        nextFeed1.profile = baby
+        // 5 feeds with #BrandA (150ml)
+        for i in 0..<5 {
+            let feed = FeedSession(context: context, startTime: now.addingTimeInterval(-Double(i)*3600 - 10000))
+            feed.memoText = "#BrandA"
+            feed.amount = Measurement(value: 150, unit: .milliliters)
+            feed.profile = baby
+        }
         
-        // Feed 2: #BrandB -> Next Feed is 50ml
-        let feed2 = FeedSession(context: context, startTime: now.addingTimeInterval(-3600))
-        feed2.memoText = "#BrandB"
-        feed2.profile = baby
-        
-        let nextFeed2 = FeedSession(context: context, startTime: now.addingTimeInterval(-1800)) // 30 mins later
-        nextFeed2.amount = Measurement(value: 50, unit: .milliliters)
-        nextFeed2.profile = baby
+        // 5 feeds with #BrandB (50ml)
+        for i in 0..<5 {
+            let feed = FeedSession(context: context, startTime: now.addingTimeInterval(-Double(i)*3600 - 50000))
+            feed.memoText = "#BrandB"
+            feed.amount = Measurement(value: 50, unit: .milliliters)
+            feed.profile = baby
+        }
         
         try context.save()
         
         let analyzer = CorrelationAnalyzer(context: context)
-        let dateInterval = DateInterval(start: now.addingTimeInterval(-86400), end: now)
+        let dateInterval = DateInterval(start: now.addingTimeInterval(-100000), end: now)
         
         // When
         let results = await analyzer.analyze(
-            sourceHashtags: ["branda", "brandb"],
+            sourceHashtags: ["branda"],
             target: .feedAmount,
-            timeWindow: 3600,
+            timeWindow: 0, // Should be ignored
             dateInterval: dateInterval,
             babyID: baby.id
         )
         
         // Then
         let brandA = results.first(where: { $0.hashtag == "branda" })
-        let brandB = results.first(where: { $0.hashtag == "brandb" })
         
-        #expect(brandA?.averageValue == 100)
-        #expect(brandB?.averageValue == 50)
+        // Group A (Has BrandA): [150, 150, 150, 150, 150]
+        // Group B (No BrandA): [50, 50, 50, 50, 50]
+        // Correlation should be positive (close to 1.0)
+        
+        #expect(brandA?.correlationCoefficient ?? 0 > 0.8)
+        #expect(brandA?.averageValue == 150)
+        #expect(brandA?.pValue ?? 1.0 < 0.05)
     }
 }
