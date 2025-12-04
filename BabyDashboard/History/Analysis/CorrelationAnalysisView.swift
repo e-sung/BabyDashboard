@@ -5,23 +5,7 @@ import Charts
 
 struct CorrelationAnalysisView: View {
     @Environment(\.managedObjectContext) private var viewContext
-    
-    // Configuration State
-    @State private var selectedHashtags: Set<String> = []
-    @State private var availableHashtags: [String] = []
-    @State private var showingHashtagSelection = false
-    
-    @State private var targetType: TargetType = .customEvent
-    @State private var targetCustomEventTypeID: UUID?
-    @State private var targetHashtag: String = ""
-    
-    @State private var timeWindow: TimeInterval = 3600 // 1 hour default
-    @State private var selectedBabyID: UUID?
-    
-    // Analysis State
-    @State private var results: [CorrelationResult] = []
-    @State private var isAnalyzing = false
-    @State private var analysisTask: Task<Void, Never>?
+    @StateObject private var viewModel = CorrelationAnalysisViewModel()
     
     enum TargetType: String, CaseIterable, Identifiable {
         case customEvent = "Custom Event"
@@ -45,45 +29,45 @@ struct CorrelationAnalysisView: View {
     var body: some View {
         Form {
             Section("Configuration") {
-                Picker("Baby", selection: $selectedBabyID) {
+                Picker("Baby", selection: $viewModel.selectedBabyID) {
                     Text("All Babies").tag(UUID?.none)
                     ForEach(babies) { baby in
                         Text(baby.name).tag(UUID?.some(baby.id))
                     }
                 }
-                .onChange(of: selectedBabyID) { _, _ in loadHashtags() }
+                .onChange(of: viewModel.selectedBabyID) { _, _ in viewModel.loadHashtags(context: viewContext) }
                 
                 Button {
-                    showingHashtagSelection = true
+                    viewModel.showingHashtagSelection = true
                 } label: {
                     HStack {
                         Text("Source Hashtags")
                         Spacer()
-                        Text("\(selectedHashtags.count) selected")
+                        Text("\(viewModel.selectedHashtags.count) selected")
                             .foregroundStyle(.secondary)
                     }
                 }
-                .sheet(isPresented: $showingHashtagSelection) {
+                .sheet(isPresented: $viewModel.showingHashtagSelection) {
                     NavigationView {
-                        HashtagSelectionView(availableHashtags: availableHashtags, selectedHashtags: $selectedHashtags)
+                        HashtagSelectionView(availableHashtags: viewModel.availableHashtags, selectedHashtags: $viewModel.selectedHashtags)
                             .toolbar {
                                 ToolbarItem(placement: .confirmationAction) {
                                     Button("Done") {
-                                        showingHashtagSelection = false
+                                        viewModel.showingHashtagSelection = false
                                     }
                                 }
                             }
                     }
                 }
                 
-                Picker("Target Type", selection: $targetType) {
+                Picker("Target Type", selection: $viewModel.targetType) {
                     ForEach(TargetType.allCases) { type in
                         Text(type.rawValue).tag(type)
                     }
                 }
                 
-                if targetType == .customEvent || targetType == .customEventWithHashtag {
-                    Picker("Event Type", selection: $targetCustomEventTypeID) {
+                if viewModel.targetType == .customEvent || viewModel.targetType == .customEventWithHashtag {
+                    Picker("Event Type", selection: $viewModel.targetCustomEventTypeID) {
                         Text("Select Event...").tag(UUID?.none)
                         ForEach(customEventTypes) { type in
                             Text(type.emoji + " " + type.name).tag(UUID?.some(type.id))
@@ -91,14 +75,14 @@ struct CorrelationAnalysisView: View {
                     }
                 }
                 
-                if targetType == .customEventWithHashtag {
-                    TextField("Target Hashtag (e.g. severe)", text: $targetHashtag)
+                if viewModel.targetType == .customEventWithHashtag {
+                    TextField("Target Hashtag (e.g. severe)", text: $viewModel.targetHashtag)
                         .autocorrectionDisabled()
                         .textInputAutocapitalization(.never)
                 }
                 
-                if targetType != .feedAmount {
-                    Picker("Time Window", selection: $timeWindow) {
+                if viewModel.targetType != .feedAmount {
+                    Picker("Time Window", selection: $viewModel.timeWindow) {
                         Text("30 min").tag(1800.0)
                         Text("1 hour").tag(3600.0)
                         Text("2 hours").tag(7200.0)
@@ -109,21 +93,21 @@ struct CorrelationAnalysisView: View {
                 }
                 
                 Button {
-                    runAnalysis()
+                    viewModel.runAnalysis(context: viewContext)
                 } label: {
-                    if isAnalyzing {
+                    if viewModel.isAnalyzing {
                         ProgressView()
                     } else {
                         Text("Analyze")
                             .frame(maxWidth: .infinity)
                     }
                 }
-                .disabled(isAnalyzing || selectedHashtags.isEmpty || (targetType != .feedAmount && targetCustomEventTypeID == nil))
+                .disabled(viewModel.isAnalyzing || viewModel.selectedHashtags.isEmpty || (viewModel.targetType != .feedAmount && viewModel.targetCustomEventTypeID == nil))
             }
             
-            if !results.isEmpty {
+            if !viewModel.results.isEmpty {
                 Section("Correlation Coefficient") {
-                    Chart(results) { result in
+                    Chart(viewModel.results) { result in
                         BarMark(
                             x: .value("Hashtag", result.hashtag),
                             y: .value("Correlation", result.correlationCoefficient)
@@ -145,7 +129,7 @@ struct CorrelationAnalysisView: View {
                 }
                 
                 Section("Detailed Stats") {
-                    ForEach(results) { result in
+                    ForEach(viewModel.results) { result in
                         VStack(alignment: .leading, spacing: 4) {
                             HStack {
                                 Text("#" + result.hashtag)
@@ -173,7 +157,7 @@ struct CorrelationAnalysisView: View {
                                 
                                 Spacer()
                                 
-                                if targetType == .feedAmount {
+                                if viewModel.targetType == .feedAmount {
                                     if let avg = result.averageValue {
                                         Text("Avg: \(Int(avg)) ml")
                                             .font(.caption)
@@ -187,74 +171,18 @@ struct CorrelationAnalysisView: View {
                         .padding(.vertical, 4)
                     }
                 }
-            } else if !isAnalyzing {
-                Section {
-                    Text("No correlations found or no data available.")
-                        .foregroundStyle(.secondary)
-                }
+            } else if !viewModel.isAnalyzing {
+                EmptyView()
             }
         }
         .navigationTitle("Correlation Analysis")
         .onAppear {
-            loadHashtags()
-            // Default to Vomit if available
-            if targetCustomEventTypeID == nil {
+            viewModel.loadHashtags(context: viewContext)
+            // Default to Vomit if available and not set
+            if viewModel.targetCustomEventTypeID == nil {
                 if let vomitType = customEventTypes.first(where: { $0.name.localizedCaseInsensitiveContains("vomit") }) {
-                    targetCustomEventTypeID = vomitType.id
+                    viewModel.targetCustomEventTypeID = vomitType.id
                 }
-            }
-        }
-    }
-    
-    private func loadHashtags() {
-        Task {
-            let analyzer = CorrelationAnalyzer(context: viewContext)
-            // Load hashtags from last 90 days to be safe
-            let endDate = Date()
-            let startDate = Calendar.current.date(byAdding: .day, value: -90, to: endDate) ?? endDate
-            let interval = DateInterval(start: startDate, end: endDate)
-            
-            let tags = await analyzer.fetchAllHashtags(dateInterval: interval, babyID: selectedBabyID)
-            await MainActor.run {
-                self.availableHashtags = tags
-            }
-        }
-    }
-    
-    private func runAnalysis() {
-        analysisTask?.cancel()
-        isAnalyzing = true
-        
-        // Prepare target definition
-        let target: CorrelationTarget
-        switch targetType {
-        case .customEvent:
-            guard let id = targetCustomEventTypeID else { return }
-            target = .customEvent(typeID: id)
-        case .customEventWithHashtag:
-            guard let id = targetCustomEventTypeID else { return }
-            target = .customEventWithHashtag(typeID: id, hashtag: targetHashtag)
-        case .feedAmount:
-            target = .feedAmount
-        }
-        
-        analysisTask = Task {
-            let analyzer = CorrelationAnalyzer(context: viewContext)
-            let endDate = Date()
-            let startDate = Calendar.current.date(byAdding: .day, value: -30, to: endDate) ?? endDate
-            let interval = DateInterval(start: startDate, end: endDate)
-            
-            let newResults = await analyzer.analyze(
-                sourceHashtags: Array(selectedHashtags),
-                target: target,
-                timeWindow: timeWindow,
-                dateInterval: interval,
-                babyID: selectedBabyID
-            )
-            
-            await MainActor.run {
-                self.results = newResults
-                self.isAnalyzing = false
             }
         }
     }
