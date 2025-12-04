@@ -25,6 +25,13 @@
       }
     },
     {
+      "target" : {
+        "containerPath" : "container:BabyDashboard.xcodeproj",
+        "identifier" : "0814D47F2E8D4E7F0073412C",
+        "name" : "BabyDashboardTests"
+      }
+    },
+    {
       "parallelizable" : true,
       "target" : {
         "containerPath" : "container:BabyDashboard.xcodeproj",
