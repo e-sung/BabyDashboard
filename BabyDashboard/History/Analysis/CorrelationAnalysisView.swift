@@ -40,8 +40,11 @@ struct CorrelationAnalysisView: View {
             }
             
             // Section 2: Correlation Definition
-            if !viewModel.availableHashtags.isEmpty {
-                Section("Analyze correlation of") {
+            Section("Analyze correlation of") {
+                if viewModel.availableHashtags.isEmpty {
+                    Text("No hashtags found in the selected period.")
+                        .foregroundStyle(.secondary)
+                } else {
                     HStack(alignment: .top) {
                         // Left: Source Hashtags
                         VStack {
@@ -137,55 +140,32 @@ struct CorrelationAnalysisView: View {
                         }
                     }
                     .padding(.vertical, 4)
-                }
-                .sheet(isPresented: $viewModel.showingHashtagSelection) {
-                    NavigationView {
-                        HashtagSelectionView(availableHashtags: viewModel.availableHashtags, selectedHashtags: $viewModel.selectedHashtags)
-                            .toolbar {
-                                ToolbarItem(placement: .confirmationAction) {
-                                    Button("Done") {
-                                        viewModel.showingHashtagSelection = false
-                                    }
-                                }
-                            }
-                    }
-                }
-                .sheet(isPresented: $viewModel.showingTargetSelection) {
-                    NavigationView {
-                        TargetSelectionView(viewModel: viewModel, customEventTypes: customEventTypes)
-                            .toolbar {
-                                ToolbarItem(placement: .confirmationAction) {
-                                    Button("Done") {
-                                        viewModel.showingTargetSelection = false
-                                    }
-                                }
-                            }
-                    }
-                }
-            }
-            
-
-            
-            // Section 5: Analyze Button
-            if canAnalyze {
-                Section {
-                    Button {
-                        viewModel.runAnalysis(context: viewContext)
-                    } label: {
-                        if viewModel.isAnalyzing {
-                            HStack {
-                                Spacer()
-                                ProgressView()
-                                Spacer()
-                            }
-                        } else {
-                            Text("Analyze")
-                                .frame(maxWidth: .infinity)
-                                .fontWeight(.bold)
+                    Picker("During", selection: $viewModel.selectedTimePeriod) {
+                        ForEach(AnalysisTimePeriod.allCases) { period in
+                            Text(period.title).tag(period)
                         }
                     }
-                    .disabled(viewModel.isAnalyzing)
+                    .onChange(of: viewModel.selectedTimePeriod) { _, _ in viewModel.loadHashtags(context: viewContext) }
                 }
+            }
+            // Section 5: Analyze Button
+            Section {
+                Button {
+                    viewModel.runAnalysis(context: viewContext)
+                } label: {
+                    if viewModel.isAnalyzing {
+                        HStack {
+                            Spacer()
+                            ProgressView()
+                            Spacer()
+                        }
+                    } else {
+                        Text("Analyze")
+                            .frame(maxWidth: .infinity)
+                            .fontWeight(.bold)
+                    }
+                }
+                .disabled(viewModel.isAnalyzing || !canAnalyze)
             }
             
             // Section 6: Results
@@ -212,50 +192,71 @@ struct CorrelationAnalysisView: View {
                         .foregroundStyle(.secondary)
                 }
                 
-                Section("Detailed Stats") {
-                    ForEach(viewModel.results) { result in
-                        VStack(alignment: .leading, spacing: 4) {
-                            HStack {
-                                Text("#" + result.hashtag)
-                                    .font(.headline)
-                                Spacer()
-                                Text("r = \(result.correlationCoefficient.formatted(.number.precision(.fractionLength(2))))")
-                                    .fontWeight(.bold)
-                                    .foregroundStyle(result.correlationCoefficient > 0 ? .green : .red)
-                            }
-                            
-                            HStack {
-                                Text("P-value: \(result.pValue.formatted(.number.precision(.fractionLength(3))))")
-                                    .font(.caption)
-                                    .foregroundStyle(result.pValue < 0.05 ? .primary : .secondary)
-                                
-                                if result.pValue < 0.05 {
-                                    Text("(Significant)")
-                                        .font(.caption)
-                                        .foregroundStyle(.green)
-                                }
-                                
-                                Spacer()
-                                
-                                if viewModel.targetType == .feedAmount {
-                                    if let avg = result.averageValue {
-                                        Text("Avg: \(Int(avg)) ml")
-                                            .font(.caption)
-                                    }
-                                } else {
-                                    Text("\(result.percentage.formatted(.percent)) (\(result.correlatedCount)/\(result.totalCount))")
-                                        .font(.caption)
-                                }
-                            }
+                Section("About this Analysis") {
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text("How it works")
+                            .font(.headline)
+                        
+                        if viewModel.targetType == .feedAmount {
+                            Text("We compare the average feed amount of sessions **with** the selected hashtag versus those **without** it.")
+                            Text("We use **Point-Biserial Correlation** to measure how strongly the presence of a hashtag is associated with the feed amount.")
+                        } else {
+                            Text("We check if the target event occurred within **1 hour** after the source event.")
+                            Text("We use **Phi Coefficient** to measure the strength of association between the two binary variables.")
                         }
-                        .padding(.vertical, 4)
+                        
+                        Divider()
+                        
+                        Text("Interpretation")
+                            .font(.subheadline)
+                            .fontWeight(.medium)
+                        
+                        HStack(alignment: .top, spacing: 8) {
+                            Text("•")
+                            Text("**+1.0**: Strong positive correlation (They happen together)")
+                        }
+                        HStack(alignment: .top, spacing: 8) {
+                            Text("•")
+                            Text("**-1.0**: Strong negative correlation (They rarely happen together)")
+                        }
+                        HStack(alignment: .top, spacing: 8) {
+                            Text("•")
+                            Text("**0.0**: No correlation")
+                        }
                     }
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .padding(.vertical, 4)
                 }
             }
         }
         .navigationTitle("Correlation Analysis")
         .onAppear {
             viewModel.loadHashtags(context: viewContext)
+        }
+        .sheet(isPresented: $viewModel.showingHashtagSelection) {
+            NavigationView {
+                HashtagSelectionView(availableHashtags: viewModel.availableHashtags, selectedHashtags: $viewModel.selectedHashtags)
+                    .toolbar {
+                        ToolbarItem(placement: .confirmationAction) {
+                            Button("Done") {
+                                viewModel.showingHashtagSelection = false
+                            }
+                        }
+                    }
+            }
+        }
+        .sheet(isPresented: $viewModel.showingTargetSelection) {
+            NavigationView {
+                TargetSelectionView(viewModel: viewModel, customEventTypes: customEventTypes)
+                    .toolbar {
+                        ToolbarItem(placement: .confirmationAction) {
+                            Button("Done") {
+                                viewModel.showingTargetSelection = false
+                            }
+                        }
+                    }
+            }
         }
     }
     

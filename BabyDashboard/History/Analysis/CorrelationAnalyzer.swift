@@ -35,27 +35,28 @@ actor CorrelationAnalyzer {
     }
     
     func fetchAllHashtags(dateInterval: DateInterval, babyID: UUID?) async -> [String] {
-        await context.perform {
+        let context = self.context
+        return await context.perform {
             var allTags: Set<String> = []
             
             // Fetch Feeds
             let feedReq: NSFetchRequest<FeedSession> = FeedSession.fetchRequest()
-            feedReq.predicate = self.makePredicate(dateInterval: dateInterval, babyID: babyID)
-            if let feeds = try? self.context.fetch(feedReq) {
+            feedReq.predicate = Self.makePredicate(dateInterval: dateInterval, babyID: babyID, dateKey: "startTime")
+            if let feeds = try? context.fetch(feedReq) {
                 feeds.forEach { allTags.formUnion($0.hashtags) }
             }
             
             // Fetch Diapers
             let diaperReq: NSFetchRequest<DiaperChange> = DiaperChange.fetchRequest()
-            diaperReq.predicate = self.makePredicate(dateInterval: dateInterval, babyID: babyID)
-            if let diapers = try? self.context.fetch(diaperReq) {
+            diaperReq.predicate = Self.makePredicate(dateInterval: dateInterval, babyID: babyID)
+            if let diapers = try? context.fetch(diaperReq) {
                 diapers.forEach { allTags.formUnion($0.hashtags) }
             }
             
             // Fetch Custom Events
             let customReq: NSFetchRequest<CustomEvent> = CustomEvent.fetchRequest()
-            customReq.predicate = self.makePredicate(dateInterval: dateInterval, babyID: babyID)
-            if let customs = try? self.context.fetch(customReq) {
+            customReq.predicate = Self.makePredicate(dateInterval: dateInterval, babyID: babyID)
+            if let customs = try? context.fetch(customReq) {
                 customs.forEach { allTags.formUnion($0.hashtags) }
             }
             
@@ -70,8 +71,8 @@ actor CorrelationAnalyzer {
         dateInterval: DateInterval,
         babyID: UUID?
     ) async -> [CorrelationResult] {
-        
-        await context.perform {
+        let context = self.context
+        return await context.perform {
             // 1. Fetch Data
             // For Feed Amount, we only care about FeedSessions.
             // For others, we need all events.
@@ -81,10 +82,10 @@ actor CorrelationAnalyzer {
             
             if target == .feedAmount {
                 let req: NSFetchRequest<FeedSession> = FeedSession.fetchRequest()
-                req.predicate = self.makePredicate(dateInterval: dateInterval, babyID: babyID)
-                allFeedSessions = (try? self.context.fetch(req)) ?? []
+                req.predicate = Self.makePredicate(dateInterval: dateInterval, babyID: babyID)
+                allFeedSessions = (try? context.fetch(req)) ?? []
             } else {
-                allSourceEvents = self.fetchAllEvents(dateInterval: dateInterval, babyID: babyID)
+                allSourceEvents = Self.fetchAllEvents(context: context, dateInterval: dateInterval, babyID: babyID)
             }
             
             // 2. Fetch Target Events (Only for non-FeedAmount targets)
@@ -97,7 +98,8 @@ actor CorrelationAnalyzer {
                 
                 switch target {
                 case .customEvent(let typeID), .customEventWithHashtag(let typeID, _):
-                    targetEvents = self.fetchEvents(
+                    targetEvents = Self.fetchEvents(
+                        context: context,
                         type: .customEvent,
                         customEventTypeID: typeID,
                         dateInterval: targetFetchInterval,
@@ -161,8 +163,8 @@ actor CorrelationAnalyzer {
                         continue
                     }
                     
-                    let (correlatedA, notCorrelatedA) = self.getBinaryCounts(for: groupA, targetEvents: targetEvents, target: target, timeWindow: timeWindow)
-                    let (correlatedB, notCorrelatedB) = self.getBinaryCounts(for: groupB, targetEvents: targetEvents, target: target, timeWindow: timeWindow)
+                    let (correlatedA, notCorrelatedA) = Self.getBinaryCounts(for: groupA, targetEvents: targetEvents, target: target, timeWindow: timeWindow)
+                    let (correlatedB, notCorrelatedB) = Self.getBinaryCounts(for: groupB, targetEvents: targetEvents, target: target, timeWindow: timeWindow)
                     
                     let a = correlatedA
                     let b = notCorrelatedA
@@ -189,7 +191,7 @@ actor CorrelationAnalyzer {
     
     // MARK: - Helpers
     
-    private func getBinaryCounts(for sources: [HistoryEvent], targetEvents: [HistoryEvent], target: CorrelationTarget, timeWindow: TimeInterval) -> (correlated: Int, notCorrelated: Int) {
+    private nonisolated static func getBinaryCounts(for sources: [HistoryEvent], targetEvents: [HistoryEvent], target: CorrelationTarget, timeWindow: TimeInterval) -> (correlated: Int, notCorrelated: Int) {
         var correlated = 0
         var notCorrelated = 0
         
@@ -218,14 +220,17 @@ actor CorrelationAnalyzer {
         return (correlated, notCorrelated)
     }
     
-    private func makePredicate(dateInterval: DateInterval, babyID: UUID?) -> NSPredicate {
+    private nonisolated static func makePredicate(dateInterval: DateInterval, babyID: UUID?, dateKey: String = "timestamp") -> NSPredicate {
         var predicates = [
-            NSPredicate(format: "timestamp >= %@ AND timestamp < %@", argumentArray: [dateInterval.start, dateInterval.end])
+            NSPredicate(format: "%K >= %@ AND %K < %@", argumentArray: [dateKey, dateInterval.start, dateKey, dateInterval.end])
         ]
-        return NSPredicate(value: true) // Placeholder
+        if let babyID {
+            predicates.append(NSPredicate(format: "profile.id == %@", argumentArray: [babyID]))
+        }
+        return NSCompoundPredicate(andPredicateWithSubpredicates: predicates)
     }
     
-    private func fetchAllEvents(dateInterval: DateInterval, babyID: UUID?) -> [HistoryEvent] {
+    private nonisolated static func fetchAllEvents(context: NSManagedObjectContext, dateInterval: DateInterval, babyID: UUID?) -> [HistoryEvent] {
         var events: [HistoryEvent] = []
         
         // Feeds
@@ -258,7 +263,8 @@ actor CorrelationAnalyzer {
         return events
     }
     
-    private func fetchEvents(
+    private nonisolated static func fetchEvents(
+        context: NSManagedObjectContext,
         type: HistoryEventType,
         customEventTypeID: UUID? = nil,
         dateInterval: DateInterval,

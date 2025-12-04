@@ -3,9 +3,40 @@ import SwiftUI
 import CoreData
 import Combine
 
+
+enum AnalysisTimePeriod: Int, CaseIterable, Identifiable, Codable {
+    case last7Days = 7
+    case last30Days = 30
+    case last90Days = 90
+    case allTime = 0
+    
+    var id: Int { rawValue }
+    
+    var title: String {
+        switch self {
+        case .last7Days: return "Last 7 Days"
+        case .last30Days: return "Last 30 Days"
+        case .last90Days: return "Last 90 Days"
+        case .allTime: return "All Time"
+        }
+    }
+    
+    func dateInterval(endDate: Date = Date()) -> DateInterval {
+        if self == .allTime {
+            return DateInterval(start: .distantPast, end: endDate)
+        }
+        let startDate = Calendar.current.date(byAdding: .day, value: -rawValue, to: endDate) ?? endDate
+        return DateInterval(start: startDate, end: endDate)
+    }
+}
+
 @MainActor
 class CorrelationAnalysisViewModel: ObservableObject {
     // MARK: - Persistent State
+    @Published var selectedTimePeriod: AnalysisTimePeriod = .last30Days {
+        didSet { saveState() }
+    }
+
     @Published var selectedHashtags: Set<String> = [] {
         didSet { saveState() }
     }
@@ -56,9 +87,7 @@ class CorrelationAnalysisViewModel: ObservableObject {
         Task {
             let analyzer = CorrelationAnalyzer(context: context)
             // Load hashtags from last 90 days
-            let endDate = Date()
-            let startDate = Calendar.current.date(byAdding: .day, value: -90, to: endDate) ?? endDate
-            let interval = DateInterval(start: startDate, end: endDate)
+            let interval = self.selectedTimePeriod.dateInterval()
             
             let tags = await analyzer.fetchAllHashtags(dateInterval: interval, babyID: selectedBabyID)
             self.availableHashtags = tags
@@ -84,9 +113,7 @@ class CorrelationAnalysisViewModel: ObservableObject {
         
         analysisTask = Task {
             let analyzer = CorrelationAnalyzer(context: context)
-            let endDate = Date()
-            let startDate = Calendar.current.date(byAdding: .day, value: -30, to: endDate) ?? endDate
-            let interval = DateInterval(start: startDate, end: endDate)
+            let interval = self.selectedTimePeriod.dateInterval()
             
             let newResults = await analyzer.analyze(
                 sourceHashtags: Array(selectedHashtags),
@@ -108,7 +135,7 @@ class CorrelationAnalysisViewModel: ObservableObject {
         let targetTypeRawValue: String
         let targetCustomEventTypeID: UUID?
         let targetHashtag: String
-
+        let selectedTimePeriodRawValue: Int?
         let selectedBabyID: UUID?
     }
     
@@ -118,6 +145,9 @@ class CorrelationAnalysisViewModel: ObservableObject {
             targetTypeRawValue: targetType.rawValue,
             targetCustomEventTypeID: targetCustomEventTypeID,
             targetHashtag: targetHashtag,
+
+
+            selectedTimePeriodRawValue: selectedTimePeriod.rawValue,
 
             selectedBabyID: selectedBabyID
         )
@@ -139,6 +169,12 @@ class CorrelationAnalysisViewModel: ObservableObject {
         }
         self.targetCustomEventTypeID = state.targetCustomEventTypeID
         self.targetHashtag = state.targetHashtag
+
+
+        if let rawValue = state.selectedTimePeriodRawValue,
+           let period = AnalysisTimePeriod(rawValue: rawValue) {
+            self.selectedTimePeriod = period
+        }
 
         self.selectedBabyID = state.selectedBabyID
     }
