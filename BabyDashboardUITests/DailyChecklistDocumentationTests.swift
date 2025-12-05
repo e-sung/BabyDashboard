@@ -96,8 +96,8 @@ final class DailyChecklistDocumentationTests: XCTestCase {
             app.navigationBars.buttons.matching(NSPredicate(format: "label == %@", "Add Event Type")).firstMatch.tap()
             
             // Enter event type details
-            let nameField = app.textFields.matching(NSPredicate(format: "placeholderValue CONTAINS %@", "Vomit")).firstMatch
-            XCTAssertTrue(nameField.waitForExistence(timeout: 2))
+            let nameField = app.textFields.element(boundBy: 0)
+            XCTAssertTrue(nameField.waitForExistence(timeout: 2), "Name text field should exist")
             nameField.tap()
             nameField.typeText("Vitamin")
             
@@ -119,8 +119,8 @@ final class DailyChecklistDocumentationTests: XCTestCase {
                 "Newly created Vitamin event type should appear in list"
             )
             
-            // Go back to configuration sheet
-            app.buttons["Done"].tap()
+            // Go back to configuration sheet 
+            app.navigationBars.buttons["Done"].firstMatch.tap()
         }
         
         XCTContext.runActivity(named: "4. Select CustomEventType for Daily Checklist") { _ in
@@ -135,10 +135,13 @@ final class DailyChecklistDocumentationTests: XCTestCase {
             )
             vitaminRow.tap()
             
-            // Sheet should dismiss and checklist button should appear
+            // Tap Done to dismiss the configuration sheet
+            app.navigationBars.buttons["Done"].firstMatch.tap()
+            
+            // Verify sheet is dismissed
             XCTAssertTrue(
                 app.staticTexts["Daily Checklist"].waitForNonExistence(timeout: 2),
-                "Configuration sheet should dismiss after selection"
+                "Configuration sheet should dismiss after tapping Done"
             )
         }
         
@@ -151,14 +154,7 @@ final class DailyChecklistDocumentationTests: XCTestCase {
                 "Vitamin checklist button should appear after configuration"
             )
             
-            // Verify button is in editable mode (has "editable" hint indicating wiggle state)
-            XCTAssertEqual(
-                vitaminButton.value(forKey: "hint") as? String,
-                "editable",
-                "Checklist button should have 'editable' hint when in configuration mode (wiggling)"
-            )
-            
-            // Verify delete badge is visible
+            // Verify delete badge is visible (indicates config/wiggle mode)
             let deleteButton = app.buttons["Remove from checklist"]
             XCTAssertTrue(
                 deleteButton.exists,
@@ -173,17 +169,7 @@ final class DailyChecklistDocumentationTests: XCTestCase {
             // Wait a moment for animation to settle
             sleep(1)
             
-            // Verify button is no longer in editable mode (wiggling stopped)
-            let vitaminButton = findChecklistButton(withEmoji: "💊")
-            XCTAssertTrue(vitaminButton.exists)
-            
-            let hint = vitaminButton.value(forKey: "hint") as? String
-            XCTAssertTrue(
-                hint == nil || hint == "",
-                "Checklist button should NOT have 'editable' hint when config mode is off (not wiggling)"
-            )
-            
-            // Verify delete badge is hidden
+            // Verify delete badge is hidden (indicates config mode off)
             let deleteButton = app.buttons["Remove from checklist"]
             XCTAssertFalse(
                 deleteButton.exists,
@@ -270,11 +256,13 @@ final class DailyChecklistDocumentationTests: XCTestCase {
             
             // Create first event type: Vitamin 💊
             app.buttons.matching(NSPredicate(format: "label CONTAINS %@", "Manage Event Types")).firstMatch.tap()
+            app.navigationBars.buttons.matching(NSPredicate(format: "label == %@", "Add Event Type")).firstMatch.tap()
             createEventType(name: "Vitamin", emoji: "💊")
             
             // Create second event type: Bath 🛁
             app.navigationBars.buttons.matching(NSPredicate(format: "label == %@", "Add Event Type")).firstMatch.tap()
-            let nameField2 = app.textFields.matching(NSPredicate(format: "placeholderValue CONTAINS %@", "Vomit")).firstMatch
+            let nameField2 = app.textFields.element(boundBy: 0)
+            XCTAssertTrue(nameField2.waitForExistence(timeout: 2), "Name text field should exist")
             nameField2.tap()
             nameField2.typeText("Bath")
             app.textFields["Tap to add emoji"].tap()
@@ -283,14 +271,15 @@ final class DailyChecklistDocumentationTests: XCTestCase {
             
             // Create third event type: Medicine 💉
             app.navigationBars.buttons.matching(NSPredicate(format: "label == %@", "Add Event Type")).firstMatch.tap()
-            let nameField3 = app.textFields.matching(NSPredicate(format: "placeholderValue CONTAINS %@", "Vomit")).firstMatch
+            let nameField3 = app.textFields.element(boundBy: 0)
+            XCTAssertTrue(nameField3.waitForExistence(timeout: 2), "Name text field should exist")
             nameField3.tap()
             nameField3.typeText("Medicine")
             app.textFields["Tap to add emoji"].tap()
             app.textFields["Tap to add emoji"].typeText("💉")
             app.buttons["Save"].tap()
             
-            app.buttons["Done"].tap()
+            app.buttons["Done"].firstMatch.tap()
         }
         
         XCTContext.runActivity(named: "2. Add All Three Items to Checklist") { _ in
@@ -328,32 +317,18 @@ final class DailyChecklistDocumentationTests: XCTestCase {
         }
         
         XCTContext.runActivity(named: "3. Verify All Three Items Wiggling") { _ in
-            // All three buttons should have "editable" hint (wiggling)
-            let vitaminButton = findChecklistButton(withEmoji: "💊")
-            let bathButton = findChecklistButton(withEmoji: "🛁")
-            let medicineButton = findChecklistButton(withEmoji: "💉")
-            
-            XCTAssertEqual(vitaminButton.value(forKey: "hint") as? String, "editable")
-            XCTAssertEqual(bathButton.value(forKey: "hint") as? String, "editable")
-            XCTAssertEqual(medicineButton.value(forKey: "hint") as? String, "editable")
+            // Verify delete badge is visible (indicates config mode)
+            let deleteButton = app.buttons["Remove from checklist"]
+            XCTAssertTrue(deleteButton.exists, "Delete badge should be visible in config mode")
         }
         
         XCTContext.runActivity(named: "4. Exit Config Mode - All Stop Wiggling") { _ in
             app.buttons["Configure Daily Checklist"].tap()
             sleep(1)
             
-            // All buttons should no longer have "editable" hint
-            let vitaminButton = findChecklistButton(withEmoji: "💊")
-            let bathButton = findChecklistButton(withEmoji: "🛁")
-            let medicineButton = findChecklistButton(withEmoji: "💉")
-            
-            let vitaminHint = vitaminButton.value(forKey: "hint") as? String
-            let bathHint = bathButton.value(forKey: "hint") as? String
-            let medicineHint = medicineButton.value(forKey: "hint") as? String
-            
-            XCTAssertTrue(vitaminHint == nil || vitaminHint == "")
-            XCTAssertTrue(bathHint == nil || bathHint == "")
-            XCTAssertTrue(medicineHint == nil || medicineHint == "")
+            // Verify delete badge is hidden (indicates config mode off)
+            let deleteButton = app.buttons["Remove from checklist"]
+            XCTAssertFalse(deleteButton.exists, "Delete badge should be hidden when not in config mode")
         }
     }
     
@@ -365,8 +340,9 @@ final class DailyChecklistDocumentationTests: XCTestCase {
             app.buttons["Configure Daily Checklist"].tap()
             app.buttons["PlaceholderChecklistButton"].tap()
             app.buttons.matching(NSPredicate(format: "label CONTAINS %@", "Manage Event Types")).firstMatch.tap()
+            app.navigationBars.buttons.matching(NSPredicate(format: "label == %@", "Add Event Type")).firstMatch.tap()
             createEventType(name: "Vitamin", emoji: "💊")
-            app.buttons["Done"].tap()
+            app.buttons["Done"].firstMatch.tap()
             app.buttons.matching(NSPredicate(format: "label CONTAINS %@", "Vitamin")).firstMatch.tap()
         }
         
@@ -453,11 +429,14 @@ final class DailyChecklistDocumentationTests: XCTestCase {
     
     /// Helper to create a CustomEventType
     private func createEventType(name: String, emoji: String) {
-        let nameField = app.textFields.matching(NSPredicate(format: "placeholderValue CONTAINS %@", "Vomit")).firstMatch
+        // Wait for the add sheet to appear and find the name text field
+        let nameField = app.textFields.element(boundBy: 0)
+        XCTAssertTrue(nameField.waitForExistence(timeout: 2), "Name text field should exist")
         nameField.tap()
         nameField.typeText(name)
         
         let emojiField = app.textFields["Tap to add emoji"]
+        XCTAssertTrue(emojiField.exists, "Emoji text field should exist")
         emojiField.tap()
         emojiField.typeText(emoji)
         

@@ -159,6 +159,7 @@ struct AddCustomEventTypeSheet: View {
                 Section("Event Name") {
                     TextField("e.g. Vomit, Bath, Medicine", text: $name)
                         .focused($isNameFocused)
+                        .accessibilityIdentifier("EventNameField")
                 }
                 
                 Section {
@@ -246,6 +247,7 @@ struct EditCustomEventTypeSheet: View {
                 Section("Event Name") {
                     TextField("e.g. Vomit, Bath, Medicine", text: $name)
                         .focused($isNameFocused)
+                        .accessibilityIdentifier("EventNameField")
                 }
                 
                 Section {
