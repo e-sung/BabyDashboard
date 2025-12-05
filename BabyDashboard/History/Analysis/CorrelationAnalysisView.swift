@@ -28,9 +28,6 @@ struct CorrelationAnalysisView: View {
     
     var body: some View {
         Form {
-
-            
-            // Section 2: Correlation Definition
             Section("Analyze correlation of") {
                 if viewModel.availableHashtags.isEmpty {
                     Text("No hashtags found in the selected period.")
@@ -155,7 +152,6 @@ struct CorrelationAnalysisView: View {
                     .onChange(of: viewModel.selectedTimePeriod) { _, _ in viewModel.loadHashtags(context: viewContext) }
                 }
             }
-            // Section 5: Analyze Button
             Section {
                 Button {
                     viewModel.runAnalysis(context: viewContext)
@@ -175,7 +171,6 @@ struct CorrelationAnalysisView: View {
                 .disabled(viewModel.isAnalyzing || !canAnalyze)
             }
             
-            // Section 6: Results
             if !viewModel.results.isEmpty {
                 Section("Analysis Results") {
                     Chart(viewModel.results) { result in
