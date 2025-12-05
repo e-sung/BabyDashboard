@@ -193,7 +193,7 @@ private extension MainView {
                         if index < babies.count {
                             let baby = babies[index]
                             let isHighlighted = highlightedBabyID == baby.objectID
-                            let tile = BabyStatusView2(
+                            let tile = BabyStatusView(
                                 baby: baby,
                                 isFeedAnimating: viewModel.feedAnimationStates[baby.id, default: false],
                                 isDiaperAnimating: viewModel.diaperAnimationStates[baby.id, default: false],

@@ -2,13 +2,15 @@ import SwiftUI
 import CoreData
 import Model
 
-struct BabyStatusView2: View {
+struct BabyStatusView: View {
     @ObservedObject var baby: BabyProfile
     @EnvironmentObject var settings: AppSettings
 
     // Animation States
     var isFeedAnimating: Bool = false
     var isDiaperAnimating: Bool = false
+    
+    @State private var lastMedicationDate: Date?
     
     // Actions
     let onFeedTap: () -> Void
@@ -40,15 +42,31 @@ struct BabyStatusView2: View {
             
             VStack(alignment: .leading, spacing: 20) {
                 // Header
-                Button {
-                    onNameTap()
-                } label: {
-                    Text(baby.name)
-                        .font(.system(size: isIPad ? 50 : 34, weight: .bold))
-                        .padding(.horizontal)
+                HStack {
+                    Button {
+                        onNameTap()
+                    } label: {
+                        Text(baby.name)
+                            .font(.system(size: isIPad ? 50 : 34, weight: .bold))
+                            .padding(.horizontal)
+                    }
+                    .foregroundStyle(.primary)
+                    .accessibilityAddTraits(.isHeader)
+                    
+                    Spacer()
+                    
+                    StatusToggleButton(
+                        emoji: "💊",
+                        isOn: isMedicationTaken(now: now)
+                    ) {
+                        if isMedicationTaken(now: now) {
+                            lastMedicationDate = nil
+                        } else {
+                            lastMedicationDate = now
+                        }
+                    }
+                    .padding(.trailing)
                 }
-                .foregroundStyle(.primary)
-                .accessibilityAddTraits(.isHeader)
 
 
                 VStack(spacing: 16) {
@@ -279,12 +297,37 @@ struct BabyStatusView2: View {
         }
         return "0s"
     }
+    
+    private func isMedicationTaken(now: Date) -> Bool {
+        guard let lastTaken = lastMedicationDate else { return false }
+        let startOfDay = getStartOfDay(now: now)
+        return lastTaken >= startOfDay
+    }
+
+    private func getStartOfDay(now: Date) -> Date {
+        let calendar = Calendar.current
+        var components = calendar.dateComponents([.year, .month, .day, .hour, .minute], from: now)
+        
+        // Set to today's start time
+        components.hour = settings.startOfDayHour
+        components.minute = settings.startOfDayMinute
+        components.second = 0
+        
+        guard let todayStart = calendar.date(from: components) else { return now }
+        
+        // If now is before today's start time, then the "current day" started yesterday
+        if now < todayStart {
+            return calendar.date(byAdding: .day, value: -1, to: todayStart) ?? todayStart
+        }
+        
+        return todayStart
+    }
 }
 
 
 
 #if DEBUG
-struct BabyStatusView2_Previews: PreviewProvider {
+struct BabyStatusView_Previews: PreviewProvider {
     static var previews: some View {
         let controller = PersistenceController.preview
         let context = controller.viewContext
@@ -315,7 +358,7 @@ struct BabyStatusView2_Previews: PreviewProvider {
         session3.profile = babyInProgress
 
         return Group {
-            BabyStatusView2(
+            BabyStatusView(
                 baby: babyNormal,
                 onFeedTap: {},
                 onFeedLongPress: {},
@@ -327,7 +370,7 @@ struct BabyStatusView2_Previews: PreviewProvider {
             .previewDisplayName("Normal")
             .environmentObject(AppSettings())
             
-            BabyStatusView2(
+            BabyStatusView(
                 baby: babyEmpty,
                 onFeedTap: {},
                 onFeedLongPress: {},
@@ -339,7 +382,7 @@ struct BabyStatusView2_Previews: PreviewProvider {
             .previewDisplayName("Empty")
             .environmentObject(AppSettings())
             
-            BabyStatusView2(
+            BabyStatusView(
                 baby: babyOverdue,
                 onFeedTap: {},
                 onFeedLongPress: {},
@@ -351,7 +394,7 @@ struct BabyStatusView2_Previews: PreviewProvider {
             .previewDisplayName("Overdue")
             .environmentObject(AppSettings())
             
-            BabyStatusView2(
+            BabyStatusView(
                 baby: babyInProgress,
                 onFeedTap: {},
                 onFeedLongPress: {},
