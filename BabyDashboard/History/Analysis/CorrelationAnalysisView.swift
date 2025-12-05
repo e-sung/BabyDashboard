@@ -28,16 +28,7 @@ struct CorrelationAnalysisView: View {
     
     var body: some View {
         Form {
-            // Section 1: Baby Selection
-            Section("Baby") {
-                Picker("Select Baby", selection: $viewModel.selectedBabyID) {
-                    Text("All Babies").tag(UUID?.none)
-                    ForEach(babies) { baby in
-                        Text(baby.name).tag(UUID?.some(baby.id))
-                    }
-                }
-                .onChange(of: viewModel.selectedBabyID) { _, _ in viewModel.loadHashtags(context: viewContext) }
-            }
+
             
             // Section 2: Correlation Definition
             Section("Analyze correlation of") {
@@ -148,6 +139,14 @@ struct CorrelationAnalysisView: View {
                         }
                     }
                     .padding(.vertical, 4)
+                    Picker("For", selection: $viewModel.selectedBabyID) {
+                        Text("All Babies").tag(UUID?.none)
+                        ForEach(babies) { baby in
+                            Text(baby.name).tag(UUID?.some(baby.id))
+                        }
+                    }
+                    .onChange(of: viewModel.selectedBabyID) { _, _ in viewModel.loadHashtags(context: viewContext) }
+                    
                     Picker("During", selection: $viewModel.selectedTimePeriod) {
                         ForEach(AnalysisTimePeriod.allCases) { period in
                             Text(period.title).tag(period)
