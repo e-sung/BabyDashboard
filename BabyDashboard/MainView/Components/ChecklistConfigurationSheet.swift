@@ -36,7 +36,7 @@ struct ChecklistConfigurationSheet: View {
     }
     
     private func canAddMore() -> Bool {
-        currentEventTypeIDs.count < maxItems
+        currentEventTypeIDs.count <= maxItems
     }
     
     var body: some View {
