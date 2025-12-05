@@ -75,7 +75,7 @@ struct HistoryRowView: View {
 
 // MARK: - Wrapped Tag Capsule
 
-private struct TagCapsule: View {
+struct TagCapsule: View {
     let text: String
     var body: some View {
         Text(text)
@@ -91,7 +91,7 @@ private struct TagCapsule: View {
 
 // MARK: - Simple Flow Layout (wraps items across lines)
 
-private struct FlowLayout: Layout {
+struct FlowLayout: Layout {
     var spacing: CGFloat = 6
     var rowSpacing: CGFloat = 6
 

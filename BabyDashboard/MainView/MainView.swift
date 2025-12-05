@@ -84,13 +84,12 @@ struct MainView: View {
             }
             .sheet(isPresented: $showingHistory) { HistoryView() }
             .sheet(item: $editingFeedSession) { session in
-                HistoryEditView(model: .feed(session))
-                    .environment(\.managedObjectContext, viewContext)
+                HistoryEditView(model: .feed(session), babies: Array(babies))
                     .environment(\.managedObjectContext, viewContext)
                     .environmentObject(settings)
             }
             .sheet(item: $editingDiaperChange) { change in
-                HistoryEditView(model: .diaper(change))
+                HistoryEditView(model: .diaper(change), babies: Array(babies))
                     .environment(\.managedObjectContext, viewContext)
                     .environmentObject(settings)
             }

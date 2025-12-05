@@ -61,12 +61,35 @@ struct HistoryAnalysisView: View {
         UnitUtils.preferredUnit
     }
 
+    @State private var showingCorrelation = false
+
     var body: some View {
         VStack {
             controls
             chartView
         }
         .navigationTitle("Analysis")
+        .toolbar {
+            ToolbarItem(placement: .primaryAction) {
+                Button {
+                    showingCorrelation = true
+                } label: {
+                    Label("Correlation", systemImage: "arrow.triangle.branch")
+                }
+            }
+        }
+        .sheet(isPresented: $showingCorrelation) {
+            NavigationView {
+                CorrelationAnalysisView()
+                    .toolbar {
+                        ToolbarItem(placement: .cancellationAction) {
+                            Button("Close") {
+                                showingCorrelation = false
+                            }
+                        }
+                    }
+            }
+        }
         .task {
             loadAvailableBabies()
             await refreshData()
