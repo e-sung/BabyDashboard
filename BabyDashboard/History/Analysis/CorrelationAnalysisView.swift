@@ -127,9 +127,17 @@ struct CorrelationAnalysisView: View {
                                             .font(.largeTitle)
                                     }
                                     
-                                    Text(viewModel.targetSummary)
-                                        .font(.caption)
-                                        .multilineTextAlignment(.center)
+                                    if let id = viewModel.targetCustomEventTypeID,
+                                       let event = customEventTypes.first(where: { $0.id == id }),
+                                       viewModel.targetType == .customEvent {
+                                        Text(event.name)
+                                            .font(.caption)
+                                            .multilineTextAlignment(.center)
+                                    } else {
+                                        Text(viewModel.targetSummary)
+                                            .font(.caption)
+                                            .multilineTextAlignment(.center)
+                                    }
                                 }
                                 .frame(maxWidth: .infinity)
                                 .padding(.vertical, 8)
