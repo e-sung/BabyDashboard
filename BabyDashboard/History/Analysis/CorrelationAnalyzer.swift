@@ -82,10 +82,18 @@ actor CorrelationAnalyzer {
             
             if target == .feedAmount {
                 let req: NSFetchRequest<FeedSession> = FeedSession.fetchRequest()
-                req.predicate = Self.makePredicate(dateInterval: dateInterval, babyID: babyID)
+                req.predicate = Self.makePredicate(dateInterval: dateInterval, babyID: babyID, dateKey: "startTime")
                 allFeedSessions = (try? context.fetch(req)) ?? []
             } else {
-                allSourceEvents = Self.fetchAllEvents(context: context, dateInterval: dateInterval, babyID: babyID)
+                // Exclude target event type from source events to prevent self-correlation
+                var excludeCustomEventTypeID: UUID? = nil
+                switch target {
+                case .customEvent(let typeID), .customEventWithHashtag(let typeID, _):
+                    excludeCustomEventTypeID = typeID
+                default:
+                    break
+                }
+                allSourceEvents = Self.fetchAllEvents(context: context, dateInterval: dateInterval, babyID: babyID, excludeCustomEventTypeID: excludeCustomEventTypeID)
             }
             
             // 2. Fetch Target Events (Only for non-FeedAmount targets)
@@ -230,7 +238,7 @@ actor CorrelationAnalyzer {
         return NSCompoundPredicate(andPredicateWithSubpredicates: predicates)
     }
     
-    private nonisolated static func fetchAllEvents(context: NSManagedObjectContext, dateInterval: DateInterval, babyID: UUID?) -> [HistoryEvent] {
+    private nonisolated static func fetchAllEvents(context: NSManagedObjectContext, dateInterval: DateInterval, babyID: UUID?, excludeCustomEventTypeID: UUID? = nil) -> [HistoryEvent] {
         var events: [HistoryEvent] = []
         
         // Feeds
@@ -251,10 +259,13 @@ actor CorrelationAnalyzer {
             events.append(contentsOf: diapers.map { HistoryEvent(from: $0) })
         }
         
-        // Custom
+        // Custom (exclude specific type if specified)
         let customReq: NSFetchRequest<CustomEvent> = CustomEvent.fetchRequest()
         var customPreds = [NSPredicate(format: "timestamp >= %@ AND timestamp < %@", argumentArray: [dateInterval.start, dateInterval.end])]
         if let babyID { customPreds.append(NSPredicate(format: "profile.id == %@", argumentArray: [babyID])) }
+        if let excludeCustomEventTypeID {
+            customPreds.append(NSPredicate(format: "eventType.id != %@", argumentArray: [excludeCustomEventTypeID]))
+        }
         customReq.predicate = NSCompoundPredicate(andPredicateWithSubpredicates: customPreds)
         if let customs = try? context.fetch(customReq) {
             events.append(contentsOf: customs.map { HistoryEvent(from: $0) })

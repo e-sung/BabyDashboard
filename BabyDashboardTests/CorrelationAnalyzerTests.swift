@@ -19,10 +19,10 @@ struct CorrelationAnalyzerTests {
         let now = Date()
         
         // Scenario: #BrandA causes vomit (Perfect Positive Correlation)
-        // 5 feeds with #BrandA -> 5 Vomits
-        // 5 feeds without #BrandA -> 0 Vomits
+        // 10 feeds with #BrandA -> 10 Vomits
+        // 10 feeds without #BrandA -> 0 Vomits
         
-        for i in 0..<5 {
+        for i in 0..<10 {
             let feed = FeedSession(context: context, startTime: now.addingTimeInterval(-Double(i)*3600 - 10000))
             feed.memoText = "Milk #BrandA"
             feed.profile = baby
@@ -31,7 +31,7 @@ struct CorrelationAnalyzerTests {
             vomit.profile = baby
         }
         
-        for i in 0..<5 {
+        for i in 0..<10 {
             let feed = FeedSession(context: context, startTime: now.addingTimeInterval(-Double(i)*3600 - 50000))
             feed.memoText = "Milk #BrandB" // No vomit
             feed.profile = baby
@@ -44,7 +44,7 @@ struct CorrelationAnalyzerTests {
         
         // When
         let results = await analyzer.analyze(
-            sourceHashtags: ["branda"],
+            sourceHashtags: ["#BrandA"],
             target: .customEvent(typeID: vomitType.id),
 
             dateInterval: dateInterval,
@@ -52,12 +52,12 @@ struct CorrelationAnalyzerTests {
         )
         
         // Then
-        let brandA = results.first(where: { $0.hashtag == "branda" })
+        let brandA = results.first(where: { $0.hashtag == "#BrandA" })
         
         // Contingency Table:
         //       | Yes | No
-        // Has A |  5  | 0
-        // No A  |  0  | 5 (BrandB feeds)
+        // Has A | 10  | 0
+        // No A  |  0  | 10 (BrandB feeds)
         // Phi should be 1.0
         
         #expect(brandA?.correlationCoefficient == 1.0)
@@ -70,21 +70,24 @@ struct CorrelationAnalyzerTests {
         let baby = BabyProfile(context: context, name: "TestBaby")
         let now = Date()
         
-        // Scenario: #BrandA feeds are 150ml, Others are 50ml
+        // Scenario: #BrandA feeds are ~150ml, Others are ~50ml
+        // Adding variance to make the t-test meaningful
         
-        // 5 feeds with #BrandA (150ml)
-        for i in 0..<5 {
+        // 10 feeds with #BrandA (145-155ml, mean=150ml)
+        let amountsA = [145.0, 148.0, 150.0, 152.0, 155.0, 146.0, 149.0, 151.0, 153.0, 151.0]
+        for (i, amount) in amountsA.enumerated() {
             let feed = FeedSession(context: context, startTime: now.addingTimeInterval(-Double(i)*3600 - 10000))
             feed.memoText = "#BrandA"
-            feed.amount = Measurement(value: 150, unit: .milliliters)
+            feed.amount = Measurement(value: amount, unit: .milliliters)
             feed.profile = baby
         }
         
-        // 5 feeds with #BrandB (50ml)
-        for i in 0..<5 {
+        // 10 feeds with #BrandB (45-55ml, mean=50ml)
+        let amountsB = [45.0, 48.0, 50.0, 52.0, 55.0, 46.0, 49.0, 51.0, 53.0, 51.0]
+        for (i, amount) in amountsB.enumerated() {
             let feed = FeedSession(context: context, startTime: now.addingTimeInterval(-Double(i)*3600 - 50000))
             feed.memoText = "#BrandB"
-            feed.amount = Measurement(value: 50, unit: .milliliters)
+            feed.amount = Measurement(value: amount, unit: .milliliters)
             feed.profile = baby
         }
         
@@ -95,7 +98,7 @@ struct CorrelationAnalyzerTests {
         
         // When
         let results = await analyzer.analyze(
-            sourceHashtags: ["branda"],
+            sourceHashtags: ["#BrandA"],
             target: .feedAmount,
 
             dateInterval: dateInterval,
@@ -103,14 +106,14 @@ struct CorrelationAnalyzerTests {
         )
         
         // Then
-        let brandA = results.first(where: { $0.hashtag == "branda" })
+        let brandA = results.first(where: { $0.hashtag == "#BrandA" })
         
-        // Group A (Has BrandA): [150, 150, 150, 150, 150]
-        // Group B (No BrandA): [50, 50, 50, 50, 50]
+        // Group A (Has BrandA): [145, 148, 150, 152, 155, 146, 149, 151, 153, 151] mean=150
+        // Group B (No BrandA): [45, 48, 50, 52, 55, 46, 49, 51, 53, 51] mean=50
         // Correlation should be positive (close to 1.0)
         
         #expect(brandA?.correlationCoefficient ?? 0 > 0.8)
-        #expect(brandA?.averageValue == 150)
+        #expect(brandA?.averageValue ?? 0 >= 149 && brandA?.averageValue ?? 0 <= 151) // Should be ~150
         #expect(brandA?.pValue ?? 1.0 < 0.05)
     }
 }
