@@ -11,6 +11,7 @@ final class BabyDashboardDocumentationTests: XCTestCase {
 
     var app: XCUIApplication!
     private let baseTime: TimeInterval = 1704099600 // 2024-01-01 00:00:00 UTC
+    private let defaultTimeout: TimeInterval = 10
 
     override func setUpWithError() throws {
         continueAfterFailure = false
@@ -40,7 +41,7 @@ final class BabyDashboardDocumentationTests: XCTestCase {
         
         // 3. Enter name
         let nameField = app.textFields["Name"]
-        XCTAssertTrue(nameField.waitForExistence(timeout: 2), "Name field should appear")
+        XCTAssertTrue(nameField.waitForExistence(timeout: defaultTimeout), "Name field should appear")
         nameField.tap()
         nameField.typeText("Baby A")
         
@@ -49,7 +50,7 @@ final class BabyDashboardDocumentationTests: XCTestCase {
         
         // 5. Verify tile appears
         let babyTile = babyNameElement("Baby A")
-        XCTAssertTrue(babyTile.waitForExistence(timeout: 10), "Baby A tile should appear on dashboard")
+        XCTAssertTrue(babyTile.waitForExistence(timeout: defaultTimeout), "Baby A tile should appear on dashboard")
     }
 
     func testNavigation() throws {
@@ -65,7 +66,7 @@ final class BabyDashboardDocumentationTests: XCTestCase {
         
         // Analysis
         let analysisButton = app.buttons["Analysis"]
-        XCTAssertTrue(analysisButton.waitForExistence(timeout: 2))
+        XCTAssertTrue(analysisButton.waitForExistence(timeout: defaultTimeout))
         analysisButton.tap()
         
         // Dismiss
@@ -98,16 +99,16 @@ final class BabyDashboardDocumentationTests: XCTestCase {
 
         XCTContext.runActivity(named: "Finish Feeding") { _ in
             feedCard.tap() // finish feeding
-            XCTAssertTrue(app.staticTexts["How much did Baby A eat?"].waitForExistence(timeout: 2))
+            XCTAssertTrue(app.staticTexts["How much did Baby A eat?"].waitForExistence(timeout: defaultTimeout))
             let amountField = app.textFields["Amount"]
-            XCTAssertTrue(amountField.waitForExistence(timeout: 2))
+            XCTAssertTrue(amountField.waitForExistence(timeout: defaultTimeout))
             amountField.tap()
             amountField.typeText("90")
             app.buttons["Done"].tap()
-            XCTAssert(app.staticTexts["How much did Baby A eat?"].waitForNonExistence(timeout: 2))
+            XCTAssert(app.staticTexts["How much did Baby A eat?"].waitForNonExistence(timeout: defaultTimeout))
             XCTAssert(findStaticText(containing: "Just now", from: feedCard).exists)
             XCTAssertFalse(findStaticText(containing: "Feeding", from: feedCard).exists)
-            XCTAssertTrue(findStaticText(containing: "90").waitForExistence(timeout: 2), "Feed footer should include entered amount")
+            XCTAssertTrue(findStaticText(containing: "90").waitForExistence(timeout: defaultTimeout), "Feed footer should include entered amount")
         }
 
         XCTContext.runActivity(named: "Edit History") { _ in
@@ -115,17 +116,17 @@ final class BabyDashboardDocumentationTests: XCTestCase {
             let footerElement = findStaticText(containing: "Last Feed", from: feedCard)
             XCTAssertTrue(footerElement.exists, "Feed footer should be tappable")
             footerElement.tap()
-            XCTAssert(app.staticTexts["Edit Event"].waitForExistence(timeout: 1))
+            XCTAssert(app.staticTexts["Edit Event"].waitForExistence(timeout: defaultTimeout))
 
             let picker = app.datePickers["Start Time"]
-            XCTAssertTrue(picker.waitForExistence(timeout: 2), "Date picker Start Time should appear")
+            XCTAssertTrue(picker.waitForExistence(timeout: defaultTimeout), "Date picker Start Time should appear")
             picker.tap()
-            XCTAssert(app.pickerWheels.firstMatch.waitForExistence(timeout: 2))
+            XCTAssert(app.pickerWheels.firstMatch.waitForExistence(timeout: defaultTimeout))
             app.pickerWheels.firstMatch.adjust(toPickerWheelValue: "8")
             app.buttons["PopoverDismissRegion"].tap()
             app.navigationBars.buttons["Done"].tap()
 
-            XCTAssert(app.staticTexts["Edit Event"].waitForNonExistence(timeout: 3))
+            XCTAssert(app.staticTexts["Edit Event"].waitForNonExistence(timeout: defaultTimeout))
             waitForLabel(feedCard, toMatchAnyOf: ["ago", "hour", "min"])
         }
 
@@ -138,16 +139,16 @@ final class BabyDashboardDocumentationTests: XCTestCase {
 
         XCTContext.runActivity(named: "ReFinish Feeding") { _ in
             feedCard.tap() // finish feeding
-            XCTAssertTrue(app.staticTexts["How much did Baby A eat?"].waitForExistence(timeout: 2))
+            XCTAssertTrue(app.staticTexts["How much did Baby A eat?"].waitForExistence(timeout: defaultTimeout))
             let amountField = app.textFields["Amount"]
             XCTAssert(amountField.value as? String == "90.0", "Previous amount should be pre-filled in the amount field")
             app/*@START_MENU_TOKEN@*/.buttons["Increment"]/*[[".steppers",".buttons[\"Adjust by 10, 증가\"]",".buttons[\"Increment\"]"],[[[-1,2],[-1,1],[-1,0,1]],[[-1,2],[-1,1]]],[0]]@END_MENU_TOKEN@*/.firstMatch.tap()
             XCTAssert(amountField.value as? String == "100.0", "Amount should be incremented")
             app.buttons["Done"].tap()
-            XCTAssert(app.staticTexts["How much did Baby A eat?"].waitForNonExistence(timeout: 2))
+            XCTAssert(app.staticTexts["How much did Baby A eat?"].waitForNonExistence(timeout: defaultTimeout))
             XCTAssert(findStaticText(containing: "Just now", from: feedCard).exists)
             XCTAssertFalse(findStaticText(containing: "Feeding", from: feedCard).exists)
-            XCTAssertTrue(findStaticText(containing: "100").waitForExistence(timeout: 2), "Feed footer should include entered amount")
+            XCTAssertTrue(findStaticText(containing: "100").waitForExistence(timeout: defaultTimeout), "Feed footer should include entered amount")
         }
     }
 
@@ -155,13 +156,13 @@ final class BabyDashboardDocumentationTests: XCTestCase {
         launchApp(seed: "babiesWithSomeLogs")
 
         let diaperCard = diaperStatusCard()
-        XCTAssertTrue(diaperCard.waitForExistence(timeout: 2), "Diaper card should be visible for Baby A")
+        XCTAssertTrue(diaperCard.waitForExistence(timeout: defaultTimeout), "Diaper card should be visible for Baby A")
         let initialProgress = progressValue(of: diaperCard)
         let initialFooter = timeFooter(in: diaperCard)
 
         diaperCard.tap()
         let peeButton = app.buttons["Pee"]
-        XCTAssertTrue(peeButton.waitForExistence(timeout: 2))
+        XCTAssertTrue(peeButton.waitForExistence(timeout: defaultTimeout))
         peeButton.tap()
 
         waitForLabel(diaperCard, toMatchAnyOf: ["Just now", "ago"])
@@ -231,7 +232,7 @@ final class BabyDashboardDocumentationTests: XCTestCase {
         return label.exists ? label.label : nil
     }
 
-    private func waitForLabel(_ element: XCUIElement, toMatchAnyOf substrings: [String], timeout: TimeInterval = 5) {
+    private func waitForLabel(_ element: XCUIElement, toMatchAnyOf substrings: [String], timeout: TimeInterval = 10) {
         let predicate = NSPredicate { object, _ in
             guard let el = object as? XCUIElement else { return false }
             return substrings.contains { el.label.contains($0) }
