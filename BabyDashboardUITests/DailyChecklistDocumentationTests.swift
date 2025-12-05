@@ -204,7 +204,7 @@ final class DailyChecklistDocumentationTests: XCTestCase {
             )
 
             // Go back to main view
-            app.windows.firstMatch.swipeDown(velocity: .fast)
+            app.buttons["Done"].tap()
         }
         
         XCTContext.runActivity(named: "8. Toggle Checklist Item OFF - Delete CustomEvent") { _ in
@@ -225,9 +225,6 @@ final class DailyChecklistDocumentationTests: XCTestCase {
                 vitaminEvent.exists,
                 "Vitamin CustomEvent should be deleted from History after unchecking"
             )
-            
-            // Go back
-            app.windows.firstMatch.swipeDown(velocity: .fast)
         }
     }
     

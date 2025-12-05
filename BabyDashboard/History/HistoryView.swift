@@ -7,15 +7,6 @@ struct HistoryView: View {
     @Environment(\.managedObjectContext) private var viewContext
     @EnvironmentObject var settings: AppSettings
 
-    // Fetch all custom event types globally
-    @FetchRequest(
-        sortDescriptors: [NSSortDescriptor(keyPath: \CustomEventType.createdAt, ascending: true)],
-        animation: .default
-    )
-    private var allCustomEventTypes: FetchedResults<CustomEventType>
-
-    @State private var selectedTypes: Set<String> = ["feed", "diaper", "custom"]
-
     @FetchRequest(
         fetchRequest: HistoryView.makeFeedRequest(),
         animation: .default
