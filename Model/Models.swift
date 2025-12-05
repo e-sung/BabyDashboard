@@ -43,7 +43,6 @@ extension BabyProfile {
     @NSManaged public var feedTerm: TimeInterval
     @NSManaged public var id: UUID
     @NSManaged public var name: String
-    @NSManaged public var customEventTypes: NSSet?
     @NSManaged public var customEvents: NSSet?
     @NSManaged public var diaperChanges: NSSet?
     @NSManaged public var feedSessions: NSSet?
@@ -74,17 +73,7 @@ extension BabyProfile {
     @objc(removeFeedSessions:)
     @NSManaged public func removeFromFeedSessions(_ values: NSSet)
 
-    @objc(addCustomEventTypesObject:)
-    @NSManaged public func addToCustomEventTypes(_ value: CustomEventType)
 
-    @objc(removeCustomEventTypesObject:)
-    @NSManaged public func removeFromCustomEventTypes(_ value: CustomEventType)
-
-    @objc(addCustomEventTypes:)
-    @NSManaged public func addToCustomEventTypes(_ values: NSSet)
-
-    @objc(removeCustomEventTypes:)
-    @NSManaged public func removeFromCustomEventTypes(_ values: NSSet)
 
     @objc(addCustomEventsObject:)
     @NSManaged public func addToCustomEvents(_ value: CustomEvent)
@@ -162,10 +151,7 @@ public extension BabyProfile {
         return Array(set)
     }
 
-    var customEventTypesArray: [CustomEventType] {
-        guard let set = customEventTypes as? Set<CustomEventType> else { return [] }
-        return Array(set).sorted(by: { $0.createdAt < $1.createdAt })
-    }
+
 
     var customEventsArray: [CustomEvent] {
         guard let set = customEvents as? Set<CustomEvent> else { return [] }
@@ -295,7 +281,6 @@ public extension DiaperChange {
 public extension CustomEventType {
     convenience init(context: NSManagedObjectContext, name: String, emoji: String) {
         self.init(context: context)
-        self.id = UUID()
         self.name = name
         self.emoji = emoji
         self.createdAt = Date.current
@@ -322,7 +307,6 @@ extension CustomEventType {
     @NSManaged public var name: String
     @NSManaged public var emoji: String
     @NSManaged public var createdAt: Date
-    @NSManaged public var profile: BabyProfile?
     @NSManaged public var events: NSSet?
 }
 

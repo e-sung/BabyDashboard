@@ -160,12 +160,6 @@ struct LogCustomEventIntent: AppIntent {
             return .result(value: String(localized: dialog), dialog: IntentDialog(dialog))
         }
 
-        // Validate that the event type belongs to the selected baby
-        guard customEventType.profile?.id == baby.id else {
-            let dialog: LocalizedStringResource = "Event type does not belong to the selected baby."
-            return .result(value: String(localized: dialog), dialog: IntentDialog(dialog))
-        }
-
         MainViewModel.shared.logCustomEvent(for: profile, eventType: customEventType)
         
         let dialog: LocalizedStringResource = "Logged \(eventType.emoji) \(eventType.name) for \(baby.name)"

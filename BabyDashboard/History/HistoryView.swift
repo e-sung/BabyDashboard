@@ -7,6 +7,15 @@ struct HistoryView: View {
     @Environment(\.managedObjectContext) private var viewContext
     @EnvironmentObject var settings: AppSettings
 
+    // Fetch all custom event types globally
+    @FetchRequest(
+        sortDescriptors: [NSSortDescriptor(keyPath: \CustomEventType.createdAt, ascending: true)],
+        animation: .default
+    )
+    private var allCustomEventTypes: FetchedResults<CustomEventType>
+
+    @State private var selectedTypes: Set<String> = ["feed", "diaper", "custom"]
+
     @FetchRequest(
         fetchRequest: HistoryView.makeFeedRequest(),
         animation: .default
@@ -490,6 +499,219 @@ private struct FilterSheet: View {
             .navigationBarTitleDisplayMode(.inline)
         }
     }
+
+    let context: NSManagedObjectContext
+    let babies: [BabyProfile]
+    let defaultSelectedBabyID: UUID?
+    let onSave: () -> Void
+    let onCancel: () -> Void
+
+    @Environment(\.dismiss) private var dismiss
+
+    @State private var addType: AddType = .feed
+    @State private var selectedBabyID: UUID?
+    @State private var feedStart: Date = Date.current
+    @State private var feedEnd: Date = Date.current.addingTimeInterval(15 * 60)
+    @State private var amountString: String = ""
+    @State private var diaperTime: Date = Date.current
+    @State private var diaperType: DiaperType = .pee
+    @State private var customEventTime: Date = Date.current
+    @State private var selectedCustomEventType: CustomEventType?
+    @State private var availableCustomEventTypes: [CustomEventType] = []
+    @State private var memoText: String = ""
+    @State private var isShowingAddEventType = false
+
+    var body: some View {
+        NavigationView {
+            Form {
+                Section(String(localized: "Event")) {
+                    Picker(String(localized: "Type"), selection: $addType) {
+                        ForEach(AddType.allCases) { Text($0.title).tag($0) }
+                    }
+                    .pickerStyle(.segmented)
+                }
+
+                Section(String(localized: "Baby")) {
+                    Picker(String(localized: "Baby"), selection: Binding<UUID?>(
+                        get: { selectedBabyID },
+                        set: { selectedBabyID = $0 }
+                    )) {
+                        ForEach(babies.map { ($0.id, $0.name) }, id: \.0) { id, name in
+                            Text(name).tag(UUID?.some(id))
+                        }
+                    }
+                }
+
+                if addType == .feed {
+                    Section(String(localized: "Time")) {
+                        DatePicker(String(localized: "Start"), selection: $feedStart)
+                        DatePicker(String(localized: "End"), selection: $feedEnd, in: feedStart...Date.distantFuture)
+                    }
+                    Section(String(localized: "Amount")) {
+                        HStack {
+                            TextField(String(localized: "Amount"), text: $amountString)
+                                .keyboardType(.decimalPad)
+                            Text(UnitUtils.preferredUnit.symbol)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                } else if addType == .diaper {
+                    Section(String(localized: "Time")) {
+                        DatePicker(String(localized: "Time"), selection: $diaperTime)
+                    }
+                    Section(String(localized: "Type")) {
+                        Picker(String(localized: "Type"), selection: $diaperType) {
+                            Text(String(localized: "Pee")).tag(DiaperType.pee)
+                            Text(String(localized: "Poo")).tag(DiaperType.poo)
+                        }
+                        .pickerStyle(.segmented)
+                    }
+                    Section(String(localized: "Memo")) {
+                        TextField(String(localized: "Add notes or #hashtags"), text: $memoText, axis: .vertical)
+                            .lineLimit(3...6)
+                    }
+                } else if addType == .customEvent {
+                    Section(String(localized: "Event Type")) {
+                        if availableCustomEventTypes.isEmpty {
+                            Button {
+                                isShowingAddEventType = true
+                            } label: {
+                                HStack {
+                                    Image(systemName: "plus.circle.fill")
+                                        .foregroundStyle(.blue)
+                                    Text("Create First Event Type")
+                                        .foregroundStyle(.primary)
+                                    Spacer()
+                                }
+                            }
+                        } else {
+                            Picker(String(localized: "Event Type"), selection: $selectedCustomEventType) {
+                                ForEach(availableCustomEventTypes) { eventType in
+                                    HStack {
+                                        Text(eventType.emoji)
+                                        Text(eventType.name)
+                                    }
+                                    .tag(Optional(eventType))
+                                }
+                                
+                                // Add new event type option
+                                HStack {
+                                    Image(systemName: "plus.circle.fill")
+                                    Text("Add New EventType...")
+                                }
+                                .tag(Optional<CustomEventType>.none)
+                            }
+                            .onChange(of: selectedCustomEventType) { oldValue, newValue in
+                                // If user selected the "Add New" option (nil), show sheet
+                                if newValue == nil && oldValue != nil {
+                                    isShowingAddEventType = true
+                                    // Restore previous selection
+                                    selectedCustomEventType = oldValue
+                                }
+                            }
+                        }
+                    }
+                    
+                    if !availableCustomEventTypes.isEmpty {
+                        Section(String(localized: "Time")) {
+                            DatePicker(String(localized: "Time"), selection: $customEventTime)
+                        }
+                        Section(String(localized: "Memo")) {
+                            TextField(String(localized: "Add notes or #hashtags"), text: $memoText, axis: .vertical)
+                                .lineLimit(3...6)
+                        }
+                    }
+                }
+            }
+            .navigationTitle(String(localized: "Add Event"))
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button(String(localized: "Cancel")) {
+                        onCancel()
+                        dismiss()
+                    }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button(String(localized: "Save")) {
+                        save()
+                    }
+                    .disabled(!canSave)
+                }
+            }
+            .onAppear {
+                selectedBabyID = defaultSelectedBabyID ?? babies.first?.id
+                if feedEnd < feedStart {
+                    feedEnd = feedStart.addingTimeInterval(15 * 60)
+                }
+                // Load custom event types for the selected baby
+                updateAvailableCustomEventTypes()
+            }
+            .onChange(of: selectedBabyID) { _, _ in
+                updateAvailableCustomEventTypes()
+            }
+            .onChange(of: feedStart) { _, newStart in
+                if feedEnd < newStart {
+                    feedEnd = newStart.addingTimeInterval(15 * 60)
+                }
+            }
+            .sheet(isPresented: $isShowingAddEventType) {
+                AddCustomEventTypeSheet {
+                    isShowingAddEventType = false
+                    // Refresh available types
+                    updateAvailableCustomEventTypes()
+                }
+                .environment(\.managedObjectContext, context)
+            }
+        }
+    }
+
+    private var canSave: Bool {
+        guard let _ = babies.first(where: { $0.id == selectedBabyID }) else { return false }
+        switch addType {
+        case .feed:
+            guard feedEnd >= feedStart else { return false }
+            guard let value = Double(amountString), value >= 0 else { return false }
+            return true
+        case .diaper:
+            return true
+        case .customEvent:
+            return selectedCustomEventType != nil
+        }
+    }
+
+    private func save() {
+        guard let baby = babies.first(where: { $0.id == selectedBabyID }) else { return }
+        switch addType {
+        case .feed:
+            let session = FeedSession(context: context, startTime: feedStart)
+            session.endTime = feedEnd
+            if let value = Double(amountString) {
+                session.amount = Measurement(value: value, unit: UnitUtils.preferredUnit)
+            }
+            session.profile = baby
+        case .diaper:
+            let change = DiaperChange(context: context, timestamp: diaperTime, type: diaperType)
+            change.profile = baby
+            change.memoText = memoText.isEmpty ? nil : memoText
+        case .customEvent:
+            guard let eventType = selectedCustomEventType else { return }
+            let event = CustomEvent(context: context, timestamp: customEventTime, eventType: eventType)
+            event.profile = baby
+            event.memoText = memoText.isEmpty ? nil : memoText
+        }
+        onSave()
+        dismiss()
+    }
+
+    private func updateAvailableCustomEventTypes() {
+        // Now all custom event types are global, fetch from context
+        let request: NSFetchRequest<CustomEventType> = CustomEventType.fetchRequest()
+        request.sortDescriptors = [NSSortDescriptor(keyPath: \CustomEventType.createdAt, ascending: true)]
+        availableCustomEventTypes = (try? context.fetch(request)) ?? []
+        // Auto-select first type if available and nothing selected
+        if selectedCustomEventType == nil {
+            selectedCustomEventType = availableCustomEventTypes.first
+        }
+    }
 }
-
-
