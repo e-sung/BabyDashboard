@@ -51,6 +51,10 @@ struct MainView: View {
     // New: analysis navigation
     @State private var showingAnalysis = false
     @State private var showingSettings = false
+    
+    // Daily checklist configuration
+    @State private var isConfiguringChecklist = false
+    @State private var showingChecklistConfig: BabyProfile? = nil
 
     // Onboarding/add flow
     @State private var isShowingAddBaby = false
@@ -116,6 +120,19 @@ struct MainView: View {
             }
             .sheet(isPresented: $showingSettings) {
                 SettingsView(settings: settings, shareController: .shared)
+            }
+            .sheet(item: $showingChecklistConfig) { baby in
+                ChecklistConfigurationSheet(
+                    maxItems: AppSettings.maxChecklistItems,
+                    currentEventTypeIDs: settings.getChecklistEventTypeIDs(for: baby.id),
+                    onAdd: { selectedEventType in
+                        settings.addToChecklist(eventTypeID: selectedEventType.id, for: baby.id)
+                    },
+                    onRemove: { eventTypeID in
+                        settings.removeFromChecklist(eventTypeID: eventTypeID, for: baby.id)
+                    }
+                )
+                .environment(\.managedObjectContext, viewContext)
             }
             .toolbar(content: toolbarContent)
             .navigationBarTitleDisplayMode(.inline)
@@ -191,9 +208,10 @@ private extension MainView {
                     ForEach(0..<maxBabySlots, id: \.self) { index in
                         if index < babies.count {
                             let baby = babies[index]
-                            let isHighlighted = highlightedBabyID == baby.objectID
                             let tile = BabyStatusView(
                                 baby: baby,
+                                checklistEventTypeIDs: settings.getChecklistEventTypeIDs(for: baby.id),
+                                isConfiguringChecklist: isConfiguringChecklist,
                                 isFeedAnimating: viewModel.feedAnimationStates[baby.id, default: false],
                                 isDiaperAnimating: viewModel.diaperAnimationStates[baby.id, default: false],
                                 onFeedTap: { handleFeedTap(for: baby) },
@@ -210,6 +228,12 @@ private extension MainView {
                                 },
                                 onLastDiaperTap: { change in
                                     editingDiaperChange = change
+                                },
+                                onConfigureChecklist: { baby in
+                                    showingChecklistConfig = baby
+                                },
+                                onRemoveFromChecklist: { eventTypeID in
+                                    settings.removeFromChecklist(eventTypeID: eventTypeID, for: baby.id)
                                 }
                             )
                             .padding()
@@ -340,6 +364,12 @@ private extension MainView {
                         .imageScale(.large)
                 }
                 .accessibilityLabel(Text("Analysis"))
+                
+                Button(action: { isConfiguringChecklist.toggle() }) {
+                    Image(systemName: isConfiguringChecklist ? "checkmark.circle.fill" : "checklist")
+                        .imageScale(.large)
+                }
+                .accessibilityLabel("Configure Daily Checklist")
             }
         }
         

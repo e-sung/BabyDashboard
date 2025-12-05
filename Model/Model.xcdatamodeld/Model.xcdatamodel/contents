@@ -5,7 +5,6 @@
         <attribute name="feedTerm" attributeType="Double" defaultValueString="0.0" usesScalarValueType="YES"/>
         <attribute name="id" optional="YES" attributeType="UUID" defaultValueString="00000000-0000-0000-0000-000000000000" usesScalarValueType="NO"/>
         <attribute name="name" attributeType="String" defaultValueString=""/>
-        <relationship name="customEventTypes" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="CustomEventType" inverseName="profile" inverseEntity="CustomEventType"/>
         <relationship name="customEvents" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="CustomEvent" inverseName="profile" inverseEntity="CustomEvent"/>
         <relationship name="diaperChanges" optional="YES" toMany="YES" deletionRule="Nullify" destinationEntity="DiaperChange" inverseName="profile" inverseEntity="DiaperChange"/>
         <relationship name="feedSessions" optional="YES" toMany="YES" deletionRule="Nullify" destinationEntity="FeedSession" inverseName="profile" inverseEntity="FeedSession"/>
@@ -23,7 +22,6 @@
         <attribute name="id" optional="YES" attributeType="UUID" defaultValueString="00000000-0000-0000-0000-000000000000" usesScalarValueType="NO"/>
         <attribute name="name" attributeType="String" defaultValueString=""/>
         <relationship name="events" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="CustomEvent" inverseName="eventType" inverseEntity="CustomEvent"/>
-        <relationship name="profile" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="BabyProfile" inverseName="customEventTypes" inverseEntity="BabyProfile"/>
     </entity>
     <entity name="DiaperChange" representedClassName="DiaperChange" syncable="YES">
         <attribute name="memoText" optional="YES" attributeType="String"/>
