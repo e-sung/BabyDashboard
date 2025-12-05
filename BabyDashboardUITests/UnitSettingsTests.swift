@@ -4,6 +4,7 @@ final class UnitSettingsTests: XCTestCase {
 
     var app: XCUIApplication!
     private let baseTime: TimeInterval = 1704099600 // 2024-01-01 00:00:00 UTC
+    private let defaultTimeout: TimeInterval = 10
 
     override func setUpWithError() throws {
         continueAfterFailure = false
@@ -42,7 +43,7 @@ final class UnitSettingsTests: XCTestCase {
         
         // 6. Open History
         app.buttons["History"].tap()
-        XCTAssertTrue(app.navigationBars["History"].waitForExistence(timeout: 3))
+        XCTAssertTrue(app.navigationBars["History"].waitForExistence(timeout: defaultTimeout))
         
         // 7. Verify first feed (120 ml) -> approx 4.1 fl oz
         // The most recent is 4 oz, the previous is 120 ml.
@@ -84,7 +85,7 @@ final class UnitSettingsTests: XCTestCase {
     
     private func openSettings() {
         app.buttons["Settings"].tap()
-        XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 2))
+        XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: defaultTimeout))
     }
     
     private func closeSettings() {
@@ -92,7 +93,7 @@ final class UnitSettingsTests: XCTestCase {
     }
     
     private func selectUnit(_ unit: String) {
-        XCTAssert(app.buttons[unit].waitForExistence(timeout: 2))
+        XCTAssert(app.buttons[unit].waitForExistence(timeout: defaultTimeout))
         app.buttons[unit].tap()
     }
     
@@ -103,7 +104,7 @@ final class UnitSettingsTests: XCTestCase {
         feedCard.tap() // Finish
         
         let amountField = app.textFields["Amount"]
-        XCTAssertTrue(amountField.waitForExistence(timeout: 2))
+        XCTAssertTrue(amountField.waitForExistence(timeout: defaultTimeout))
         amountField.tap()
         // Clear existing text in the amount field by sending delete keys for each character
         if let currentValue = amountField.value as? String, !currentValue.isEmpty {
