@@ -5,12 +5,17 @@ import Model
 struct BabyStatusView: View {
     @ObservedObject var baby: BabyProfile
     @EnvironmentObject var settings: AppSettings
+    @Environment(\.managedObjectContext) private var viewContext
 
     // Animation States
     var isFeedAnimating: Bool = false
     var isDiaperAnimating: Bool = false
     
-    @State private var lastMedicationDate: Date?
+    // Daily Checklist Configuration
+    let checklistEventTypeIDs: [UUID]
+    let isConfiguringChecklist: Bool
+    let onConfigureChecklist: (BabyProfile) -> Void
+    let onRemoveFromChecklist: (UUID) -> Void
     
     // Actions
     let onFeedTap: () -> Void
@@ -19,6 +24,56 @@ struct BabyStatusView: View {
     let onNameTap: () -> Void
     let onLastFeedTap: ((FeedSession) -> Void)?
     let onLastDiaperTap: ((DiaperChange) -> Void)?
+    
+    // Fetch today's checklist events
+    @FetchRequest private var todaysChecklistEvents: FetchedResults<CustomEvent>
+    
+    // Fetch all custom event types (global)
+    @FetchRequest(
+        sortDescriptors: [NSSortDescriptor(keyPath: \CustomEventType.createdAt, ascending: true)],
+        animation: .default
+    )
+    private var allEventTypes: FetchedResults<CustomEventType>
+    
+    init(
+        baby: BabyProfile,
+        checklistEventTypeIDs: [UUID],
+        isConfiguringChecklist: Bool,
+        isFeedAnimating: Bool = false,
+        isDiaperAnimating: Bool = false,
+        onFeedTap: @escaping () -> Void,
+        onFeedLongPress: @escaping () -> Void,
+        onDiaperTap: @escaping () -> Void,
+        onNameTap: @escaping () -> Void,
+        onLastFeedTap: ((FeedSession) -> Void)?,
+        onLastDiaperTap: ((DiaperChange) -> Void)?,
+        onConfigureChecklist: @escaping (BabyProfile) -> Void,
+        onRemoveFromChecklist: @escaping (UUID) -> Void
+    ) {
+        self.baby = baby
+        self.checklistEventTypeIDs = checklistEventTypeIDs
+        self.isConfiguringChecklist = isConfiguringChecklist
+        self.isFeedAnimating = isFeedAnimating
+        self.isDiaperAnimating = isDiaperAnimating
+        self.onFeedTap = onFeedTap
+        self.onFeedLongPress = onFeedLongPress
+        self.onDiaperTap = onDiaperTap
+        self.onNameTap = onNameTap
+        self.onLastFeedTap = onLastFeedTap
+        self.onLastDiaperTap = onLastDiaperTap
+        self.onConfigureChecklist = onConfigureChecklist
+        self.onRemoveFromChecklist = onRemoveFromChecklist
+        
+        // Setup fetch request for today's checklist events
+        let request: NSFetchRequest<CustomEvent> = CustomEvent.fetchRequest()
+        request.predicate = NSPredicate(
+            format: "profile == %@ AND eventType.id IN %@",
+            baby, checklistEventTypeIDs
+        )
+        request.sortDescriptors = [NSSortDescriptor(keyPath: \CustomEvent.timestamp, ascending: false)]
+        _todaysChecklistEvents = FetchRequest(fetchRequest: request)
+    }
+
     
     private let timeFormatter: DateFormatter = {
         let formatter = DateFormatter()
@@ -55,14 +110,31 @@ struct BabyStatusView: View {
                     
                     Spacer()
                     
-                    StatusToggleButton(
-                        emoji: "💊",
-                        isOn: isMedicationTaken(now: now)
-                    ) {
-                        if isMedicationTaken(now: now) {
-                            lastMedicationDate = nil
-                        } else {
-                            lastMedicationDate = now
+                    // Daily Checklist Items
+                    HStack(spacing: 12) {
+                        // Show placeholder if in config mode and not at max capacity
+                        if isConfiguringChecklist && checklistEventTypeIDs.count < AppSettings.maxChecklistItems {
+                            PlaceholderToggleButton {
+                                onConfigureChecklist(baby)
+                            }
+                        }
+                        
+                        // Show configured checklist items
+                        ForEach(checklistEventTypeIDs, id: \.self) { eventTypeID in
+                            if let eventType = allEventTypes.first(where: { $0.id == eventTypeID }) {
+                                let isChecked = isEventCheckedToday(eventTypeID: eventTypeID, now: now)
+                                StatusToggleButton(
+                                    emoji: eventType.emoji,
+                                    isOn: isChecked,
+                                    isInConfigMode: isConfiguringChecklist,
+                                    action: {
+                                        toggleChecklist(eventType: eventType, isChecked: isChecked, now: now)
+                                    },
+                                    onDelete: {
+                                        onRemoveFromChecklist(eventTypeID)
+                                    }
+                                )
+                            }
                         }
                     }
                     .padding(.trailing)
@@ -298,10 +370,37 @@ struct BabyStatusView: View {
         return "0s"
     }
     
-    private func isMedicationTaken(now: Date) -> Bool {
-        guard let lastTaken = lastMedicationDate else { return false }
+    // MARK: - Daily Checklist Helpers
+    
+    private func isEventCheckedToday(eventTypeID: UUID, now: Date) -> Bool {
         let startOfDay = getStartOfDay(now: now)
-        return lastTaken >= startOfDay
+        return todaysChecklistEvents.contains { event in
+            event.eventType?.id == eventTypeID && event.timestamp >= startOfDay
+        }
+    }
+    
+    private func toggleChecklist(eventType: CustomEventType, isChecked: Bool, now: Date) {
+        if isChecked {
+            // Uncheck: Find and delete today's event
+            let startOfDay = getStartOfDay(now: now)
+            if let event = todaysChecklistEvents.first(where: {
+                $0.eventType?.id == eventType.id && $0.timestamp >= startOfDay
+            }) {
+                viewContext.delete(event)
+            }
+        } else {
+            // Check: Create new CustomEvent
+            let event = CustomEvent(context: viewContext, timestamp: now, eventType: eventType)
+            event.profile = baby
+            baby.addToCustomEvents(event)
+        }
+        
+        do {
+            try viewContext.save()
+            NearbySyncManager.shared.sendPing()
+        } catch {
+            print("Error toggling checklist: \(error)")
+        }
     }
 
     private func getStartOfDay(now: Date) -> Date {
@@ -341,69 +440,40 @@ struct BabyStatusView_Previews: PreviewProvider {
         let diaper1 = DiaperChange(context: context, timestamp: Date.current.addingTimeInterval(-30 * 60), type: .pee)
         diaper1.profile = babyNormal
         
-        // Scenario 2: Empty Data
-        let babyEmpty = BabyProfile(context: context, name: "New Baby")
+        // Add custom event type for preview
+        let eventType = CustomEventType(context: context, name: "Vitamin", emoji: "💊")
         
-        // Scenario 3: Overdue / Warning (Simulated by long time ago)
-        let babyOverdue = BabyProfile(context: context, name: "Overdue")
-        let session2 = FeedSession(context: context, startTime: Date.current.addingTimeInterval(-5 * 60 * 60)) // 5 hours ago
-        session2.endTime = Date.current.addingTimeInterval(-4 * 60 * 60)
-        session2.profile = babyOverdue
-        let diaper2 = DiaperChange(context: context, timestamp: Date.current.addingTimeInterval(-6 * 60 * 60), type: .poo)
-        diaper2.profile = babyOverdue
-        
-        // Scenario 4: In Progress
-        let babyInProgress = BabyProfile(context: context, name: "Feeding")
-        let session3 = FeedSession(context: context, startTime: Date.current.addingTimeInterval(-10 * 60)) // Started 10 mins ago
-        session3.profile = babyInProgress
-
         return Group {
             BabyStatusView(
                 baby: babyNormal,
+                checklistEventTypeIDs: [eventType.id],
+                isConfiguringChecklist: false,
                 onFeedTap: {},
                 onFeedLongPress: {},
                 onDiaperTap: {},
                 onNameTap: {},
                 onLastFeedTap: { _ in },
-                onLastDiaperTap: { _ in }
+                onLastDiaperTap: { _ in },
+                onConfigureChecklist: { _ in },
+                onRemoveFromChecklist: { _ in }
             )
-            .previewDisplayName("Normal")
+            .previewDisplayName("With Checklist")
             .environmentObject(AppSettings())
             
             BabyStatusView(
-                baby: babyEmpty,
+                baby: babyNormal,
+                checklistEventTypeIDs: [eventType.id],
+                isConfiguringChecklist: true,
                 onFeedTap: {},
                 onFeedLongPress: {},
                 onDiaperTap: {},
                 onNameTap: {},
                 onLastFeedTap: { _ in },
-                onLastDiaperTap: { _ in }
+                onLastDiaperTap: { _ in },
+                onConfigureChecklist: { _ in },
+                onRemoveFromChecklist: { _ in }
             )
-            .previewDisplayName("Empty")
-            .environmentObject(AppSettings())
-            
-            BabyStatusView(
-                baby: babyOverdue,
-                onFeedTap: {},
-                onFeedLongPress: {},
-                onDiaperTap: {},
-                onNameTap: {},
-                onLastFeedTap: { _ in },
-                onLastDiaperTap: { _ in }
-            )
-            .previewDisplayName("Overdue")
-            .environmentObject(AppSettings())
-            
-            BabyStatusView(
-                baby: babyInProgress,
-                onFeedTap: {},
-                onFeedLongPress: {},
-                onDiaperTap: {},
-                onNameTap: {},
-                onLastFeedTap: { _ in },
-                onLastDiaperTap: { _ in }
-            )
-            .previewDisplayName("In Progress")
+            .previewDisplayName("Config Mode")
             .environmentObject(AppSettings())
         }
         .environment(\.managedObjectContext, context)
@@ -415,4 +485,5 @@ struct BabyStatusView_Previews: PreviewProvider {
     }
 }
 #endif
+
 

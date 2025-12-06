@@ -13,6 +13,11 @@ final class AppSettings: ObservableObject {
         static let didSeedBabiesOnce = "didSeedBabiesOnce" // iCloud-wide seed guard
         static let recentHashtags = "recentHashtags"
         static let preferredFontScale = "preferredFontScale"
+        
+        // Daily checklist configuration: key is "dailyChecklist_<babyUUID>"
+        static func dailyChecklistKey(for babyID: UUID) -> String {
+            "dailyChecklist_\(babyID.uuidString)"
+        }
     }
 
     // Backing stores
@@ -138,6 +143,13 @@ final class AppSettings: ObservableObject {
                     self.preferredFontScale = newScale
                     self.local.set(newScaleRaw, forKey: Keys.preferredFontScale)
                 }
+                
+                // Handle daily checklist configuration changes
+                for key in changedKeys where key.hasPrefix("dailyChecklist_") {
+                    if let newValue = self.ubiquitous.array(forKey: key) as? [String] {
+                        self.local.set(newValue, forKey: key)
+                    }
+                }
             }
         }
     }
@@ -205,6 +217,52 @@ final class AppSettings: ObservableObject {
         var seen = Set<String>()
         tags = tags.filter { seen.insert($0.lowercased()).inserted }
         return tags
+    }
+    
+    // MARK: - Daily Checklist Configuration
+    
+    /// Maximum number of daily checklist items per baby
+    static let maxChecklistItems = 3
+    
+    /// Get the CustomEventType IDs configured for a baby's daily checklist
+    func getChecklistEventTypeIDs(for babyID: UUID) -> [UUID] {
+        let key = Keys.dailyChecklistKey(for: babyID)
+        let uuidStrings = (ubiquitous.array(forKey: key) as? [String])
+            ?? (local.array(forKey: key) as? [String])
+            ?? []
+        return uuidStrings.compactMap { UUID(uuidString: $0) }
+    }
+    
+    /// Add a CustomEventType to a baby's daily checklist (max 3 items)
+    func addToChecklist(eventTypeID: UUID, for babyID: UUID) {
+        var current = getChecklistEventTypeIDs(for: babyID)
+        
+        // Don't add if already exists
+        guard !current.contains(eventTypeID) else { return }
+        
+        // Enforce max limit
+        guard current.count < Self.maxChecklistItems else { return }
+        
+        current.append(eventTypeID)
+        let uuidStrings = current.map { $0.uuidString }
+        let key = Keys.dailyChecklistKey(for: babyID)
+        
+        local.set(uuidStrings, forKey: key)
+        ubiquitous.set(uuidStrings, forKey: key)
+        ubiquitous.synchronize()
+    }
+    
+    /// Remove a CustomEventType from a baby's daily checklist
+    func removeFromChecklist(eventTypeID: UUID, for babyID: UUID) {
+        var current = getChecklistEventTypeIDs(for: babyID)
+        current.removeAll { $0 == eventTypeID }
+        
+        let uuidStrings = current.map { $0.uuidString }
+        let key = Keys.dailyChecklistKey(for: babyID)
+        
+        local.set(uuidStrings, forKey: key)
+        ubiquitous.set(uuidStrings, forKey: key)
+        ubiquitous.synchronize()
     }
 }
 

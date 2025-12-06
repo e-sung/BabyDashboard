@@ -43,7 +43,11 @@ struct HistoryEditView: View {
     @State private var addType: AddType = .feed
     @State private var selectedBabyID: UUID?
     @State private var selectedCustomEventType: CustomEventType?
-    @State private var availableCustomEventTypes: [CustomEventType] = []
+    @FetchRequest(
+        sortDescriptors: [NSSortDescriptor(keyPath: \CustomEventType.createdAt, ascending: true)],
+        animation: .default
+    )
+    private var availableCustomEventTypes: FetchedResults<CustomEventType>
     @State private var isShowingAddEventType = false
 
     private let memoSectionID = "MemoSection"
@@ -196,7 +200,7 @@ struct HistoryEditView: View {
                 .sheet(isPresented: $isShowingAddEventType) {
                     if let babyID = selectedBabyID,
                        let baby = babies.first(where: { $0.id == babyID }) {
-                        AddCustomEventTypeSheet(baby: baby) {
+                        AddCustomEventTypeSheet() {
                             isShowingAddEventType = false
                             updateAvailableCustomEventTypes()
                         }
@@ -419,13 +423,6 @@ struct HistoryEditView: View {
     }
     
     private func updateAvailableCustomEventTypes() {
-        guard let babyID = selectedBabyID,
-              let baby = babies.first(where: { $0.id == babyID }) else {
-            availableCustomEventTypes = []
-            selectedCustomEventType = nil
-            return
-        }
-        availableCustomEventTypes = baby.customEventTypesArray
         if selectedCustomEventType == nil {
             selectedCustomEventType = availableCustomEventTypes.first
         }

@@ -491,5 +491,3 @@ private struct FilterSheet: View {
         }
     }
 }
-
-

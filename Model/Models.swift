@@ -16,6 +16,9 @@ public class CustomEventType: NSManagedObject {}
 @objc(CustomEvent)
 public class CustomEvent: NSManagedObject {}
 
+@objc(DailyChecklist)
+public class DailyChecklist: NSManagedObject {}
+
 public protocol Hashtagable {
     var memoText: String? { get }
 }
@@ -43,10 +46,11 @@ extension BabyProfile {
     @NSManaged public var feedTerm: TimeInterval
     @NSManaged public var id: UUID
     @NSManaged public var name: String
-    @NSManaged public var customEventTypes: NSSet?
+    @NSManaged public var customEventTypes: NSSet?  // For CloudKit sharing
     @NSManaged public var customEvents: NSSet?
     @NSManaged public var diaperChanges: NSSet?
     @NSManaged public var feedSessions: NSSet?
+    @NSManaged public var dailyChecklist: NSSet?  // DailyChecklist items
 }
 
 extension BabyProfile {
@@ -97,6 +101,18 @@ extension BabyProfile {
 
     @objc(removeCustomEvents:)
     @NSManaged public func removeFromCustomEvents(_ values: NSSet)
+
+    @objc(addDailyChecklistObject:)
+    @NSManaged public func addToDailyChecklist(_ value: DailyChecklist)
+
+    @objc(removeDailyChecklistObject:)
+    @NSManaged public func removeFromDailyChecklist(_ value: DailyChecklist)
+
+    @objc(addDailyChecklist:)
+    @NSManaged public func addToDailyChecklist(_ values: NSSet)
+
+    @objc(removeDailyChecklist:)
+    @NSManaged public func removeFromDailyChecklist(_ values: NSSet)
 }
 
 extension BabyProfile: Identifiable {}
@@ -162,10 +178,7 @@ public extension BabyProfile {
         return Array(set)
     }
 
-    var customEventTypesArray: [CustomEventType] {
-        guard let set = customEventTypes as? Set<CustomEventType> else { return [] }
-        return Array(set).sorted(by: { $0.createdAt < $1.createdAt })
-    }
+
 
     var customEventsArray: [CustomEvent] {
         guard let set = customEvents as? Set<CustomEvent> else { return [] }
@@ -175,6 +188,11 @@ public extension BabyProfile {
     var diaperChangesArray: [DiaperChange] {
         guard let set = diaperChanges as? Set<DiaperChange> else { return [] }
         return Array(set)
+    }
+
+    var dailyChecklistArray: [DailyChecklist] {
+        guard let set = dailyChecklist as? Set<DailyChecklist> else { return [] }
+        return Array(set).sorted { $0.order < $1.order }
     }
 
     var sessionBeforeCurrentInProgressSession: FeedSession? {
@@ -295,7 +313,6 @@ public extension DiaperChange {
 public extension CustomEventType {
     convenience init(context: NSManagedObjectContext, name: String, emoji: String) {
         self.init(context: context)
-        self.id = UUID()
         self.name = name
         self.emoji = emoji
         self.createdAt = Date.current
@@ -322,8 +339,9 @@ extension CustomEventType {
     @NSManaged public var name: String
     @NSManaged public var emoji: String
     @NSManaged public var createdAt: Date
-    @NSManaged public var profile: BabyProfile?
+    @NSManaged public var profile: BabyProfile?  // For CloudKit sharing
     @NSManaged public var events: NSSet?
+    @NSManaged public var dailyChecklists: NSSet?  // DailyChecklist items using this type
 }
 
 extension CustomEventType: Identifiable {}
@@ -358,3 +376,37 @@ extension CustomEvent {
 }
 
 extension CustomEvent: Identifiable, Hashtagable {}
+
+// MARK: - DailyChecklist
+
+extension DailyChecklist {
+    @nonobjc public class func fetchRequest() -> NSFetchRequest<DailyChecklist> {
+        NSFetchRequest<DailyChecklist>(entityName: "DailyChecklist")
+    }
+
+    @NSManaged public var order: Int16
+    @NSManaged public var createdAt: Date
+    @NSManaged public var baby: BabyProfile
+    @NSManaged public var eventType: CustomEventType
+}
+
+public extension DailyChecklist {
+    convenience init(context: NSManagedObjectContext, baby: BabyProfile, eventType: CustomEventType, order: Int16) {
+        self.init(context: context)
+        self.baby = baby
+        self.eventType = eventType
+        self.order = order
+        self.createdAt = Date.current
+    }
+
+    override func awakeFromInsert() {
+        super.awakeFromInsert()
+        createdAt = Date.current
+    }
+}
+
+extension DailyChecklist: Identifiable {
+    public var id: String {
+        "\(baby.id.uuidString)-\(eventType.id.uuidString)"
+    }
+}

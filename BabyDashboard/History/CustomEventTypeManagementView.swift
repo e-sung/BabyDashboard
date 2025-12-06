@@ -5,24 +5,19 @@ import Model
 struct CustomEventTypeManagementView: View {
     @Environment(\.managedObjectContext) private var viewContext
     @Environment(\.dismiss) private var dismiss
+    @EnvironmentObject var settings: AppSettings
     
-    let baby: BabyProfile
-    
-    @FetchRequest private var eventTypes: FetchedResults<CustomEventType>
+    @FetchRequest(
+        sortDescriptors: [NSSortDescriptor(key: "createdAt", ascending: true)],
+        animation: .default
+    )
+    private var eventTypes: FetchedResults<CustomEventType>
     
     @State private var isShowingAddSheet = false
     @State private var eventTypeToEdit: CustomEventType?
     @State private var eventTypeToDelete: CustomEventType?
     @State private var showDeleteError = false
     @State private var deleteErrorMessage = ""
-    
-    init(baby: BabyProfile) {
-        self.baby = baby
-        let request: NSFetchRequest<CustomEventType> = CustomEventType.fetchRequest()
-        request.predicate = NSPredicate(format: "profile == %@", baby)
-        request.sortDescriptors = [NSSortDescriptor(key: "createdAt", ascending: true)]
-        _eventTypes = FetchRequest(fetchRequest: request)
-    }
     
     var body: some View {
         NavigationView {
@@ -84,7 +79,7 @@ struct CustomEventTypeManagementView: View {
                 }
             }
             .sheet(isPresented: $isShowingAddSheet) {
-                AddCustomEventTypeSheet(baby: baby) {
+                AddCustomEventTypeSheet {
                     isShowingAddSheet = false
                 }
                 .environment(\.managedObjectContext, viewContext)
@@ -124,6 +119,14 @@ struct CustomEventTypeManagementView: View {
     }
     
     private func deleteEventType(_ eventType: CustomEventType) {
+        // Delete all DailyChecklist items for this event type
+        if let checklistItems = eventType.dailyChecklists as? Set<DailyChecklist> {
+            for item in checklistItems {
+                viewContext.delete(item)
+            }
+        }
+        
+        // Delete the event type (relationships cascade automatically)
         viewContext.delete(eventType)
         do {
             try viewContext.save()
@@ -139,7 +142,6 @@ struct AddCustomEventTypeSheet: View {
     @Environment(\.managedObjectContext) private var viewContext
     @Environment(\.dismiss) private var dismiss
     
-    let baby: BabyProfile
     let onSave: () -> Void
     
     @State private var name: String = ""
@@ -157,6 +159,7 @@ struct AddCustomEventTypeSheet: View {
                 Section("Event Name") {
                     TextField("e.g. Vomit, Bath, Medicine", text: $name)
                         .focused($isNameFocused)
+                        .accessibilityIdentifier("EventNameField")
                 }
                 
                 Section {
@@ -177,7 +180,7 @@ struct AddCustomEventTypeSheet: View {
                 }
                 
                 Section {
-                    Text("Custom events let you track any activity for \(baby.name).")
+                    Text("Custom events let you track any activity for baby")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
@@ -209,14 +212,19 @@ struct AddCustomEventTypeSheet: View {
         let trimmedEmoji = emoji.trimmingCharacters(in: .whitespacesAndNewlines)
         
         let eventType = CustomEventType(context: viewContext, name: trimmedName, emoji: trimmedEmoji)
-        eventType.profile = baby
-        baby.addToCustomEventTypes(eventType)
+        
+        // Add to all babies for CloudKit sharing
+        // This ensures the CustomEventType is included when sharing any BabyProfile
+        let babies = try? viewContext.fetch(BabyProfile.fetchRequest())
+        babies?.forEach { baby in
+            baby.addToCustomEventTypes(eventType)
+        }
         
         do {
             try viewContext.save()
             NearbySyncManager.shared.sendPing()
         } catch {
-            print("Error saving event type: \(error)")
+            print("Error saving custom event type: \(error)")
         }
         
         onSave()
@@ -246,6 +254,7 @@ struct EditCustomEventTypeSheet: View {
                 Section("Event Name") {
                     TextField("e.g. Vomit, Bath, Medicine", text: $name)
                         .focused($isNameFocused)
+                        .accessibilityIdentifier("EventNameField")
                 }
                 
                 Section {
