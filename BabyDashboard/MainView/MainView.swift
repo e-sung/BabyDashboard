@@ -372,7 +372,7 @@ private extension MainView {
                 .accessibilityLabel(Text("Analysis"))
                 
                 Button(action: { isConfiguringChecklist.toggle() }) {
-                    Image(systemName: isConfiguringChecklist ? "checkmark.circle.fill" : "checklist")
+                    Image(systemName: isConfiguringChecklist ? "rectangle.3.group.dashed" : "rectangle.3.group")
                         .imageScale(.large)
                 }
                 .accessibilityLabel("Configure Daily Checklist")
