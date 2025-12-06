@@ -45,7 +45,7 @@ struct CorrelationAnalyzerTests {
         // When
         let results = await analyzer.analyze(
             sourceHashtags: ["#BrandA"],
-            target: .customEvent(typeID: vomitType.id),
+            target: .customEvent(emoji: vomitType.emoji),
 
             dateInterval: dateInterval,
             babyID: baby.id
