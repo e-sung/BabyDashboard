@@ -69,6 +69,18 @@ struct MainView: View {
         return false
         #endif
     }
+    
+    private func removeFromChecklist(eventTypeID: UUID, for baby: BabyProfile) {
+        if let item = baby.dailyChecklistArray.first(where: { $0.eventType.id == eventTypeID }) {
+            viewContext.delete(item)
+            do {
+                try viewContext.save()
+                NearbySyncManager.shared.sendPing()
+            } catch {
+                print("Error removing from checklist: \(error)")
+            }
+        }
+    }
 
     var body: some View {
         NavigationView {
@@ -123,14 +135,8 @@ struct MainView: View {
             }
             .sheet(item: $showingChecklistConfig) { baby in
                 ChecklistConfigurationSheet(
-                    maxItems: AppSettings.maxChecklistItems,
-                    currentEventTypeIDs: settings.getChecklistEventTypeIDs(for: baby.id),
-                    onAdd: { selectedEventType in
-                        settings.addToChecklist(eventTypeID: selectedEventType.id, for: baby.id)
-                    },
-                    onRemove: { eventTypeID in
-                        settings.removeFromChecklist(eventTypeID: eventTypeID, for: baby.id)
-                    }
+                    baby: baby,
+                    maxItems: AppSettings.maxChecklistItems
                 )
                 .environment(\.managedObjectContext, viewContext)
             }
@@ -210,7 +216,7 @@ private extension MainView {
                             let baby = babies[index]
                             let tile = BabyStatusView(
                                 baby: baby,
-                                checklistEventTypeIDs: settings.getChecklistEventTypeIDs(for: baby.id),
+                                checklistEventTypeIDs: baby.dailyChecklistArray.map { $0.eventType.id },
                                 isConfiguringChecklist: isConfiguringChecklist,
                                 isFeedAnimating: viewModel.feedAnimationStates[baby.id, default: false],
                                 isDiaperAnimating: viewModel.diaperAnimationStates[baby.id, default: false],
@@ -233,7 +239,7 @@ private extension MainView {
                                     showingChecklistConfig = baby
                                 },
                                 onRemoveFromChecklist: { eventTypeID in
-                                    settings.removeFromChecklist(eventTypeID: eventTypeID, for: baby.id)
+                                    removeFromChecklist(eventTypeID: eventTypeID, for: baby)
                                 }
                             )
                             .padding()

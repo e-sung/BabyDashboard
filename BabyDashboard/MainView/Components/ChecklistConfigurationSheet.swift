@@ -6,10 +6,8 @@ struct ChecklistConfigurationSheet: View {
     @Environment(\.managedObjectContext) private var viewContext
     @Environment(\.dismiss) private var dismiss
     
+    let baby: BabyProfile
     let maxItems: Int
-    let currentEventTypeIDs: [UUID]
-    let onAdd: (CustomEventType) -> Void
-    let onRemove: (UUID) -> Void
     
     @FetchRequest(
         sortDescriptors: [NSSortDescriptor(key: "createdAt", ascending: true)],
@@ -19,16 +17,16 @@ struct ChecklistConfigurationSheet: View {
     
     @State private var showingManagement = false
     
+    private var currentEventTypeIDs: [UUID] {
+        baby.dailyChecklistArray.map { $0.eventType.id }
+    }
+    
     init(
-        maxItems: Int,
-        currentEventTypeIDs: [UUID],
-        onAdd: @escaping (CustomEventType) -> Void,
-        onRemove: @escaping (UUID) -> Void
+        baby: BabyProfile,
+        maxItems: Int
     ) {
+        self.baby = baby
         self.maxItems = maxItems
-        self.currentEventTypeIDs = currentEventTypeIDs
-        self.onAdd = onAdd
-        self.onRemove = onRemove
     }
     
     private func isInChecklist(_ eventType: CustomEventType) -> Bool {
@@ -36,7 +34,30 @@ struct ChecklistConfigurationSheet: View {
     }
     
     private func canAddMore() -> Bool {
-        currentEventTypeIDs.count <= maxItems
+        currentEventTypeIDs.count < maxItems
+    }
+    
+    private func addToChecklist(eventType: CustomEventType) {
+        let maxOrder = baby.dailyChecklistArray.map(\.order).max() ?? -1
+        _ = DailyChecklist(context: viewContext, baby: baby, eventType: eventType, order: maxOrder + 1)
+        do {
+            try viewContext.save()
+            NearbySyncManager.shared.sendPing()
+        } catch {
+            print("Error adding to checklist: \(error)")
+        }
+    }
+    
+    private func removeFromChecklist(eventType: CustomEventType) {
+        if let item = baby.dailyChecklistArray.first(where: { $0.eventType.id == eventType.id }) {
+            viewContext.delete(item)
+            do {
+                try viewContext.save()
+                NearbySyncManager.shared.sendPing()
+            } catch {
+                print("Error removing from checklist: \(error)")
+            }
+        }
     }
     
     var body: some View {
@@ -56,9 +77,9 @@ struct ChecklistConfigurationSheet: View {
                             
                             Button {
                                 if isConfigured {
-                                    onRemove(eventType.id)
+                                    removeFromChecklist(eventType: eventType)
                                 } else if canAddMore() {
-                                    onAdd(eventType)
+                                    addToChecklist(eventType: eventType)
                                 }
                             } label: {
                                 HStack(spacing: 12) {
@@ -133,14 +154,15 @@ struct ChecklistConfigurationSheet_Previews: PreviewProvider {
         let controller = PersistenceController.preview
         let context = controller.viewContext
 
+        let baby = BabyProfile(context: context, name: "Test Baby")
         let eventType1 = CustomEventType(context: context, name: "Vitamin", emoji: "💊")
-
+        
+        // Add to baby's checklist
+        _ = DailyChecklist(context: context, baby: baby, eventType: eventType1, order: 0)
 
         return ChecklistConfigurationSheet(
-            maxItems: 3,
-            currentEventTypeIDs: [eventType1.id], // Vitamin is already in checklist
-            onAdd: { _ in },
-            onRemove: { _ in }
+            baby: baby,
+            maxItems: 3
         )
         .environment(\.managedObjectContext, context)
     }

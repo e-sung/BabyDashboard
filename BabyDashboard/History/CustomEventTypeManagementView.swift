@@ -119,14 +119,14 @@ struct CustomEventTypeManagementView: View {
     }
     
     private func deleteEventType(_ eventType: CustomEventType) {
-        // Remove from all babies' daily checklists if configured
-        let context = viewContext
-        let babies = try? context.fetch(BabyProfile.fetchRequest())
-        babies?.forEach { baby in
-            settings.removeFromChecklist(eventTypeID: eventType.id, for: baby.id)
+        // Delete all DailyChecklist items for this event type
+        if let checklistItems = eventType.dailyChecklists as? Set<DailyChecklist> {
+            for item in checklistItems {
+                viewContext.delete(item)
+            }
         }
         
-        // Delete the event type
+        // Delete the event type (relationships cascade automatically)
         viewContext.delete(eventType)
         do {
             try viewContext.save()
@@ -213,11 +213,18 @@ struct AddCustomEventTypeSheet: View {
         
         let eventType = CustomEventType(context: viewContext, name: trimmedName, emoji: trimmedEmoji)
         
+        // Add to all babies for CloudKit sharing
+        // This ensures the CustomEventType is included when sharing any BabyProfile
+        let babies = try? viewContext.fetch(BabyProfile.fetchRequest())
+        babies?.forEach { baby in
+            baby.addToCustomEventTypes(eventType)
+        }
+        
         do {
             try viewContext.save()
             NearbySyncManager.shared.sendPing()
         } catch {
-            print("Error saving event type: \(error)")
+            print("Error saving custom event type: \(error)")
         }
         
         onSave()

@@ -5,9 +5,10 @@ struct PlaceholderToggleButton: View {
     
     var body: some View {
         Button(action: action) {
-            Image(systemName: "checkmark.square.dashed")
-                .font(.body)
-                .padding(12)
+            Image(systemName: "plus.circle")
+                .font(.title)
+                .padding(8)
+                .tint(.gray)
                 .background(Color.gray.opacity(0.1))
                 .overlay(
                     RoundedRectangle(cornerRadius: 12)
