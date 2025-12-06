@@ -18,7 +18,7 @@ struct ChecklistConfigurationSheet: View {
     @State private var showingManagement = false
     
     private var currentEventTypeIDs: [UUID] {
-        baby.dailyChecklistArray.map { $0.eventType.id }
+        baby.dailyChecklistArray.map { $0.eventTypeID }
     }
     
     init(
@@ -39,7 +39,11 @@ struct ChecklistConfigurationSheet: View {
     
     private func addToChecklist(eventType: CustomEventType) {
         let maxOrder = baby.dailyChecklistArray.map(\.order).max() ?? -1
-        _ = DailyChecklist(context: viewContext, baby: baby, eventType: eventType, order: maxOrder + 1)
+        _ = DailyChecklist(context: viewContext, baby: baby,
+                          eventTypeName: eventType.name,
+                          eventTypeEmoji: eventType.emoji,
+                          eventTypeID: eventType.id,
+                          order: maxOrder + 1)
         do {
             try viewContext.save()
             NearbySyncManager.shared.sendPing()
@@ -49,7 +53,7 @@ struct ChecklistConfigurationSheet: View {
     }
     
     private func removeFromChecklist(eventType: CustomEventType) {
-        if let item = baby.dailyChecklistArray.first(where: { $0.eventType.id == eventType.id }) {
+        if let item = baby.dailyChecklistArray.first(where: { $0.eventTypeID == eventType.id }) {
             viewContext.delete(item)
             do {
                 try viewContext.save()
@@ -85,17 +89,11 @@ struct ChecklistConfigurationSheet: View {
                                 HStack(spacing: 12) {
                                     Text(eventType.emoji)
                                         .font(.title2)
-                                        .frame(width: 40, height: 40)
                                     
                                     VStack(alignment: .leading, spacing: 4) {
                                         Text(eventType.name)
                                             .font(.headline)
                                             .foregroundStyle(.primary)
-                                        
-                                        let count = eventType.eventsArray.count
-                                        Text("\(count) event\(count == 1 ? "" : "s") logged")
-                                            .font(.caption)
-                                            .foregroundStyle(.secondary)
                                     }
                                     
                                     Spacer()
@@ -103,15 +101,18 @@ struct ChecklistConfigurationSheet: View {
                                     if isConfigured {
                                         Image(systemName: "checkmark.circle.fill")
                                             .foregroundStyle(.blue)
-                                            .font(.title3)
                                     } else if !canAddMore() {
-                                        Image(systemName: "exclamationmark.circle.fill")
-                                            .foregroundStyle(.orange)
-                                            .font(.title3)
+                                        Image(systemName: "circle")
+                                            .foregroundStyle(.gray.opacity(0.3))
+                                    } else {
+                                        Image(systemName: "circle")
+                                            .foregroundStyle(.gray)
                                     }
                                 }
+                                .padding(.vertical, 4)
                                 .contentShape(Rectangle())
                             }
+                            .buttonStyle(.plain)
                             .disabled(!canToggle)
                             .opacity(canToggle ? 1.0 : 0.5)
                         }
@@ -158,7 +159,11 @@ struct ChecklistConfigurationSheet_Previews: PreviewProvider {
         let eventType1 = CustomEventType(context: context, name: "Vitamin", emoji: "💊")
         
         // Add to baby's checklist
-        _ = DailyChecklist(context: context, baby: baby, eventType: eventType1, order: 0)
+        _ = DailyChecklist(context: context, baby: baby,
+                          eventTypeName: eventType1.name,
+                          eventTypeEmoji: eventType1.emoji,
+                          eventTypeID: eventType1.id,
+                          order: 0)
 
         return ChecklistConfigurationSheet(
             baby: baby,

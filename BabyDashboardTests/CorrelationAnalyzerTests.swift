@@ -15,20 +15,20 @@ struct CorrelationAnalyzerTests {
     func analyzeStatisticalCorrelation() async throws {
         // Given
         let baby = BabyProfile(context: context, name: "TestBaby")
+        let now = Date.current
+        let profiles = try context.fetch(BabyProfile.fetchRequest())
+        guard let babyProfile = profiles.first else { throw NSError(domain: "Test", code: 1) }
+        
         let vomitType = CustomEventType(context: context, name: "Vomit", emoji: "🤮")
-        let now = Date()
         
-        // Scenario: #BrandA causes vomit (Perfect Positive Correlation)
-        // 10 feeds with #BrandA -> 10 Vomits
-        // 10 feeds without #BrandA -> 0 Vomits
-        
-        for i in 0..<10 {
-            let feed = FeedSession(context: context, startTime: now.addingTimeInterval(-Double(i)*3600 - 10000))
-            feed.memoText = "Milk #BrandA"
-            feed.profile = baby
-            
-            let vomit = CustomEvent(context: context, timestamp: now.addingTimeInterval(-Double(i)*3600 - 9000), eventType: vomitType)
-            vomit.profile = baby
+        // Create 100 vomit events
+        for i in 1...100 {
+            let vomit = CustomEvent(context: context,
+                                   timestamp: now.addingTimeInterval(-Double(i)*3600 - 9000),
+                                   eventTypeName: vomitType.name,
+                                   eventTypeEmoji: vomitType.emoji,
+                                   eventTypeID: vomitType.id)
+            vomit.profile = babyProfile
         }
         
         for i in 0..<10 {

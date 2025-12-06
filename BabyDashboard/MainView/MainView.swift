@@ -71,7 +71,7 @@ struct MainView: View {
     }
     
     private func removeFromChecklist(eventTypeID: UUID, for baby: BabyProfile) {
-        if let item = baby.dailyChecklistArray.first(where: { $0.eventType.id == eventTypeID }) {
+        if let item = baby.dailyChecklistArray.first(where: { $0.eventTypeID == eventTypeID }) {
             viewContext.delete(item)
             do {
                 try viewContext.save()
@@ -216,7 +216,7 @@ private extension MainView {
                             let baby = babies[index]
                             let tile = BabyStatusView(
                                 baby: baby,
-                                checklistEventTypeIDs: baby.dailyChecklistArray.map { $0.eventType.id },
+                                checklistEventTypeIDs: baby.dailyChecklistArray.map { $0.eventTypeID },
                                 isConfiguringChecklist: isConfiguringChecklist,
                                 isFeedAnimating: viewModel.feedAnimationStates[baby.id, default: false],
                                 isDiaperAnimating: viewModel.diaperAnimationStates[baby.id, default: false],

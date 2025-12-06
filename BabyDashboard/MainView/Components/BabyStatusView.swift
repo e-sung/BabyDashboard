@@ -64,14 +64,18 @@ struct BabyStatusView: View {
         self.onConfigureChecklist = onConfigureChecklist
         self.onRemoveFromChecklist = onRemoveFromChecklist
         
-        // Setup fetch request for today's checklist events
-        let request: NSFetchRequest<CustomEvent> = CustomEvent.fetchRequest()
-        request.predicate = NSPredicate(
-            format: "profile == %@ AND eventType.id IN %@",
-            baby, checklistEventTypeIDs
+        // Fetch today's checklist events using emoji (no relationship needed)
+        let startOfDay = Calendar.current.startOfDay(for: Date.current)
+        let checklistEmojis = baby.dailyChecklistArray.map { $0.eventTypeEmoji }
+        
+        _todaysChecklistEvents = FetchRequest<CustomEvent>(
+            sortDescriptors: [NSSortDescriptor(keyPath: \CustomEvent.timestamp, ascending: false)],
+            predicate: NSCompoundPredicate(andPredicateWithSubpredicates: [
+                NSPredicate(format: "profile == %@", baby),
+                NSPredicate(format: "timestamp >= %@", startOfDay as NSDate),
+                NSPredicate(format: "eventTypeEmoji IN %@", checklistEmojis)
+            ])
         )
-        request.sortDescriptors = [NSSortDescriptor(keyPath: \CustomEvent.timestamp, ascending: false)]
-        _todaysChecklistEvents = FetchRequest(fetchRequest: request)
     }
 
     
@@ -120,21 +124,22 @@ struct BabyStatusView: View {
                         }
                         
                         // Show configured checklist items
-                        ForEach(checklistEventTypeIDs, id: \.self) { eventTypeID in
-                            if let eventType = allEventTypes.first(where: { $0.id == eventTypeID }) {
-                                let isChecked = isEventCheckedToday(eventTypeID: eventTypeID, now: now)
-                                StatusToggleButton(
-                                    emoji: eventType.emoji,
-                                    isOn: isChecked,
-                                    isInConfigMode: isConfiguringChecklist,
-                                    action: {
-                                        toggleChecklist(eventType: eventType, isChecked: isChecked, now: now)
-                                    },
-                                    onDelete: {
-                                        onRemoveFromChecklist(eventTypeID)
+                        ForEach(baby.dailyChecklistArray) { item in
+                            let isChecked = todaysChecklistEvents.contains { $0.eventTypeEmoji == item.eventTypeEmoji }
+                            
+                            StatusToggleButton(
+                                emoji: item.eventTypeEmoji,
+                                isOn: isChecked,
+                                isInConfigMode: isConfiguringChecklist,
+                                action: {
+                                    if !isConfiguringChecklist {
+                                        toggleChecklist(emoji: item.eventTypeEmoji, name: item.eventTypeName, isChecked: isChecked, now: now)
                                     }
-                                )
-                            }
+                                },
+                                onDelete: {
+                                    onRemoveFromChecklist(item.eventTypeID)
+                                }
+                            )
                         }
                     }
                     .padding(.trailing)
@@ -375,32 +380,30 @@ struct BabyStatusView: View {
     private func isEventCheckedToday(eventTypeID: UUID, now: Date) -> Bool {
         let startOfDay = getStartOfDay(now: now)
         return todaysChecklistEvents.contains { event in
-            event.eventType?.id == eventTypeID && event.timestamp >= startOfDay
+            event.eventTypeID == eventTypeID && event.timestamp >= startOfDay
         }
     }
     
-    private func toggleChecklist(eventType: CustomEventType, isChecked: Bool, now: Date) {
+    private func toggleChecklist(emoji: String, name: String, isChecked: Bool, now: Date) {
         if isChecked {
-            // Uncheck: Find and delete today's event
+            // Delete existing event with this emoji
             let startOfDay = getStartOfDay(now: now)
-            if let event = todaysChecklistEvents.first(where: {
-                $0.eventType?.id == eventType.id && $0.timestamp >= startOfDay
+            if let event = todaysChecklistEvents.first(where: { event in
+                event.eventTypeEmoji == emoji && event.timestamp >= startOfDay
             }) {
                 viewContext.delete(event)
+                try? viewContext.save()
             }
         } else {
-            // Check: Create new CustomEvent
-            let event = CustomEvent(context: viewContext, timestamp: now, eventType: eventType)
+            // Create new event with denormalized data
+            let event = CustomEvent(context: viewContext, timestamp: now,
+                                   eventTypeName: name,
+                                   eventTypeEmoji: emoji,
+                                   eventTypeID: UUID()) // Not used for matching, just for compatibility
             event.profile = baby
-            baby.addToCustomEvents(event)
+            try? viewContext.save()
         }
-        
-        do {
-            try viewContext.save()
-            NearbySyncManager.shared.sendPing()
-        } catch {
-            print("Error toggling checklist: \(error)")
-        }
+        NearbySyncManager.shared.sendPing()
     }
 
     private func getStartOfDay(now: Date) -> Date {

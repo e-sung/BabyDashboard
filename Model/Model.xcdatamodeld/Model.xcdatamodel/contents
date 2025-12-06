@@ -6,16 +6,17 @@
         <attribute name="id" optional="YES" attributeType="UUID" defaultValueString="00000000-0000-0000-0000-000000000000" usesScalarValueType="NO"/>
         <attribute name="name" attributeType="String" defaultValueString=""/>
         <relationship name="customEvents" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="CustomEvent" inverseName="profile" inverseEntity="CustomEvent"/>
-        <relationship name="customEventTypes" optional="YES" toMany="YES" deletionRule="Nullify" destinationEntity="CustomEventType" inverseName="profile" inverseEntity="CustomEventType"/>
         <relationship name="dailyChecklist" optional="YES" toMany="YES" deletionRule="Nullify" destinationEntity="DailyChecklist" inverseName="baby" inverseEntity="DailyChecklist"/>
         <relationship name="diaperChanges" optional="YES" toMany="YES" deletionRule="Nullify" destinationEntity="DiaperChange" inverseName="profile" inverseEntity="DiaperChange"/>
         <relationship name="feedSessions" optional="YES" toMany="YES" deletionRule="Nullify" destinationEntity="FeedSession" inverseName="profile" inverseEntity="FeedSession"/>
     </entity>
     <entity name="CustomEvent" representedClassName="CustomEvent" syncable="YES">
+        <attribute name="eventTypeEmoji" optional="YES" attributeType="String"/>
+        <attribute name="eventTypeID" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="eventTypeName" optional="YES" attributeType="String"/>
         <attribute name="memoText" optional="YES" attributeType="String"/>
         <attribute name="timestamp" attributeType="Date" defaultDateTimeInterval="784152300" usesScalarValueType="NO"/>
         <attribute name="uuid" optional="YES" attributeType="UUID" defaultValueString="00000000-0000-0000-0000-000000000000" usesScalarValueType="NO"/>
-        <relationship name="eventType" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="CustomEventType" inverseName="events" inverseEntity="CustomEventType"/>
         <relationship name="profile" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="BabyProfile" inverseName="customEvents" inverseEntity="BabyProfile"/>
     </entity>
     <entity name="CustomEventType" representedClassName="CustomEventType" syncable="YES">
@@ -23,15 +24,14 @@
         <attribute name="emoji" attributeType="String" defaultValueString="📝"/>
         <attribute name="id" optional="YES" attributeType="UUID" defaultValueString="00000000-0000-0000-0000-000000000000" usesScalarValueType="NO"/>
         <attribute name="name" attributeType="String" defaultValueString=""/>
-        <relationship name="dailyChecklists" optional="YES" toMany="YES" deletionRule="Nullify" destinationEntity="DailyChecklist" inverseName="eventType" inverseEntity="DailyChecklist"/>
-        <relationship name="events" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="CustomEvent" inverseName="eventType" inverseEntity="CustomEvent"/>
-        <relationship name="profile" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="BabyProfile" inverseName="customEventTypes" inverseEntity="BabyProfile"/>
     </entity>
     <entity name="DailyChecklist" representedClassName="DailyChecklist" syncable="YES">
         <attribute name="createdAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="eventTypeEmoji" optional="YES" attributeType="String"/>
+        <attribute name="eventTypeID" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="eventTypeName" optional="YES" attributeType="String"/>
         <attribute name="order" optional="YES" attributeType="Integer 16" defaultValueString="0" usesScalarValueType="YES"/>
         <relationship name="baby" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="BabyProfile" inverseName="dailyChecklist" inverseEntity="BabyProfile"/>
-        <relationship name="eventType" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="CustomEventType" inverseName="dailyChecklists" inverseEntity="CustomEventType"/>
     </entity>
     <entity name="DiaperChange" representedClassName="DiaperChange" syncable="YES">
         <attribute name="memoText" optional="YES" attributeType="String"/>

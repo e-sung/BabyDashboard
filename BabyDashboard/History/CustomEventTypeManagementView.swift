@@ -42,11 +42,6 @@ struct CustomEventTypeManagementView: View {
                                     Text(eventType.name)
                                         .font(.headline)
                                         .foregroundStyle(.primary)
-                                    
-                                    let count = eventType.eventsArray.count
-                                    Text("\(count) event\(count == 1 ? "" : "s") logged")
-                                        .font(.caption)
-                                        .foregroundStyle(.secondary)
                                 }
                                 
                                 Spacer()
@@ -109,24 +104,13 @@ struct CustomEventTypeManagementView: View {
     }
     
     private func attemptDelete(_ eventType: CustomEventType) {
-        let eventsCount = eventType.eventsArray.count
-        if eventsCount > 0 {
-            deleteErrorMessage = "Cannot delete '\(eventType.name)' because it has \(eventsCount) logged event\(eventsCount == 1 ? "" : "s"). Delete the events first."
-            showDeleteError = true
-        } else {
-            eventTypeToDelete = eventType
-        }
+        // Directly delete - any associated CustomEvents will keep their denormalized data
+        eventTypeToDelete = eventType
     }
     
     private func deleteEventType(_ eventType: CustomEventType) {
-        // Delete all DailyChecklist items for this event type
-        if let checklistItems = eventType.dailyChecklists as? Set<DailyChecklist> {
-            for item in checklistItems {
-                viewContext.delete(item)
-            }
-        }
-        
-        // Delete the event type (relationships cascade automatically)
+        // Delete the event type
+        // DailyChecklist and CustomEvent items will keep their denormalized data
         viewContext.delete(eventType)
         do {
             try viewContext.save()
@@ -146,6 +130,7 @@ struct AddCustomEventTypeSheet: View {
     
     @State private var name: String = ""
     @State private var emoji: String = ""
+    @State private var errorMessage: String?
     @FocusState private var isNameFocused: Bool
     
     var canSave: Bool {
@@ -204,6 +189,18 @@ struct AddCustomEventTypeSheet: View {
             .onAppear {
                 isNameFocused = true
             }
+            .alert("Error", isPresented: Binding(
+                get: { errorMessage != nil },
+                set: { if !$0 { errorMessage = nil } }
+            )) {
+                Button("OK") {
+                    errorMessage = nil
+                }
+            } message: {
+                if let message = errorMessage {
+                    Text(message)
+                }
+            }
         }
     }
     
@@ -211,24 +208,24 @@ struct AddCustomEventTypeSheet: View {
         let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
         let trimmedEmoji = emoji.trimmingCharacters(in: .whitespacesAndNewlines)
         
-        let eventType = CustomEventType(context: viewContext, name: trimmedName, emoji: trimmedEmoji)
-        
-        // Add to all babies for CloudKit sharing
-        // This ensures the CustomEventType is included when sharing any BabyProfile
-        let babies = try? viewContext.fetch(BabyProfile.fetchRequest())
-        babies?.forEach { baby in
-            baby.addToCustomEventTypes(eventType)
+        // Check for duplicate emoji
+        let existingTypes = try? viewContext.fetch(CustomEventType.fetchRequest())
+        if existingTypes?.contains(where: { $0.emoji == trimmedEmoji }) == true {
+            errorMessage = "An event type with emoji \(trimmedEmoji) already exists. Please choose a different emoji."
+            return
         }
+        
+        // Create the event type
+        let newEventType = CustomEventType(context: viewContext, name: trimmedName, emoji: trimmedEmoji)
         
         do {
             try viewContext.save()
             NearbySyncManager.shared.sendPing()
+            onSave()
+            dismiss()
         } catch {
-            print("Error saving custom event type: \(error)")
+            errorMessage = "Error saving event type: \(error.localizedDescription)"
         }
-        
-        onSave()
-        dismiss()
     }
 }
 
@@ -272,13 +269,6 @@ struct EditCustomEventTypeSheet: View {
                     }
                 } header: {
                     Text("Emoji")
-                }
-                
-                Section {
-                    let count = eventType.eventsArray.count
-                    Text("\(count) event\(count == 1 ? "" : "s") logged with this type")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
                 }
             }
             .navigationTitle("Edit Event Type")
