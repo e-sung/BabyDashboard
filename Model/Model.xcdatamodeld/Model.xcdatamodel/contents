@@ -23,7 +23,7 @@
         <attribute name="emoji" attributeType="String" defaultValueString="📝"/>
         <attribute name="id" optional="YES" attributeType="UUID" defaultValueString="00000000-0000-0000-0000-000000000000" usesScalarValueType="NO"/>
         <attribute name="name" attributeType="String" defaultValueString=""/>
-        <relationship name="dailyChecklist" optional="YES" toMany="YES" deletionRule="Nullify" destinationEntity="DailyChecklist" inverseName="eventType" inverseEntity="DailyChecklist"/>
+        <relationship name="dailyChecklists" optional="YES" toMany="YES" deletionRule="Nullify" destinationEntity="DailyChecklist" inverseName="eventType" inverseEntity="DailyChecklist"/>
         <relationship name="events" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="CustomEvent" inverseName="eventType" inverseEntity="CustomEvent"/>
         <relationship name="profile" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="BabyProfile" inverseName="customEventTypes" inverseEntity="BabyProfile"/>
     </entity>
@@ -31,7 +31,7 @@
         <attribute name="createdAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
         <attribute name="order" optional="YES" attributeType="Integer 16" defaultValueString="0" usesScalarValueType="YES"/>
         <relationship name="baby" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="BabyProfile" inverseName="dailyChecklist" inverseEntity="BabyProfile"/>
-        <relationship name="eventType" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="CustomEventType" inverseName="dailyChecklist" inverseEntity="CustomEventType"/>
+        <relationship name="eventType" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="CustomEventType" inverseName="dailyChecklists" inverseEntity="CustomEventType"/>
     </entity>
     <entity name="DiaperChange" representedClassName="DiaperChange" syncable="YES">
         <attribute name="memoText" optional="YES" attributeType="String"/>
