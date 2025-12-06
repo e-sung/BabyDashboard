@@ -393,8 +393,7 @@ struct BabyStatusView: View {
             // Create new event with denormalized data
             let event = CustomEvent(context: viewContext, timestamp: now,
                                    eventTypeName: name,
-                                   eventTypeEmoji: emoji,
-                                   eventTypeID: UUID()) // Not used for matching, just for compatibility
+                                   eventTypeEmoji: emoji)
             event.profile = baby
             try? viewContext.save()
         }

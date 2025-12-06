@@ -167,6 +167,8 @@ public extension BabyProfile {
 
 
 
+    /// Returns all custom events sorted by timestamp in descending order (most recent first).
+    /// Note: This sorting was added to provide consistent ordering for UI display.
     var customEventsArray: [CustomEvent] {
         guard let set = customEvents as? Set<CustomEvent> else { return [] }
         return set.sorted { $0.timestamp > $1.timestamp }
@@ -328,14 +330,13 @@ extension CustomEventType: Identifiable {}
 // MARK: - CustomEvent helpers
 
 public extension CustomEvent {
-    public convenience init(context: NSManagedObjectContext, timestamp: Date, 
-                    eventTypeName: String, eventTypeEmoji: String, eventTypeID: UUID? = nil) {
+    convenience init(context: NSManagedObjectContext, timestamp: Date,
+                    eventTypeName: String, eventTypeEmoji: String) {
         self.init(context: context)
         self.uuid = UUID()
         self.timestamp = timestamp
         self.eventTypeName = eventTypeName
         self.eventTypeEmoji = eventTypeEmoji
-        self.eventTypeID = eventTypeID ?? UUID() // Use provided ID or generate new one for compatibility
     }
     
     override func awakeFromInsert() {
@@ -354,8 +355,7 @@ extension CustomEvent {
     @NSManaged public var timestamp: Date
     @NSManaged public var memoText: String?
     @NSManaged public var eventTypeName: String  // Denormalized from CustomEventType
-    @NSManaged public var eventTypeEmoji: String // Denormalized from CustomEventType
-    @NSManaged public var eventTypeID: UUID      // Reference to CustomEventType template
+    @NSManaged public var eventTypeEmoji: String // Denormalized from CustomEventType (primary identifier)
     @NSManaged public var profile: BabyProfile?
 }
 
@@ -371,19 +371,17 @@ extension DailyChecklist {
     @NSManaged public var order: Int16
     @NSManaged public var createdAt: Date
     @NSManaged public var eventTypeName: String  // Denormalized from CustomEventType
-    @NSManaged public var eventTypeEmoji: String // Denormalized from CustomEventType
-    @NSManaged public var eventTypeID: UUID      // Reference to CustomEventType template
+    @NSManaged public var eventTypeEmoji: String // Denormalized from CustomEventType (primary identifier)
     @NSManaged public var baby: BabyProfile
 }
 
 public extension DailyChecklist {
     convenience init(context: NSManagedObjectContext, baby: BabyProfile,
-                    eventTypeName: String, eventTypeEmoji: String, eventTypeID: UUID? = nil, order: Int16) {
+                    eventTypeName: String, eventTypeEmoji: String, order: Int16) {
         self.init(context: context)
         self.baby = baby
         self.eventTypeName = eventTypeName
         self.eventTypeEmoji = eventTypeEmoji
-        self.eventTypeID = eventTypeID ?? UUID() // Use provided ID or generate new one for compatibility
         self.order = order
         self.createdAt = Date.current
     }
@@ -396,6 +394,6 @@ public extension DailyChecklist {
 
 extension DailyChecklist: Identifiable {
     public var id: String {
-        "\(baby.id.uuidString)-\(eventTypeID.uuidString)"
+        "\(baby.id.uuidString)-\(eventTypeEmoji)"
     }
 }

@@ -12,7 +12,6 @@
     </entity>
     <entity name="CustomEvent" representedClassName="CustomEvent" syncable="YES">
         <attribute name="eventTypeEmoji" optional="YES" attributeType="String"/>
-        <attribute name="eventTypeID" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
         <attribute name="eventTypeName" optional="YES" attributeType="String"/>
         <attribute name="memoText" optional="YES" attributeType="String"/>
         <attribute name="timestamp" attributeType="Date" defaultDateTimeInterval="784152300" usesScalarValueType="NO"/>
@@ -28,7 +27,6 @@
     <entity name="DailyChecklist" representedClassName="DailyChecklist" syncable="YES">
         <attribute name="createdAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
         <attribute name="eventTypeEmoji" optional="YES" attributeType="String"/>
-        <attribute name="eventTypeID" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
         <attribute name="eventTypeName" optional="YES" attributeType="String"/>
         <attribute name="order" optional="YES" attributeType="Integer 16" defaultValueString="0" usesScalarValueType="YES"/>
         <relationship name="baby" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="BabyProfile" inverseName="dailyChecklist" inverseEntity="BabyProfile"/>

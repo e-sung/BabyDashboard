@@ -466,8 +466,7 @@ struct HistoryEditView: View {
                 guard let eventType = selectedCustomEventType else { return }
                 let event = CustomEvent(context: viewContext, timestamp: customEventTime,
                                        eventTypeName: eventType.name,
-                                       eventTypeEmoji: eventType.emoji,
-                                       eventTypeID: eventType.id)
+                                       eventTypeEmoji: eventType.emoji)
                 event.profile = baby
                 event.memoText = memoText.isEmpty ? nil : memoText
             }

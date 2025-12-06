@@ -31,8 +31,7 @@ struct CorrelationAnalyzerTests {
             let vomit = CustomEvent(context: context,
                                    timestamp: now.addingTimeInterval(-Double(i)*3600 - 9000),
                                    eventTypeName: vomitType.name,
-                                   eventTypeEmoji: vomitType.emoji,
-                                   eventTypeID: vomitType.id)
+                                   eventTypeEmoji: vomitType.emoji)
             vomit.profile = baby
         }
         

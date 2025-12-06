@@ -6,7 +6,6 @@ struct ChecklistConfigurationSheet: View {
     @Environment(\.dismiss) private var dismiss
     
     let baby: BabyProfile
-    let maxItems = 3
     
     @FetchRequest(
         sortDescriptors: [NSSortDescriptor(keyPath: \CustomEventType.createdAt, ascending: true)],
@@ -28,7 +27,7 @@ struct ChecklistConfigurationSheet: View {
     }
     
     private func canAddMore() -> Bool {
-        currentEventTypeEmojis.count < maxItems
+        currentEventTypeEmojis.count < AppSettings.maxChecklistItems
     }
     
     private func addToChecklist(eventType: CustomEventType) {
@@ -36,7 +35,6 @@ struct ChecklistConfigurationSheet: View {
         _ = DailyChecklist(context: viewContext, baby: baby,
                           eventTypeName: eventType.name,
                           eventTypeEmoji: eventType.emoji,
-                          eventTypeID: eventType.id,
                           order: maxOrder + 1)
         do {
             try viewContext.save()
@@ -111,10 +109,10 @@ struct ChecklistConfigurationSheet: View {
                             .opacity(canToggle ? 1.0 : 0.5)
                         }
                     } header: {
-                        Text("Select event types for daily checklist (\(currentEventTypeEmojis.count)/\(maxItems))")
+                        Text("Select event types for daily checklist (\(currentEventTypeEmojis.count)/\(AppSettings.maxChecklistItems))")
                     } footer: {
                         if !canAddMore() {
-                            Text("Maximum of \(maxItems) items reached. Remove an item to add another.")
+                            Text("Maximum of \(AppSettings.maxChecklistItems) items reached. Remove an item to add another.")
                                 .foregroundStyle(.secondary)
                         }
                     }
@@ -156,7 +154,6 @@ struct ChecklistConfigurationSheet: View {
         let item1 = DailyChecklist(context: context, baby: baby,
                                   eventTypeName: eventType1.name,
                                   eventTypeEmoji: eventType1.emoji,
-                                  eventTypeID: eventType1.id,
                                   order: 0)
         baby.addToDailyChecklist(item1)
         try context.save()
