@@ -12,10 +12,10 @@ struct BabyStatusView: View {
     var isDiaperAnimating: Bool = false
     
     // Daily Checklist Configuration
-    let checklistEventTypeIDs: [UUID]
+    let checklistEmojis: [String]
     let isConfiguringChecklist: Bool
     let onConfigureChecklist: (BabyProfile) -> Void
-    let onRemoveFromChecklist: (UUID) -> Void
+    let onRemoveFromChecklist: (String) -> Void
     
     // Actions
     let onFeedTap: () -> Void
@@ -37,7 +37,7 @@ struct BabyStatusView: View {
     
     init(
         baby: BabyProfile,
-        checklistEventTypeIDs: [UUID],
+        checklistEmojis: [String],
         isConfiguringChecklist: Bool,
         isFeedAnimating: Bool = false,
         isDiaperAnimating: Bool = false,
@@ -48,10 +48,10 @@ struct BabyStatusView: View {
         onLastFeedTap: ((FeedSession) -> Void)?,
         onLastDiaperTap: ((DiaperChange) -> Void)?,
         onConfigureChecklist: @escaping (BabyProfile) -> Void,
-        onRemoveFromChecklist: @escaping (UUID) -> Void
+        onRemoveFromChecklist: @escaping (String) -> Void
     ) {
         self.baby = baby
-        self.checklistEventTypeIDs = checklistEventTypeIDs
+        self.checklistEmojis = checklistEmojis
         self.isConfiguringChecklist = isConfiguringChecklist
         self.isFeedAnimating = isFeedAnimating
         self.isDiaperAnimating = isDiaperAnimating
@@ -117,7 +117,7 @@ struct BabyStatusView: View {
                     // Daily Checklist Items
                     HStack(spacing: 12) {
                         // Show placeholder if in config mode and not at max capacity
-                        if isConfiguringChecklist && checklistEventTypeIDs.count < AppSettings.maxChecklistItems {
+                        if isConfiguringChecklist && baby.dailyChecklistArray.count < AppSettings.maxChecklistItems {
                             PlaceholderToggleButton {
                                 onConfigureChecklist(baby)
                             }
@@ -137,7 +137,7 @@ struct BabyStatusView: View {
                                     }
                                 },
                                 onDelete: {
-                                    onRemoveFromChecklist(item.eventTypeID)
+                                    onRemoveFromChecklist(item.eventTypeEmoji)
                                 }
                             )
                         }
@@ -377,12 +377,7 @@ struct BabyStatusView: View {
     
     // MARK: - Daily Checklist Helpers
     
-    private func isEventCheckedToday(eventTypeID: UUID, now: Date) -> Bool {
-        let startOfDay = getStartOfDay(now: now)
-        return todaysChecklistEvents.contains { event in
-            event.eventTypeID == eventTypeID && event.timestamp >= startOfDay
-        }
-    }
+    // Removed: isEventCheckedToday - no longer needed, using emoji-based matching in view
     
     private func toggleChecklist(emoji: String, name: String, isChecked: Bool, now: Date) {
         if isChecked {
@@ -449,7 +444,7 @@ struct BabyStatusView_Previews: PreviewProvider {
         return Group {
             BabyStatusView(
                 baby: babyNormal,
-                checklistEventTypeIDs: [eventType.id],
+                checklistEmojis: [eventType.emoji],
                 isConfiguringChecklist: false,
                 onFeedTap: {},
                 onFeedLongPress: {},
@@ -465,14 +460,14 @@ struct BabyStatusView_Previews: PreviewProvider {
             
             BabyStatusView(
                 baby: babyNormal,
-                checklistEventTypeIDs: [eventType.id],
+                checklistEmojis: [eventType.emoji],
                 isConfiguringChecklist: true,
                 onFeedTap: {},
                 onFeedLongPress: {},
                 onDiaperTap: {},
                 onNameTap: {},
-                onLastFeedTap: { _ in },
-                onLastDiaperTap: { _ in },
+                onLastFeedTap: nil,
+                onLastDiaperTap: nil,
                 onConfigureChecklist: { _ in },
                 onRemoveFromChecklist: { _ in }
             )

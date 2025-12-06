@@ -1,5 +1,4 @@
 import SwiftUI
-import CoreData
 import Model
 
 struct ChecklistConfigurationSheet: View {
@@ -7,34 +6,31 @@ struct ChecklistConfigurationSheet: View {
     @Environment(\.dismiss) private var dismiss
     
     let baby: BabyProfile
-    let maxItems: Int
+    let onSave: () -> Void
+    let maxItems = 3
     
     @FetchRequest(
-        sortDescriptors: [NSSortDescriptor(key: "createdAt", ascending: true)],
-        animation: .default
-    )
+        sortDescriptors: [NSSortDescriptor(keyPath: \CustomEventType.createdAt, ascending: true)],
+        animation: .default)
     private var eventTypes: FetchedResults<CustomEventType>
     
     @State private var showingManagement = false
     
-    private var currentEventTypeIDs: [UUID] {
-        baby.dailyChecklistArray.map { $0.eventTypeID }
+    private var currentEventTypeEmojis: Set<String> {
+        Set(baby.dailyChecklistArray.map { $0.eventTypeEmoji })
     }
     
-    init(
-        baby: BabyProfile,
-        maxItems: Int
-    ) {
+    init(baby: BabyProfile, onSave: @escaping () -> Void) {
         self.baby = baby
-        self.maxItems = maxItems
+        self.onSave = onSave
     }
     
     private func isInChecklist(_ eventType: CustomEventType) -> Bool {
-        currentEventTypeIDs.contains(eventType.id)
+        currentEventTypeEmojis.contains(eventType.emoji)
     }
     
     private func canAddMore() -> Bool {
-        currentEventTypeIDs.count < maxItems
+        currentEventTypeEmojis.count < maxItems
     }
     
     private func addToChecklist(eventType: CustomEventType) {
@@ -53,11 +49,12 @@ struct ChecklistConfigurationSheet: View {
     }
     
     private func removeFromChecklist(eventType: CustomEventType) {
-        if let item = baby.dailyChecklistArray.first(where: { $0.eventTypeID == eventType.id }) {
+        if let item = baby.dailyChecklistArray.first(where: { $0.eventTypeEmoji == eventType.emoji }) {
             viewContext.delete(item)
             do {
                 try viewContext.save()
                 NearbySyncManager.shared.sendPing()
+                onSave()
             } catch {
                 print("Error removing from checklist: \(error)")
             }
@@ -117,7 +114,7 @@ struct ChecklistConfigurationSheet: View {
                             .opacity(canToggle ? 1.0 : 0.5)
                         }
                     } header: {
-                        Text("Select event types for daily checklist (\(currentEventTypeIDs.count)/\(maxItems))")
+                        Text("Select event types for daily checklist (\(currentEventTypeEmojis.count)/\(maxItems))")
                     } footer: {
                         if !canAddMore() {
                             Text("Maximum of \(maxItems) items reached. Remove an item to add another.")
@@ -150,27 +147,27 @@ struct ChecklistConfigurationSheet: View {
 }
 
 #if DEBUG
-struct ChecklistConfigurationSheet_Previews: PreviewProvider {
-    static var previews: some View {
-        let controller = PersistenceController.preview
-        let context = controller.viewContext
-
+#Preview {
+    do {
+        let context = PersistenceController.preview.container.viewContext
         let baby = BabyProfile(context: context, name: "Test Baby")
+        
+        // Create a sample custom event type
         let eventType1 = CustomEventType(context: context, name: "Vitamin", emoji: "💊")
         
         // Add to baby's checklist
-        _ = DailyChecklist(context: context, baby: baby,
-                          eventTypeName: eventType1.name,
-                          eventTypeEmoji: eventType1.emoji,
-                          eventTypeID: eventType1.id,
-                          order: 0)
-
-        return ChecklistConfigurationSheet(
-            baby: baby,
-            maxItems: 3
-        )
-        .environment(\.managedObjectContext, context)
+        let item1 = DailyChecklist(context: context, baby: baby,
+                                  eventTypeName: eventType1.name,
+                                  eventTypeEmoji: eventType1.emoji,
+                                  eventTypeID: eventType1.id,
+                                  order: 0)
+        baby.addToDailyChecklist(item1)
+        try context.save()
+        
+        return ChecklistConfigurationSheet(baby: baby, onSave: {})
+            .environment(\.managedObjectContext, context)
+    } catch {
+        return Text("Preview Error")
     }
 }
 #endif
-
