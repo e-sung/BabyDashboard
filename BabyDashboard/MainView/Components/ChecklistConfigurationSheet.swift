@@ -40,6 +40,7 @@ struct ChecklistConfigurationSheet: View {
             try viewContext.save()
             NearbySyncManager.shared.sendPing()
         } catch {
+            viewContext.rollback()
             print("Error adding to checklist: \(error)")
         }
     }
@@ -51,6 +52,7 @@ struct ChecklistConfigurationSheet: View {
                 try viewContext.save()
                 NearbySyncManager.shared.sendPing()
             } catch {
+                viewContext.rollback()
                 print("Error removing from checklist: \(error)")
             }
         }

@@ -478,12 +478,12 @@ struct HistoryEditView: View {
 
         do {
             try viewContext.save()
+            NearbySyncManager.shared.sendPing()
+            dismiss()
         } catch {
-            assertionFailure(error.localizedDescription)
+            viewContext.rollback()
+            print("Error saving history event: \(error.localizedDescription)")
         }
-
-        NearbySyncManager.shared.sendPing()
-        dismiss()
     }
 
     private func deleteAndDismiss() {
@@ -496,11 +496,12 @@ struct HistoryEditView: View {
         }
         do {
             try viewContext.save()
+            NearbySyncManager.shared.sendPing()
+            dismiss()
         } catch {
-            assertionFailure(error.localizedDescription)
+            viewContext.rollback()
+            print("Error deleting history event: \(error.localizedDescription)")
         }
-        NearbySyncManager.shared.sendPing()
-        dismiss()
     }
 }
 

@@ -116,7 +116,7 @@ struct CustomEventTypeManagementView: View {
             try viewContext.save()
             NearbySyncManager.shared.sendPing()
         } catch {
-            // Handle error
+            viewContext.rollback()
             print("Error deleting event type: \(error)")
         }
     }
@@ -224,6 +224,7 @@ struct AddCustomEventTypeSheet: View {
             onSave()
             dismiss()
         } catch {
+            viewContext.rollback()
             errorMessage = String(localized: "Error saving event type")
             print(error.localizedDescription)
         }
@@ -302,11 +303,11 @@ struct EditCustomEventTypeSheet: View {
         do {
             try viewContext.save()
             NearbySyncManager.shared.sendPing()
+            onDismiss()
+            dismiss()
         } catch {
+            viewContext.rollback()
             print("Error updating event type: \(error)")
         }
-        
-        onDismiss()
-        dismiss()
     }
 }

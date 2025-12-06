@@ -380,24 +380,30 @@ struct BabyStatusView: View {
     // Removed: isEventCheckedToday - no longer needed, using emoji-based matching in view
     
     private func toggleChecklist(emoji: String, name: String, isChecked: Bool, now: Date) {
-        if isChecked {
-            // Delete existing event with this emoji
-            let startOfDay = getStartOfDay(now: now)
-            if let event = todaysChecklistEvents.first(where: { event in
-                event.eventTypeEmoji == emoji && event.timestamp >= startOfDay
-            }) {
-                viewContext.delete(event)
-                try? viewContext.save()
+        do {
+            if isChecked {
+                // Delete existing event with this emoji
+                let startOfDay = getStartOfDay(now: now)
+                if let event = todaysChecklistEvents.first(where: { event in
+                    event.eventTypeEmoji == emoji && event.timestamp >= startOfDay
+                }) {
+                    viewContext.delete(event)
+                }
+            } else {
+                // Create new event with denormalized data
+                let event = CustomEvent(context: viewContext, timestamp: now,
+                                       eventTypeName: name,
+                                       eventTypeEmoji: emoji)
+                event.profile = baby
             }
-        } else {
-            // Create new event with denormalized data
-            let event = CustomEvent(context: viewContext, timestamp: now,
-                                   eventTypeName: name,
-                                   eventTypeEmoji: emoji)
-            event.profile = baby
-            try? viewContext.save()
+            
+            try viewContext.save()
+            NearbySyncManager.shared.sendPing()
+        } catch {
+            // Rollback on error to prevent inconsistent state
+            viewContext.rollback()
+            print("Failed to toggle checklist item '\(name)': \(error.localizedDescription)")
         }
-        NearbySyncManager.shared.sendPing()
     }
 
     private func getStartOfDay(now: Date) -> Date {

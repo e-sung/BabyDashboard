@@ -77,6 +77,7 @@ struct MainView: View {
                 try viewContext.save()
                 NearbySyncManager.shared.sendPing()
             } catch {
+                viewContext.rollback()
                 print("Error removing from checklist: \(error)")
             }
         }
@@ -170,7 +171,8 @@ struct MainView: View {
                     try viewContext.save()
                     NearbySyncManager.shared.sendPing()
                 } catch {
-                    debugPrint(error.localizedDescription)
+                    viewContext.rollback()
+                    print("Error deleting feed session: \(error.localizedDescription)")
                 }
                 sessionToDelete = nil
             }
