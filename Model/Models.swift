@@ -328,14 +328,14 @@ extension CustomEventType: Identifiable {}
 // MARK: - CustomEvent helpers
 
 public extension CustomEvent {
-    convenience init(context: NSManagedObjectContext, timestamp: Date, 
-                    eventTypeName: String, eventTypeEmoji: String, eventTypeID: UUID) {
+    public convenience init(context: NSManagedObjectContext, timestamp: Date, 
+                    eventTypeName: String, eventTypeEmoji: String, eventTypeID: UUID? = nil) {
         self.init(context: context)
         self.uuid = UUID()
         self.timestamp = timestamp
         self.eventTypeName = eventTypeName
         self.eventTypeEmoji = eventTypeEmoji
-        self.eventTypeID = eventTypeID
+        self.eventTypeID = eventTypeID ?? UUID() // Use provided ID or generate new one for compatibility
     }
     
     override func awakeFromInsert() {
@@ -378,12 +378,12 @@ extension DailyChecklist {
 
 public extension DailyChecklist {
     convenience init(context: NSManagedObjectContext, baby: BabyProfile,
-                    eventTypeName: String, eventTypeEmoji: String, eventTypeID: UUID, order: Int16) {
+                    eventTypeName: String, eventTypeEmoji: String, eventTypeID: UUID? = nil, order: Int16) {
         self.init(context: context)
         self.baby = baby
         self.eventTypeName = eventTypeName
         self.eventTypeEmoji = eventTypeEmoji
-        self.eventTypeID = eventTypeID
+        self.eventTypeID = eventTypeID ?? UUID() // Use provided ID or generate new one for compatibility
         self.order = order
         self.createdAt = Date.current
     }

@@ -44,7 +44,7 @@ class CorrelationAnalysisViewModel: ObservableObject {
     @Published var targetType: CorrelationAnalysisView.TargetType = .customEvent {
         didSet { saveState() }
     }
-    @Published var targetCustomEventTypeID: UUID? {
+    @Published var targetCustomEventTypeEmoji: String? {
         didSet { saveState() }
     }
     @Published var targetHashtag: String = "" {
@@ -95,19 +95,7 @@ class CorrelationAnalysisViewModel: ObservableObject {
         }
     }
 
-    private func getCustomEventType(by id: UUID, context: NSManagedObjectContext) async -> CustomEventType? {
-        let request = CustomEventType.fetchRequest()
-        request.predicate = NSPredicate(format: "id == %@", id as CVarArg)
-        request.fetchLimit = 1
-        
-        do {
-            let results = try context.fetch(request)
-            return results.first
-        } catch {
-            print("Error fetching CustomEventType: \(error)")
-            return nil
-        }
-    }
+    // Removed: getCustomEventType - no longer needed with emoji-based identification
     
     func runAnalysis(context: NSManagedObjectContext) {
         analysisTask?.cancel()
@@ -120,19 +108,17 @@ class CorrelationAnalysisViewModel: ObservableObject {
             case .feedAmount:
                 target = .feedAmount
             case .customEvent:
-                guard let id = targetCustomEventTypeID,
-                      let eventType = await getCustomEventType(by: id, context: context) else {
+                guard let emoji = targetCustomEventTypeEmoji else {
                     self.isAnalyzing = false
                     return
                 }
-                target = .customEvent(emoji: eventType.emoji)
+                target = .customEvent(emoji: emoji)
             case .customEventWithHashtag:
-                guard let id = targetCustomEventTypeID,
-                      let eventType = await getCustomEventType(by: id, context: context) else {
+                guard let emoji = targetCustomEventTypeEmoji else {
                     self.isAnalyzing = false
                     return
                 }
-                target = .customEventWithHashtag(emoji: eventType.emoji, hashtag: targetHashtag)
+                target = .customEventWithHashtag(emoji: emoji, hashtag: targetHashtag)
             }
             
             guard let finalTarget = target else {
@@ -161,7 +147,7 @@ class CorrelationAnalysisViewModel: ObservableObject {
     private struct SavedState: Codable {
         let selectedHashtags: Set<String>
         let targetTypeRawValue: String
-        let targetCustomEventTypeID: UUID?
+        let targetCustomEventTypeEmoji: String?
         let targetHashtag: String
         let selectedTimePeriodRawValue: Int?
         let selectedBabyID: UUID?
@@ -171,7 +157,7 @@ class CorrelationAnalysisViewModel: ObservableObject {
         let state = SavedState(
             selectedHashtags: selectedHashtags,
             targetTypeRawValue: targetType.rawValue,
-            targetCustomEventTypeID: targetCustomEventTypeID,
+            targetCustomEventTypeEmoji: targetCustomEventTypeEmoji,
             targetHashtag: targetHashtag,
 
 
@@ -195,7 +181,7 @@ class CorrelationAnalysisViewModel: ObservableObject {
         if let type = CorrelationAnalysisView.TargetType(rawValue: state.targetTypeRawValue) {
             self.targetType = type
         }
-        self.targetCustomEventTypeID = state.targetCustomEventTypeID
+        self.targetCustomEventTypeEmoji = state.targetCustomEventTypeEmoji
         self.targetHashtag = state.targetHashtag
 
 

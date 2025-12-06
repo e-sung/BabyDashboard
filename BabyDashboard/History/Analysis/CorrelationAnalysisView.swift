@@ -106,8 +106,8 @@ struct CorrelationAnalysisView: View {
                                     if viewModel.targetType == .feedAmount {
                                         Text("🍼")
                                             .font(.largeTitle)
-                                    } else if let id = viewModel.targetCustomEventTypeID,
-                                              let event = customEventTypes.first(where: { $0.id == id }) {
+                                    } else if let emoji = viewModel.targetCustomEventTypeEmoji,
+                                              let event = customEventTypes.first(where: { $0.emoji == emoji }) {
                                         Text(event.emoji)
                                             .font(.largeTitle)
                                     } else {
@@ -115,8 +115,8 @@ struct CorrelationAnalysisView: View {
                                             .font(.largeTitle)
                                     }
                                     
-                                    if let id = viewModel.targetCustomEventTypeID,
-                                       let event = customEventTypes.first(where: { $0.id == id }),
+                                    if let emoji = viewModel.targetCustomEventTypeEmoji,
+                                       let event = customEventTypes.first(where: { $0.emoji == emoji }),
                                        viewModel.targetType == .customEvent {
                                         Text(event.name)
                                             .font(.caption)
@@ -267,7 +267,7 @@ struct CorrelationAnalysisView: View {
     private var canAnalyze: Bool {
         guard !viewModel.selectedHashtags.isEmpty else { return false }
         if viewModel.targetType == .feedAmount { return true }
-        return viewModel.targetCustomEventTypeID != nil
+        return viewModel.targetCustomEventTypeEmoji != nil
     }
 }
 
@@ -324,10 +324,10 @@ struct TargetSelectionView: View {
             
             if viewModel.targetType == .customEvent || viewModel.targetType == .customEventWithHashtag {
                 Section("Event Details") {
-                    Picker("Event Type", selection: $viewModel.targetCustomEventTypeID) {
-                        Text("Select Event...").tag(UUID?.none)
+                    Picker("Event Type", selection: $viewModel.targetCustomEventTypeEmoji) {
+                        Text("Select Event...").tag(String?.none)
                         ForEach(customEventTypes) { type in
-                            Text(type.emoji + " " + type.name).tag(UUID?.some(type.id))
+                            Text(type.emoji + " " + type.name).tag(String?.some(type.emoji))
                         }
                     }
                     
