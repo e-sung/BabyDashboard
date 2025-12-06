@@ -2,6 +2,7 @@ import Foundation
 import SwiftUI
 import CoreData
 import Combine
+import Model
 
 
 enum AnalysisTimePeriod: Int, CaseIterable, Identifiable, Codable {
@@ -93,31 +94,58 @@ class CorrelationAnalysisViewModel: ObservableObject {
             self.availableHashtags = tags
         }
     }
+
+    private func getCustomEventType(by id: UUID, context: NSManagedObjectContext) async -> CustomEventType? {
+        let request = CustomEventType.fetchRequest()
+        request.predicate = NSPredicate(format: "id == %@", id as CVarArg)
+        request.fetchLimit = 1
+        
+        do {
+            let results = try context.fetch(request)
+            return results.first
+        } catch {
+            print("Error fetching CustomEventType: \(error)")
+            return nil
+        }
+    }
     
     func runAnalysis(context: NSManagedObjectContext) {
         analysisTask?.cancel()
         isAnalyzing = true
         
         // Prepare target definition
-        let target: CorrelationTarget
-        switch targetType {
-        case .customEvent:
-            guard let id = targetCustomEventTypeID else { return }
-            target = .customEvent(typeID: id)
-        case .customEventWithHashtag:
-            guard let id = targetCustomEventTypeID else { return }
-            target = .customEventWithHashtag(typeID: id, hashtag: targetHashtag)
-        case .feedAmount:
-            target = .feedAmount
-        }
-        
         analysisTask = Task {
+            var target: CorrelationTarget?
+            switch targetType {
+            case .feedAmount:
+                target = .feedAmount
+            case .customEvent:
+                guard let id = targetCustomEventTypeID,
+                      let eventType = await getCustomEventType(by: id, context: context) else {
+                    self.isAnalyzing = false
+                    return
+                }
+                target = .customEvent(emoji: eventType.emoji)
+            case .customEventWithHashtag:
+                guard let id = targetCustomEventTypeID,
+                      let eventType = await getCustomEventType(by: id, context: context) else {
+                    self.isAnalyzing = false
+                    return
+                }
+                target = .customEventWithHashtag(emoji: eventType.emoji, hashtag: targetHashtag)
+            }
+            
+            guard let finalTarget = target else {
+                self.isAnalyzing = false
+                return
+            }
+            
             let analyzer = CorrelationAnalyzer(context: context)
             let interval = self.selectedTimePeriod.dateInterval()
             
             let newResults = await analyzer.analyze(
                 sourceHashtags: Array(selectedHashtags),
-                target: target,
+                target: finalTarget,
 
                 dateInterval: interval,
                 babyID: selectedBabyID

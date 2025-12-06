@@ -160,7 +160,7 @@ struct LogCustomEventIntent: AppIntent {
             return .result(value: String(localized: dialog), dialog: IntentDialog(dialog))
         }
 
-        MainViewModel.shared.logCustomEvent(for: profile, eventType: customEventType)
+        MainViewModel.shared.logCustomEvent(for: profile, eventType: customEventType, context: context)
         
         let dialog: LocalizedStringResource = "Logged \(eventType.emoji) \(eventType.name) for \(baby.name)"
         return .result(value: String(localized: dialog), dialog: IntentDialog(dialog))
