@@ -6,7 +6,6 @@ struct ChecklistConfigurationSheet: View {
     @Environment(\.dismiss) private var dismiss
     
     let baby: BabyProfile
-    let onSave: () -> Void
     let maxItems = 3
     
     @FetchRequest(
@@ -20,9 +19,8 @@ struct ChecklistConfigurationSheet: View {
         Set(baby.dailyChecklistArray.map { $0.eventTypeEmoji })
     }
     
-    init(baby: BabyProfile, onSave: @escaping () -> Void) {
+    init(baby: BabyProfile) {
         self.baby = baby
-        self.onSave = onSave
     }
     
     private func isInChecklist(_ eventType: CustomEventType) -> Bool {
@@ -54,7 +52,6 @@ struct ChecklistConfigurationSheet: View {
             do {
                 try viewContext.save()
                 NearbySyncManager.shared.sendPing()
-                onSave()
             } catch {
                 print("Error removing from checklist: \(error)")
             }
@@ -164,7 +161,7 @@ struct ChecklistConfigurationSheet: View {
         baby.addToDailyChecklist(item1)
         try context.save()
         
-        return ChecklistConfigurationSheet(baby: baby, onSave: {})
+        return ChecklistConfigurationSheet(baby: baby)
             .environment(\.managedObjectContext, context)
     } catch {
         return Text("Preview Error")

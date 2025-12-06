@@ -95,8 +95,6 @@ class CorrelationAnalysisViewModel: ObservableObject {
         }
     }
 
-    // Removed: getCustomEventType - no longer needed with emoji-based identification
-    
     func runAnalysis(context: NSManagedObjectContext) {
         analysisTask?.cancel()
         isAnalyzing = true

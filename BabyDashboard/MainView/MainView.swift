@@ -134,7 +134,7 @@ struct MainView: View {
                 SettingsView(settings: settings, shareController: .shared)
             }
             .sheet(item: $showingChecklistConfig) { baby in
-                ChecklistConfigurationSheet(baby: baby, onSave: {})
+                ChecklistConfigurationSheet(baby: baby)
                     .environment(\.managedObjectContext, viewContext)
             }
             .toolbar(content: toolbarContent)

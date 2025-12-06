@@ -211,12 +211,12 @@ struct AddCustomEventTypeSheet: View {
         // Check for duplicate emoji
         let existingTypes = try? viewContext.fetch(CustomEventType.fetchRequest())
         if existingTypes?.contains(where: { $0.emoji == trimmedEmoji }) == true {
-            errorMessage = "An event type with emoji \(trimmedEmoji) already exists. Please choose a different emoji."
+            errorMessage = String(localized: "An event type with emoji \(trimmedEmoji) already exists. Please choose a different emoji.")
             return
         }
         
         // Create the event type
-        let newEventType = CustomEventType(context: viewContext, name: trimmedName, emoji: trimmedEmoji)
+        _ = CustomEventType(context: viewContext, name: trimmedName, emoji: trimmedEmoji)
         
         do {
             try viewContext.save()
@@ -224,7 +224,8 @@ struct AddCustomEventTypeSheet: View {
             onSave()
             dismiss()
         } catch {
-            errorMessage = "Error saving event type: \(error.localizedDescription)"
+            errorMessage = String(localized: "Error saving event type")
+            print(error.localizedDescription)
         }
     }
 }

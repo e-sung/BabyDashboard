@@ -83,21 +83,13 @@ class MainViewModel: ObservableObject {
         triggerAnimation(for: baby.id, type: .diaper)
     }
     
-    func logCustomEvent(for baby: BabyProfile, eventType: CustomEventType, context: NSManagedObjectContext) {
-        context.performAndWait {
-            let newEvent = CustomEvent(context: context, timestamp: Date.current,
-                                       eventTypeName: eventType.name,
-                                       eventTypeEmoji: eventType.emoji,
-                                       eventTypeID: eventType.id)
-            newEvent.profile = baby
-            
-            do {
-                try context.save()
-                NearbySyncManager.shared.sendPing()
-            } catch {
-                print("Error saving custom event: \(error)")
-            }
-        }
+    func logCustomEvent(for baby: BabyProfile, eventType: CustomEventType) {
+        let newEvent = CustomEvent(context: viewContext, timestamp: Date.current,
+                                   eventTypeName: eventType.name,
+                                   eventTypeEmoji: eventType.emoji,
+                                   eventTypeID: eventType.id)
+        newEvent.profile = baby
+        saveAndPing()
     }
     
     func setDiaperTime(for baby: BabyProfile, to date: Date) {
