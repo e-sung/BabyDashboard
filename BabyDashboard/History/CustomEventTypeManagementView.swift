@@ -208,12 +208,8 @@ struct AddCustomEventTypeSheet: View {
             try manager.create(name: name, emoji: emoji)
             onSave()
             dismiss()
-        } catch CustomEventTypeError.invalidName {
-            errorMessage = String(localized: "Event type name cannot be empty")
-        } catch CustomEventTypeError.invalidEmoji {
-            errorMessage = String(localized: "Event type emoji cannot be empty")
-        } catch CustomEventTypeError.duplicateEmoji(let emoji) {
-            errorMessage = String(localized: "An event type with emoji \(emoji) already exists. Please choose a different emoji.")
+        } catch let error as CustomEventTypeError {
+            errorMessage = error.localizedDescription
         } catch {
             errorMessage = String(localized: "Error saving event type")
             print(error.localizedDescription)
@@ -230,6 +226,7 @@ struct EditCustomEventTypeSheet: View {
     
     @State private var name: String = ""
     @State private var emoji: String = ""
+    @State private var errorMessage: String?
     @FocusState private var isNameFocused: Bool
     
     var canSave: Bool {
@@ -262,6 +259,14 @@ struct EditCustomEventTypeSheet: View {
                 } header: {
                     Text("Emoji")
                 }
+                
+                if let errorMessage {
+                    Section {
+                        Text(errorMessage)
+                            .foregroundStyle(.red)
+                            .font(.callout)
+                    }
+                }
             }
             .navigationTitle("Edit Event Type")
             .navigationBarTitleDisplayMode(.inline)
@@ -293,14 +298,11 @@ struct EditCustomEventTypeSheet: View {
             try manager.update(eventType, name: name, emoji: emoji)
             onDismiss()
             dismiss()
-        } catch CustomEventTypeError.invalidName {
-            print("Error: Event type name cannot be empty")
-        } catch CustomEventTypeError.invalidEmoji {
-            print("Error: Event type emoji cannot be empty")
-        } catch CustomEventTypeError.duplicateEmoji(let emoji) {
-            print("Error: Emoji \(emoji) already exists")
+        } catch let error as CustomEventTypeError {
+            errorMessage = error.localizedDescription
         } catch {
-            print("Error updating event type: \(error)")
+            errorMessage = String(localized: "Error updating event type")
+            print(error.localizedDescription)
         }
     }
 }
