@@ -15,8 +15,9 @@ struct CorrelationAnalyzerTests {
     func analyzeStatisticalCorrelation() async throws {
         // Given
         let baby = BabyProfile(context: context, name: "TestBaby")
+        let now = Date.current
+        
         let vomitType = CustomEventType(context: context, name: "Vomit", emoji: "🤮")
-        let now = Date()
         
         // Scenario: #BrandA causes vomit (Perfect Positive Correlation)
         // 10 feeds with #BrandA -> 10 Vomits
@@ -27,7 +28,10 @@ struct CorrelationAnalyzerTests {
             feed.memoText = "Milk #BrandA"
             feed.profile = baby
             
-            let vomit = CustomEvent(context: context, timestamp: now.addingTimeInterval(-Double(i)*3600 - 9000), eventType: vomitType)
+            let vomit = CustomEvent(context: context,
+                                   timestamp: now.addingTimeInterval(-Double(i)*3600 - 9000),
+                                   eventTypeName: vomitType.name,
+                                   eventTypeEmoji: vomitType.emoji)
             vomit.profile = baby
         }
         
@@ -45,7 +49,7 @@ struct CorrelationAnalyzerTests {
         // When
         let results = await analyzer.analyze(
             sourceHashtags: ["#BrandA"],
-            target: .customEvent(typeID: vomitType.id),
+            target: .customEvent(emoji: vomitType.emoji),
 
             dateInterval: dateInterval,
             babyID: baby.id

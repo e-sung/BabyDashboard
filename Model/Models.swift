@@ -46,7 +46,6 @@ extension BabyProfile {
     @NSManaged public var feedTerm: TimeInterval
     @NSManaged public var id: UUID
     @NSManaged public var name: String
-    @NSManaged public var customEventTypes: NSSet?  // For CloudKit sharing
     @NSManaged public var customEvents: NSSet?
     @NSManaged public var diaperChanges: NSSet?
     @NSManaged public var feedSessions: NSSet?
@@ -77,18 +76,6 @@ extension BabyProfile {
 
     @objc(removeFeedSessions:)
     @NSManaged public func removeFromFeedSessions(_ values: NSSet)
-
-    @objc(addCustomEventTypesObject:)
-    @NSManaged public func addToCustomEventTypes(_ value: CustomEventType)
-
-    @objc(removeCustomEventTypesObject:)
-    @NSManaged public func removeFromCustomEventTypes(_ value: CustomEventType)
-
-    @objc(addCustomEventTypes:)
-    @NSManaged public func addToCustomEventTypes(_ values: NSSet)
-
-    @objc(removeCustomEventTypes:)
-    @NSManaged public func removeFromCustomEventTypes(_ values: NSSet)
 
     @objc(addCustomEventsObject:)
     @NSManaged public func addToCustomEvents(_ value: CustomEvent)
@@ -180,9 +167,11 @@ public extension BabyProfile {
 
 
 
+    /// Returns all custom events sorted by timestamp in descending order (most recent first).
+    /// Note: This sorting was added to provide consistent ordering for UI display.
     var customEventsArray: [CustomEvent] {
         guard let set = customEvents as? Set<CustomEvent> else { return [] }
-        return Array(set)
+        return set.sorted { $0.timestamp > $1.timestamp }
     }
 
     var diaperChangesArray: [DiaperChange] {
@@ -323,11 +312,6 @@ public extension CustomEventType {
         id = UUID()
         createdAt = Date.current
     }
-
-    var eventsArray: [CustomEvent] {
-        guard let set = events as? Set<CustomEvent> else { return [] }
-        return Array(set)
-    }
 }
 
 extension CustomEventType {
@@ -339,9 +323,6 @@ extension CustomEventType {
     @NSManaged public var name: String
     @NSManaged public var emoji: String
     @NSManaged public var createdAt: Date
-    @NSManaged public var profile: BabyProfile?  // For CloudKit sharing
-    @NSManaged public var events: NSSet?
-    @NSManaged public var dailyChecklists: NSSet?  // DailyChecklist items using this type
 }
 
 extension CustomEventType: Identifiable {}
@@ -349,11 +330,13 @@ extension CustomEventType: Identifiable {}
 // MARK: - CustomEvent helpers
 
 public extension CustomEvent {
-    convenience init(context: NSManagedObjectContext, timestamp: Date, eventType: CustomEventType) {
+    convenience init(context: NSManagedObjectContext, timestamp: Date,
+                    eventTypeName: String, eventTypeEmoji: String) {
         self.init(context: context)
         self.uuid = UUID()
         self.timestamp = timestamp
-        self.eventType = eventType
+        self.eventTypeName = eventTypeName
+        self.eventTypeEmoji = eventTypeEmoji
     }
     
     override func awakeFromInsert() {
@@ -371,8 +354,9 @@ extension CustomEvent {
     @NSManaged public var uuid: UUID
     @NSManaged public var timestamp: Date
     @NSManaged public var memoText: String?
+    @NSManaged public var eventTypeName: String  // Denormalized from CustomEventType
+    @NSManaged public var eventTypeEmoji: String // Denormalized from CustomEventType (primary identifier)
     @NSManaged public var profile: BabyProfile?
-    @NSManaged public var eventType: CustomEventType?
 }
 
 extension CustomEvent: Identifiable, Hashtagable {}
@@ -386,15 +370,18 @@ extension DailyChecklist {
 
     @NSManaged public var order: Int16
     @NSManaged public var createdAt: Date
+    @NSManaged public var eventTypeName: String  // Denormalized from CustomEventType
+    @NSManaged public var eventTypeEmoji: String // Denormalized from CustomEventType (primary identifier)
     @NSManaged public var baby: BabyProfile
-    @NSManaged public var eventType: CustomEventType
 }
 
 public extension DailyChecklist {
-    convenience init(context: NSManagedObjectContext, baby: BabyProfile, eventType: CustomEventType, order: Int16) {
+    convenience init(context: NSManagedObjectContext, baby: BabyProfile,
+                    eventTypeName: String, eventTypeEmoji: String, order: Int16) {
         self.init(context: context)
         self.baby = baby
-        self.eventType = eventType
+        self.eventTypeName = eventTypeName
+        self.eventTypeEmoji = eventTypeEmoji
         self.order = order
         self.createdAt = Date.current
     }
@@ -407,6 +394,6 @@ public extension DailyChecklist {
 
 extension DailyChecklist: Identifiable {
     public var id: String {
-        "\(baby.id.uuidString)-\(eventType.id.uuidString)"
+        "\(baby.id.uuidString)-\(eventTypeEmoji)"
     }
 }

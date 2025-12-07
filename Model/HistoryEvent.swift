@@ -87,8 +87,8 @@ public extension HistoryEvent {
     }
 
     init(from customEvent: CustomEvent) {
-        let eventTypeName = customEvent.eventType?.name ?? "Unknown"
-        let emoji = customEvent.eventType?.emoji ?? "📝"
+        let eventTypeName = customEvent.eventTypeName
+        let emoji = customEvent.eventTypeEmoji
 
         self.init(
             id: customEvent.uuid,

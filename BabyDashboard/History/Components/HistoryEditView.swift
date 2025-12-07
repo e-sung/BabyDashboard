@@ -358,11 +358,9 @@ struct HistoryEditView: View {
     private func customEventEditor(for event: CustomEvent) -> some View {
         Section("Event Type") {
             HStack {
-                if let emoji = event.eventType?.emoji {
-                    Text(emoji)
-                        .font(.title2)
-                }
-                Text(event.eventType?.name ?? "Unknown")
+                Text(event.eventTypeEmoji)
+                    .font(.title2)
+                Text(event.eventTypeName)
                     .font(.body)
                 Spacer()
             }
@@ -466,7 +464,9 @@ struct HistoryEditView: View {
                 
             case .customEvent:
                 guard let eventType = selectedCustomEventType else { return }
-                let event = CustomEvent(context: viewContext, timestamp: customEventTime, eventType: eventType)
+                let event = CustomEvent(context: viewContext, timestamp: customEventTime,
+                                       eventTypeName: eventType.name,
+                                       eventTypeEmoji: eventType.emoji)
                 event.profile = baby
                 event.memoText = memoText.isEmpty ? nil : memoText
             }
@@ -478,12 +478,12 @@ struct HistoryEditView: View {
 
         do {
             try viewContext.save()
+            NearbySyncManager.shared.sendPing()
+            dismiss()
         } catch {
-            assertionFailure(error.localizedDescription)
+            viewContext.rollback()
+            print("Error saving history event: \(error.localizedDescription)")
         }
-
-        NearbySyncManager.shared.sendPing()
-        dismiss()
     }
 
     private func deleteAndDismiss() {
@@ -496,11 +496,12 @@ struct HistoryEditView: View {
         }
         do {
             try viewContext.save()
+            NearbySyncManager.shared.sendPing()
+            dismiss()
         } catch {
-            assertionFailure(error.localizedDescription)
+            viewContext.rollback()
+            print("Error deleting history event: \(error.localizedDescription)")
         }
-        NearbySyncManager.shared.sendPing()
-        dismiss()
     }
 }
 

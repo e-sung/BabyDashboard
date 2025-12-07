@@ -1,5 +1,4 @@
 import SwiftUI
-import CoreData
 import Model
 
 struct ChecklistConfigurationSheet: View {
@@ -7,54 +6,53 @@ struct ChecklistConfigurationSheet: View {
     @Environment(\.dismiss) private var dismiss
     
     let baby: BabyProfile
-    let maxItems: Int
     
     @FetchRequest(
-        sortDescriptors: [NSSortDescriptor(key: "createdAt", ascending: true)],
-        animation: .default
-    )
+        sortDescriptors: [NSSortDescriptor(keyPath: \CustomEventType.createdAt, ascending: true)],
+        animation: .default)
     private var eventTypes: FetchedResults<CustomEventType>
     
     @State private var showingManagement = false
     
-    private var currentEventTypeIDs: [UUID] {
-        baby.dailyChecklistArray.map { $0.eventType.id }
+    private var currentEventTypeEmojis: Set<String> {
+        Set(baby.dailyChecklistArray.map { $0.eventTypeEmoji })
     }
     
-    init(
-        baby: BabyProfile,
-        maxItems: Int
-    ) {
+    init(baby: BabyProfile) {
         self.baby = baby
-        self.maxItems = maxItems
     }
     
     private func isInChecklist(_ eventType: CustomEventType) -> Bool {
-        currentEventTypeIDs.contains(eventType.id)
+        currentEventTypeEmojis.contains(eventType.emoji)
     }
     
     private func canAddMore() -> Bool {
-        currentEventTypeIDs.count < maxItems
+        currentEventTypeEmojis.count < AppSettings.maxChecklistItems
     }
     
     private func addToChecklist(eventType: CustomEventType) {
         let maxOrder = baby.dailyChecklistArray.map(\.order).max() ?? -1
-        _ = DailyChecklist(context: viewContext, baby: baby, eventType: eventType, order: maxOrder + 1)
+        _ = DailyChecklist(context: viewContext, baby: baby,
+                          eventTypeName: eventType.name,
+                          eventTypeEmoji: eventType.emoji,
+                          order: maxOrder + 1)
         do {
             try viewContext.save()
             NearbySyncManager.shared.sendPing()
         } catch {
+            viewContext.rollback()
             print("Error adding to checklist: \(error)")
         }
     }
     
     private func removeFromChecklist(eventType: CustomEventType) {
-        if let item = baby.dailyChecklistArray.first(where: { $0.eventType.id == eventType.id }) {
+        if let item = baby.dailyChecklistArray.first(where: { $0.eventTypeEmoji == eventType.emoji }) {
             viewContext.delete(item)
             do {
                 try viewContext.save()
                 NearbySyncManager.shared.sendPing()
             } catch {
+                viewContext.rollback()
                 print("Error removing from checklist: \(error)")
             }
         }
@@ -85,17 +83,11 @@ struct ChecklistConfigurationSheet: View {
                                 HStack(spacing: 12) {
                                     Text(eventType.emoji)
                                         .font(.title2)
-                                        .frame(width: 40, height: 40)
                                     
                                     VStack(alignment: .leading, spacing: 4) {
                                         Text(eventType.name)
                                             .font(.headline)
                                             .foregroundStyle(.primary)
-                                        
-                                        let count = eventType.eventsArray.count
-                                        Text("\(count) event\(count == 1 ? "" : "s") logged")
-                                            .font(.caption)
-                                            .foregroundStyle(.secondary)
                                     }
                                     
                                     Spacer()
@@ -103,23 +95,26 @@ struct ChecklistConfigurationSheet: View {
                                     if isConfigured {
                                         Image(systemName: "checkmark.circle.fill")
                                             .foregroundStyle(.blue)
-                                            .font(.title3)
                                     } else if !canAddMore() {
-                                        Image(systemName: "exclamationmark.circle.fill")
-                                            .foregroundStyle(.orange)
-                                            .font(.title3)
+                                        Image(systemName: "circle")
+                                            .foregroundStyle(.gray.opacity(0.3))
+                                    } else {
+                                        Image(systemName: "circle")
+                                            .foregroundStyle(.gray)
                                     }
                                 }
+                                .padding(.vertical, 4)
                                 .contentShape(Rectangle())
                             }
+                            .buttonStyle(.plain)
                             .disabled(!canToggle)
                             .opacity(canToggle ? 1.0 : 0.5)
                         }
                     } header: {
-                        Text("Select event types for daily checklist (\(currentEventTypeIDs.count)/\(maxItems))")
+                        Text("Select event types for daily checklist (\(currentEventTypeEmojis.count)/\(AppSettings.maxChecklistItems))")
                     } footer: {
                         if !canAddMore() {
-                            Text("Maximum of \(maxItems) items reached. Remove an item to add another.")
+                            Text("Maximum of \(AppSettings.maxChecklistItems) items reached. Remove an item to add another.")
                                 .foregroundStyle(.secondary)
                         }
                     }
@@ -149,23 +144,26 @@ struct ChecklistConfigurationSheet: View {
 }
 
 #if DEBUG
-struct ChecklistConfigurationSheet_Previews: PreviewProvider {
-    static var previews: some View {
-        let controller = PersistenceController.preview
-        let context = controller.viewContext
-
+#Preview {
+    do {
+        let context = PersistenceController.preview.container.viewContext
         let baby = BabyProfile(context: context, name: "Test Baby")
+        
+        // Create a sample custom event type
         let eventType1 = CustomEventType(context: context, name: "Vitamin", emoji: "💊")
         
         // Add to baby's checklist
-        _ = DailyChecklist(context: context, baby: baby, eventType: eventType1, order: 0)
-
-        return ChecklistConfigurationSheet(
-            baby: baby,
-            maxItems: 3
-        )
-        .environment(\.managedObjectContext, context)
+        let item1 = DailyChecklist(context: context, baby: baby,
+                                  eventTypeName: eventType1.name,
+                                  eventTypeEmoji: eventType1.emoji,
+                                  order: 0)
+        baby.addToDailyChecklist(item1)
+        try context.save()
+        
+        return ChecklistConfigurationSheet(baby: baby)
+            .environment(\.managedObjectContext, context)
+    } catch {
+        return Text("Preview Error")
     }
 }
 #endif
-

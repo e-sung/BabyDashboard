@@ -70,13 +70,14 @@ struct MainView: View {
         #endif
     }
     
-    private func removeFromChecklist(eventTypeID: UUID, for baby: BabyProfile) {
-        if let item = baby.dailyChecklistArray.first(where: { $0.eventType.id == eventTypeID }) {
+    private func removeFromChecklist(emoji: String, for baby: BabyProfile) {
+        if let item = baby.dailyChecklistArray.first(where: { $0.eventTypeEmoji == emoji }) {
             viewContext.delete(item)
             do {
                 try viewContext.save()
                 NearbySyncManager.shared.sendPing()
             } catch {
+                viewContext.rollback()
                 print("Error removing from checklist: \(error)")
             }
         }
@@ -134,11 +135,8 @@ struct MainView: View {
                 SettingsView(settings: settings, shareController: .shared)
             }
             .sheet(item: $showingChecklistConfig) { baby in
-                ChecklistConfigurationSheet(
-                    baby: baby,
-                    maxItems: AppSettings.maxChecklistItems
-                )
-                .environment(\.managedObjectContext, viewContext)
+                ChecklistConfigurationSheet(baby: baby)
+                    .environment(\.managedObjectContext, viewContext)
             }
             .toolbar(content: toolbarContent)
             .navigationBarTitleDisplayMode(.inline)
@@ -173,7 +171,8 @@ struct MainView: View {
                     try viewContext.save()
                     NearbySyncManager.shared.sendPing()
                 } catch {
-                    debugPrint(error.localizedDescription)
+                    viewContext.rollback()
+                    print("Error deleting feed session: \(error.localizedDescription)")
                 }
                 sessionToDelete = nil
             }
@@ -216,7 +215,7 @@ private extension MainView {
                             let baby = babies[index]
                             let tile = BabyStatusView(
                                 baby: baby,
-                                checklistEventTypeIDs: baby.dailyChecklistArray.map { $0.eventType.id },
+                                checklistEmojis: baby.dailyChecklistArray.map { $0.eventTypeEmoji },
                                 isConfiguringChecklist: isConfiguringChecklist,
                                 isFeedAnimating: viewModel.feedAnimationStates[baby.id, default: false],
                                 isDiaperAnimating: viewModel.diaperAnimationStates[baby.id, default: false],
@@ -238,8 +237,8 @@ private extension MainView {
                                 onConfigureChecklist: { baby in
                                     showingChecklistConfig = baby
                                 },
-                                onRemoveFromChecklist: { eventTypeID in
-                                    removeFromChecklist(eventTypeID: eventTypeID, for: baby)
+                                onRemoveFromChecklist: { emoji in
+                                    removeFromChecklist(emoji: emoji, for: baby)
                                 }
                             )
                             .padding()

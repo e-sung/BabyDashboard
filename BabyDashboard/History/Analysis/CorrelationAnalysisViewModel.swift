@@ -2,6 +2,7 @@ import Foundation
 import SwiftUI
 import CoreData
 import Combine
+import Model
 
 
 enum AnalysisTimePeriod: Int, CaseIterable, Identifiable, Codable {
@@ -43,7 +44,7 @@ class CorrelationAnalysisViewModel: ObservableObject {
     @Published var targetType: CorrelationAnalysisView.TargetType = .customEvent {
         didSet { saveState() }
     }
-    @Published var targetCustomEventTypeID: UUID? {
+    @Published var targetCustomEventTypeEmoji: String? {
         didSet { saveState() }
     }
     @Published var targetHashtag: String = "" {
@@ -93,31 +94,42 @@ class CorrelationAnalysisViewModel: ObservableObject {
             self.availableHashtags = tags
         }
     }
-    
+
     func runAnalysis(context: NSManagedObjectContext) {
         analysisTask?.cancel()
         isAnalyzing = true
         
         // Prepare target definition
-        let target: CorrelationTarget
-        switch targetType {
-        case .customEvent:
-            guard let id = targetCustomEventTypeID else { return }
-            target = .customEvent(typeID: id)
-        case .customEventWithHashtag:
-            guard let id = targetCustomEventTypeID else { return }
-            target = .customEventWithHashtag(typeID: id, hashtag: targetHashtag)
-        case .feedAmount:
-            target = .feedAmount
-        }
-        
         analysisTask = Task {
+            var target: CorrelationTarget?
+            switch targetType {
+            case .feedAmount:
+                target = .feedAmount
+            case .customEvent:
+                guard let emoji = targetCustomEventTypeEmoji else {
+                    self.isAnalyzing = false
+                    return
+                }
+                target = .customEvent(emoji: emoji)
+            case .customEventWithHashtag:
+                guard let emoji = targetCustomEventTypeEmoji else {
+                    self.isAnalyzing = false
+                    return
+                }
+                target = .customEventWithHashtag(emoji: emoji, hashtag: targetHashtag)
+            }
+            
+            guard let finalTarget = target else {
+                self.isAnalyzing = false
+                return
+            }
+            
             let analyzer = CorrelationAnalyzer(context: context)
             let interval = self.selectedTimePeriod.dateInterval()
             
             let newResults = await analyzer.analyze(
                 sourceHashtags: Array(selectedHashtags),
-                target: target,
+                target: finalTarget,
 
                 dateInterval: interval,
                 babyID: selectedBabyID
@@ -133,7 +145,7 @@ class CorrelationAnalysisViewModel: ObservableObject {
     private struct SavedState: Codable {
         let selectedHashtags: Set<String>
         let targetTypeRawValue: String
-        let targetCustomEventTypeID: UUID?
+        let targetCustomEventTypeEmoji: String?
         let targetHashtag: String
         let selectedTimePeriodRawValue: Int?
         let selectedBabyID: UUID?
@@ -143,7 +155,7 @@ class CorrelationAnalysisViewModel: ObservableObject {
         let state = SavedState(
             selectedHashtags: selectedHashtags,
             targetTypeRawValue: targetType.rawValue,
-            targetCustomEventTypeID: targetCustomEventTypeID,
+            targetCustomEventTypeEmoji: targetCustomEventTypeEmoji,
             targetHashtag: targetHashtag,
 
 
@@ -167,7 +179,7 @@ class CorrelationAnalysisViewModel: ObservableObject {
         if let type = CorrelationAnalysisView.TargetType(rawValue: state.targetTypeRawValue) {
             self.targetType = type
         }
-        self.targetCustomEventTypeID = state.targetCustomEventTypeID
+        self.targetCustomEventTypeEmoji = state.targetCustomEventTypeEmoji
         self.targetHashtag = state.targetHashtag
 
 

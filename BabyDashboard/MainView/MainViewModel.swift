@@ -84,7 +84,9 @@ class MainViewModel: ObservableObject {
     }
     
     func logCustomEvent(for baby: BabyProfile, eventType: CustomEventType) {
-        let newEvent = CustomEvent(context: viewContext, timestamp: Date.current, eventType: eventType)
+        let newEvent = CustomEvent(context: viewContext, timestamp: Date.current,
+                                   eventTypeName: eventType.name,
+                                   eventTypeEmoji: eventType.emoji)
         newEvent.profile = baby
         saveAndPing()
     }

@@ -3,8 +3,8 @@ import CoreData
 import Model
 
 enum CorrelationTarget: Equatable, Hashable, Sendable {
-    case customEvent(typeID: UUID)
-    case customEventWithHashtag(typeID: UUID, hashtag: String)
+    case customEvent(emoji: String)
+    case customEventWithHashtag(emoji: String, hashtag: String)
     case feedAmount
 }
 
@@ -86,14 +86,14 @@ actor CorrelationAnalyzer {
                 allFeedSessions = (try? context.fetch(req)) ?? []
             } else {
                 // Exclude target event type from source events to prevent self-correlation
-                var excludeCustomEventTypeID: UUID? = nil
+                var excludeCustomEventEmoji: String? = nil
                 switch target {
-                case .customEvent(let typeID), .customEventWithHashtag(let typeID, _):
-                    excludeCustomEventTypeID = typeID
+                case .customEvent(let emoji), .customEventWithHashtag(let emoji, _):
+                    excludeCustomEventEmoji = emoji
                 default:
                     break
                 }
-                allSourceEvents = Self.fetchAllEvents(context: context, dateInterval: dateInterval, babyID: babyID, excludeCustomEventTypeID: excludeCustomEventTypeID)
+                allSourceEvents = Self.fetchAllEvents(context: context, dateInterval: dateInterval, babyID: babyID, excludeCustomEventEmoji: excludeCustomEventEmoji)
             }
             
             // 2. Fetch Target Events (Only for non-FeedAmount targets)
@@ -105,11 +105,11 @@ actor CorrelationAnalyzer {
                 )
                 
                 switch target {
-                case .customEvent(let typeID), .customEventWithHashtag(let typeID, _):
+                case .customEvent(let emoji), .customEventWithHashtag(let emoji, _):
                     targetEvents = Self.fetchEvents(
                         context: context,
                         type: .customEvent,
-                        customEventTypeID: typeID,
+                        customEventEmoji: emoji,
                         dateInterval: targetFetchInterval,
                         babyID: babyID
                     )
@@ -238,7 +238,7 @@ actor CorrelationAnalyzer {
         return NSCompoundPredicate(andPredicateWithSubpredicates: predicates)
     }
     
-    private nonisolated static func fetchAllEvents(context: NSManagedObjectContext, dateInterval: DateInterval, babyID: UUID?, excludeCustomEventTypeID: UUID? = nil) -> [HistoryEvent] {
+    private nonisolated static func fetchAllEvents(context: NSManagedObjectContext, dateInterval: DateInterval, babyID: UUID?, excludeCustomEventEmoji: String? = nil) -> [HistoryEvent] {
         var events: [HistoryEvent] = []
         
         // Feeds
@@ -263,8 +263,8 @@ actor CorrelationAnalyzer {
         let customReq: NSFetchRequest<CustomEvent> = CustomEvent.fetchRequest()
         var customPreds = [NSPredicate(format: "timestamp >= %@ AND timestamp < %@", argumentArray: [dateInterval.start, dateInterval.end])]
         if let babyID { customPreds.append(NSPredicate(format: "profile.id == %@", argumentArray: [babyID])) }
-        if let excludeCustomEventTypeID {
-            customPreds.append(NSPredicate(format: "eventType.id != %@", argumentArray: [excludeCustomEventTypeID]))
+        if let excludeCustomEventEmoji {
+            customPreds.append(NSPredicate(format: "eventTypeEmoji != %@", argumentArray: [excludeCustomEventEmoji]))
         }
         customReq.predicate = NSCompoundPredicate(andPredicateWithSubpredicates: customPreds)
         if let customs = try? context.fetch(customReq) {
@@ -277,7 +277,7 @@ actor CorrelationAnalyzer {
     private nonisolated static func fetchEvents(
         context: NSManagedObjectContext,
         type: HistoryEventType,
-        customEventTypeID: UUID? = nil,
+        customEventEmoji: String? = nil,
         dateInterval: DateInterval,
         babyID: UUID?
     ) -> [HistoryEvent] {
@@ -318,8 +318,9 @@ actor CorrelationAnalyzer {
             if let babyID {
                 predicates.append(NSPredicate(format: "profile.id == %@", argumentArray: [babyID]))
             }
-            if let customEventTypeID {
-                predicates.append(NSPredicate(format: "eventType.id == %@", argumentArray: [customEventTypeID]))
+            // Prioritize matching by emoji if provided, otherwise fall back to ID
+            if let customEventEmoji {
+                predicates.append(NSPredicate(format: "eventTypeEmoji == %@", argumentArray: [customEventEmoji]))
             }
             request.predicate = NSCompoundPredicate(andPredicateWithSubpredicates: predicates)
             if let results = try? context.fetch(request) {
