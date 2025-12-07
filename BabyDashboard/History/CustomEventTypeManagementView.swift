@@ -145,18 +145,7 @@ struct AddCustomEventTypeSheet: View {
                 }
                 
                 Section {
-                    TextField("Tap to add emoji", text: $emoji)
-                        .font(.system(size: 48))
-                        .multilineTextAlignment(.center)
-                        .onChange(of: emoji) { _, newValue in
-                            emoji = newValue.onlyEmoji()
-                        }
-                    
-                    if !emoji.isEmpty && !emoji.isEmoji {
-                        Text("Please enter a single emoji")
-                            .font(.caption)
-                            .foregroundStyle(.red)
-                    }
+                    EmojiPickerView(selectedEmoji: $emoji)
                 } header: {
                     Text("Emoji")
                 }
@@ -244,18 +233,7 @@ struct EditCustomEventTypeSheet: View {
                 }
                 
                 Section {
-                    TextField("Tap to edit emoji", text: $emoji)
-                        .font(.system(size: 48))
-                        .multilineTextAlignment(.center)
-                        .onChange(of: emoji) { _, newValue in
-                            emoji = newValue.onlyEmoji()
-                        }
-                    
-                    if !emoji.isEmpty && !emoji.isEmoji {
-                        Text("Please enter a single emoji")
-                            .font(.caption)
-                            .foregroundStyle(.red)
-                    }
+                    EmojiPickerView(selectedEmoji: $emoji)
                 } header: {
                     Text("Emoji")
                 }
