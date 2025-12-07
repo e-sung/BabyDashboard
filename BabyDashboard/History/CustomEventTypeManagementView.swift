@@ -109,14 +109,11 @@ struct CustomEventTypeManagementView: View {
     }
     
     private func deleteEventType(_ eventType: CustomEventType) {
-        // Delete the event type
-        // DailyChecklist and CustomEvent items will keep their denormalized data
-        viewContext.delete(eventType)
+        let manager = CustomEventTypeManager(context: viewContext)
+        
         do {
-            try viewContext.save()
-            NearbySyncManager.shared.sendPing()
+            try manager.delete(eventType)
         } catch {
-            viewContext.rollback()
             print("Error deleting event type: \(error)")
         }
     }
@@ -205,26 +202,19 @@ struct AddCustomEventTypeSheet: View {
     }
     
     private func save() {
-        let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
-        let trimmedEmoji = emoji.trimmingCharacters(in: .whitespacesAndNewlines)
-        
-        // Check for duplicate emoji
-        let existingTypes = try? viewContext.fetch(CustomEventType.fetchRequest())
-        if existingTypes?.contains(where: { $0.emoji == trimmedEmoji }) == true {
-            errorMessage = String(localized: "An event type with emoji \(trimmedEmoji) already exists. Please choose a different emoji.")
-            return
-        }
-        
-        // Create the event type
-        _ = CustomEventType(context: viewContext, name: trimmedName, emoji: trimmedEmoji)
+        let manager = CustomEventTypeManager(context: viewContext)
         
         do {
-            try viewContext.save()
-            NearbySyncManager.shared.sendPing()
+            try manager.create(name: name, emoji: emoji)
             onSave()
             dismiss()
+        } catch CustomEventTypeError.invalidName {
+            errorMessage = String(localized: "Event type name cannot be empty")
+        } catch CustomEventTypeError.invalidEmoji {
+            errorMessage = String(localized: "Event type emoji cannot be empty")
+        } catch CustomEventTypeError.duplicateEmoji(let emoji) {
+            errorMessage = String(localized: "An event type with emoji \(emoji) already exists. Please choose a different emoji.")
         } catch {
-            viewContext.rollback()
             errorMessage = String(localized: "Error saving event type")
             print(error.localizedDescription)
         }
@@ -297,16 +287,19 @@ struct EditCustomEventTypeSheet: View {
     }
     
     private func save() {
-        eventType.name = name.trimmingCharacters(in: .whitespacesAndNewlines)
-        eventType.emoji = emoji.trimmingCharacters(in: .whitespacesAndNewlines)
+        let manager = CustomEventTypeManager(context: viewContext)
         
         do {
-            try viewContext.save()
-            NearbySyncManager.shared.sendPing()
+            try manager.update(eventType, name: name, emoji: emoji)
             onDismiss()
             dismiss()
+        } catch CustomEventTypeError.invalidName {
+            print("Error: Event type name cannot be empty")
+        } catch CustomEventTypeError.invalidEmoji {
+            print("Error: Event type emoji cannot be empty")
+        } catch CustomEventTypeError.duplicateEmoji(let emoji) {
+            print("Error: Emoji \(emoji) already exists")
         } catch {
-            viewContext.rollback()
             print("Error updating event type: \(error)")
         }
     }
