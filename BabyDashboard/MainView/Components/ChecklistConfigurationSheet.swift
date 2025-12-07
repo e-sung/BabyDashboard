@@ -31,30 +31,30 @@ struct ChecklistConfigurationSheet: View {
     }
     
     private func addToChecklist(eventType: CustomEventType) {
-        let maxOrder = baby.dailyChecklistArray.map(\.order).max() ?? -1
-        _ = DailyChecklist(context: viewContext, baby: baby,
-                          eventTypeName: eventType.name,
-                          eventTypeEmoji: eventType.emoji,
-                          order: maxOrder + 1)
+        let manager = ChecklistManager(context: viewContext)
+        
         do {
-            try viewContext.save()
-            NearbySyncManager.shared.sendPing()
+            try manager.addToChecklist(baby: baby, eventType: eventType)
+        } catch ChecklistError.maximumItemsReached {
+            print("Error: Maximum of 3 items reached")
+        } catch ChecklistError.duplicateEmoji(let emoji) {
+            print("Error: Emoji \(emoji) already exists in checklist")
         } catch {
-            viewContext.rollback()
             print("Error adding to checklist: \(error)")
         }
     }
     
     private func removeFromChecklist(eventType: CustomEventType) {
-        if let item = baby.dailyChecklistArray.first(where: { $0.eventTypeEmoji == eventType.emoji }) {
-            viewContext.delete(item)
-            do {
-                try viewContext.save()
-                NearbySyncManager.shared.sendPing()
-            } catch {
-                viewContext.rollback()
-                print("Error removing from checklist: \(error)")
-            }
+        let manager = ChecklistManager(context: viewContext)
+        
+        guard let item = baby.dailyChecklistArray.first(where: { $0.eventTypeEmoji == eventType.emoji }) else {
+            return
+        }
+        
+        do {
+            try manager.removeFromChecklist(item: item)
+        } catch {
+            print("Error removing from checklist: \(error)")
         }
     }
     

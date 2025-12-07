@@ -109,14 +109,11 @@ struct CustomEventTypeManagementView: View {
     }
     
     private func deleteEventType(_ eventType: CustomEventType) {
-        // Delete the event type
-        // DailyChecklist and CustomEvent items will keep their denormalized data
-        viewContext.delete(eventType)
+        let manager = CustomEventTypeManager(context: viewContext)
+        
         do {
-            try viewContext.save()
-            NearbySyncManager.shared.sendPing()
+            try manager.delete(eventType)
         } catch {
-            viewContext.rollback()
             print("Error deleting event type: \(error)")
         }
     }
@@ -205,26 +202,15 @@ struct AddCustomEventTypeSheet: View {
     }
     
     private func save() {
-        let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
-        let trimmedEmoji = emoji.trimmingCharacters(in: .whitespacesAndNewlines)
-        
-        // Check for duplicate emoji
-        let existingTypes = try? viewContext.fetch(CustomEventType.fetchRequest())
-        if existingTypes?.contains(where: { $0.emoji == trimmedEmoji }) == true {
-            errorMessage = String(localized: "An event type with emoji \(trimmedEmoji) already exists. Please choose a different emoji.")
-            return
-        }
-        
-        // Create the event type
-        _ = CustomEventType(context: viewContext, name: trimmedName, emoji: trimmedEmoji)
+        let manager = CustomEventTypeManager(context: viewContext)
         
         do {
-            try viewContext.save()
-            NearbySyncManager.shared.sendPing()
+            try manager.create(name: name, emoji: emoji)
             onSave()
             dismiss()
+        } catch let error as CustomEventTypeError {
+            errorMessage = error.localizedDescription
         } catch {
-            viewContext.rollback()
             errorMessage = String(localized: "Error saving event type")
             print(error.localizedDescription)
         }
@@ -240,6 +226,7 @@ struct EditCustomEventTypeSheet: View {
     
     @State private var name: String = ""
     @State private var emoji: String = ""
+    @State private var errorMessage: String?
     @FocusState private var isNameFocused: Bool
     
     var canSave: Bool {
@@ -272,6 +259,14 @@ struct EditCustomEventTypeSheet: View {
                 } header: {
                     Text("Emoji")
                 }
+                
+                if let errorMessage {
+                    Section {
+                        Text(errorMessage)
+                            .foregroundStyle(.red)
+                            .font(.callout)
+                    }
+                }
             }
             .navigationTitle("Edit Event Type")
             .navigationBarTitleDisplayMode(.inline)
@@ -297,17 +292,17 @@ struct EditCustomEventTypeSheet: View {
     }
     
     private func save() {
-        eventType.name = name.trimmingCharacters(in: .whitespacesAndNewlines)
-        eventType.emoji = emoji.trimmingCharacters(in: .whitespacesAndNewlines)
+        let manager = CustomEventTypeManager(context: viewContext)
         
         do {
-            try viewContext.save()
-            NearbySyncManager.shared.sendPing()
+            try manager.update(eventType, name: name, emoji: emoji)
             onDismiss()
             dismiss()
+        } catch let error as CustomEventTypeError {
+            errorMessage = error.localizedDescription
         } catch {
-            viewContext.rollback()
-            print("Error updating event type: \(error)")
+            errorMessage = String(localized: "Error updating event type")
+            print(error.localizedDescription)
         }
     }
 }

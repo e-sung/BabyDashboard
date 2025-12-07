@@ -375,33 +375,20 @@ struct BabyStatusView: View {
         return "0s"
     }
     
-    // MARK: - Daily Checklist Helpers
-    
-    // Removed: isEventCheckedToday - no longer needed, using emoji-based matching in view
+    // MARK: - Checklist Toggle Logic
     
     private func toggleChecklist(emoji: String, name: String, isChecked: Bool, now: Date) {
+        let manager = ChecklistManager(context: viewContext, settings: settings)
+        
         do {
-            if isChecked {
-                // Delete existing event with this emoji
-                let startOfDay = getStartOfDay(now: now)
-                if let event = todaysChecklistEvents.first(where: { event in
-                    event.eventTypeEmoji == emoji && event.timestamp >= startOfDay
-                }) {
-                    viewContext.delete(event)
-                }
-            } else {
-                // Create new event with denormalized data
-                let event = CustomEvent(context: viewContext, timestamp: now,
-                                       eventTypeName: name,
-                                       eventTypeEmoji: emoji)
-                event.profile = baby
-            }
-            
-            try viewContext.save()
-            NearbySyncManager.shared.sendPing()
+            try manager.toggleChecklistItem(
+                baby: baby,
+                emoji: emoji,
+                name: name,
+                currentlyChecked: isChecked,
+                timestamp: now
+            )
         } catch {
-            // Rollback on error to prevent inconsistent state
-            viewContext.rollback()
             print("Failed to toggle checklist item '\(name)': \(error.localizedDescription)")
         }
     }
