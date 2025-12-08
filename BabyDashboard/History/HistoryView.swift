@@ -27,46 +27,82 @@ struct HistoryView: View {
         animation: .default
     ) private var customEvents: FetchedResults<CustomEvent>
 
+    @FetchRequest(
+        fetchRequest: HistoryView.makeCustomEventTypeRequest(),
+        animation: .default
+    ) private var customEventTypes: FetchedResults<CustomEventType>
+
     @State private var eventToEdit: HistoryEvent?
-    @State private var selectedBabyID: UUID? = nil
-    @State private var selectedEventFilter: EventFilter = .all
-    @AppStorage("HistoryView.selectedEventFilter") private var storedEventFilterRaw: String = EventFilter.all.rawValue
-    @State private var isShowingFilters = false
+    
+    // Search state
+    @State private var searchText: String = ""
+    @State private var searchTokens: [SearchToken] = []
     @State private var isShowingAddSheet = false
-
-    private var hasActiveFilters: Bool {
-        selectedEventFilter != .all || selectedBabyID != nil
+    @State private var isSearchActive: Bool = false
+    
+    /// Computed tokens for suggestions - shown when search field is active
+    private var suggestedTokens: [SearchToken] {
+        var tokens: [SearchToken] = []
+        
+        // Add baby tokens
+        for baby in babies {
+            tokens.append(.baby(id: baby.id, name: baby.name))
+        }
+        
+        // Add event type tokens
+        tokens.append(.feed)
+        tokens.append(.pee)
+        tokens.append(.poo)
+        
+        // Add custom event type tokens
+        for eventType in customEventTypes {
+            tokens.append(.customEvent(emoji: eventType.emoji, name: eventType.name))
+        }
+        
+        // Filter out already selected tokens
+        return tokens.filter { !searchTokens.contains($0) }
     }
-
-    private var selectedBabyName: String? {
-        guard let id = selectedBabyID else { return nil }
-        return babies.first(where: { $0.id == id })?.name
-    }
-
-    private var eventFilterTitle: String? {
-        selectedEventFilter == .all ? nil : selectedEventFilter.title
-    }
-
-    private var filtersAccessibilityValue: String {
-        var parts: [String] = []
-        if let name = selectedBabyName { parts.append(name) }
-        if let title = eventFilterTitle { parts.append(title) }
-        return parts.isEmpty ? String(localized: "Not applied") : parts.joined(separator: ", ")
-    }
-
-    enum EventFilter: String, CaseIterable, Identifiable {
-        case all, feed, pee, poo
-        var id: String { rawValue }
-
-        var title: String {
+    
+    // MARK: - Search Token Model
+    
+    enum SearchToken: SearchableToken {
+        case baby(id: UUID, name: String)
+        case feed
+        case pee
+        case poo
+        case customEvent(emoji: String, name: String)
+        
+        var id: String {
             switch self {
-            case .all: return String(localized: "All")
-            case .feed: return String(localized: "Feed")
-            case .pee: return String(localized: "Pee")
-            case .poo: return String(localized: "Poo")
+            case .baby(let id, _):
+                return "baby-\(id.uuidString)"
+            case .feed:
+                return "feed"
+            case .pee:
+                return "pee"
+            case .poo:
+                return "poo"
+            case .customEvent(let emoji, _):
+                return "custom-\(emoji)"
+            }
+        }
+        
+        var displayText: String {
+            switch self {
+            case .baby(_, let name):
+                return name
+            case .feed:
+                return "🍼 Feed"
+            case .pee:
+                return "💧 Pee"
+            case .poo:
+                return "💩 Poo"
+            case .customEvent(let emoji, let name):
+                return "\(emoji) \(name)"
             }
         }
     }
+    
 
     private var historyEvents: [HistoryEvent] {
         let feedEvents = feedSessions.map { HistoryEvent(from: $0) }
@@ -77,40 +113,121 @@ struct HistoryView: View {
 
     private var filteredEvents: [HistoryEvent] {
         historyEvents.filter { event in
-            let babyMatches: Bool = {
-                guard let selectedBabyID else { return true }
-                switch event.type {
-                case .feed:
-                    if let session = feedSessions.first(where: { $0.objectID == event.underlyingObjectId }) {
-                        return session.profile?.id == selectedBabyID
-                    }
-                    return false
-                case .diaper:
-                    if let change = diaperChanges.first(where: { $0.objectID == event.underlyingObjectId }) {
-                        return change.profile?.id == selectedBabyID
-                    }
-                    return false
-                case .customEvent:
-                    if let customEvent = customEvents.first(where: { $0.objectID == event.underlyingObjectId }) {
-                        return customEvent.profile?.id == selectedBabyID
-                    }
-                    return false
-                @unknown default:
-                    return false
+            // Apply search token filters
+            if !searchTokens.isEmpty {
+                // Group tokens by category
+                let babyTokens = searchTokens.compactMap { token -> UUID? in
+                    if case .baby(let id, _) = token { return id }
+                    return nil
                 }
-            }()
-            guard babyMatches else { return false }
-
-            switch selectedEventFilter {
-            case .all:
-                return true
-            case .feed:
-                return event.type == .feed
-            case .pee:
-                return event.type == .diaper && event.diaperType == .pee
-            case .poo:
-                return event.type == .diaper && event.diaperType == .poo
+                let eventTypeTokens = searchTokens.filter { token in
+                    switch token {
+                    case .feed, .pee, .poo: return true
+                    default: return false
+                    }
+                }
+                let customEventTokens = searchTokens.compactMap { token -> String? in
+                    if case .customEvent(let emoji, _) = token { return emoji }
+                    return nil
+                }
+                
+                // Check baby tokens (OR logic within category)
+                if !babyTokens.isEmpty {
+                    let eventBabyID: UUID? = {
+                        switch event.type {
+                        case .feed:
+                            return feedSessions.first(where: { $0.objectID == event.underlyingObjectId })?.profile?.id
+                        case .diaper:
+                            return diaperChanges.first(where: { $0.objectID == event.underlyingObjectId })?.profile?.id
+                        case .customEvent:
+                            return customEvents.first(where: { $0.objectID == event.underlyingObjectId })?.profile?.id
+                        @unknown default:
+                            return nil
+                        }
+                    }()
+                    
+                    guard let eventBabyID = eventBabyID, babyTokens.contains(eventBabyID) else {
+                        return false
+                    }
+                }
+                
+                // Check event type tokens (OR logic within category)
+                if !eventTypeTokens.isEmpty {
+                    let matchesEventType = eventTypeTokens.contains { token in
+                        switch (token, event.type) {
+                        case (.feed, .feed):
+                            return true
+                        case (.pee, .diaper):
+                            return event.diaperType == .pee
+                        case (.poo, .diaper):
+                            return event.diaperType == .poo
+                        default:
+                            return false
+                        }
+                    }
+                    guard matchesEventType else { return false }
+                }
+                
+                // Check custom event tokens (OR logic within category)
+                if !customEventTokens.isEmpty {
+                    if event.type != .customEvent {
+                        return false
+                    }
+                    let eventEmoji = customEvents.first(where: { $0.objectID == event.underlyingObjectId })?.eventTypeEmoji
+                    guard let eventEmoji = eventEmoji, customEventTokens.contains(eventEmoji) else {
+                        return false
+                    }
+                }
             }
+            
+            // Apply text search
+            if !searchText.isEmpty {
+                let lowercasedSearch = searchText.lowercased()
+                
+                // Search in event type name
+                let matchesEventTypeName: Bool = {
+                    switch event.type {
+                    case .feed:
+                        return "feed".contains(lowercasedSearch)
+                    case .diaper:
+                        if event.diaperType == .pee {
+                            return "pee".contains(lowercasedSearch)
+                        } else if event.diaperType == .poo {
+                            return "poo".contains(lowercasedSearch)
+                        }
+                        return false
+                    case .customEvent:
+                        if let customEvent = customEvents.first(where: { $0.objectID == event.underlyingObjectId }) {
+                            return customEvent.eventTypeName.lowercased().contains(lowercasedSearch)
+                        }
+                        return false
+                    @unknown default:
+                        return false
+                    }
+                }()
+                
+                // Search in memo text
+                let matchesMemo: Bool = {
+                    let memoText: String? = {
+                        switch event.type {
+                        case .feed:
+                            return feedSessions.first(where: { $0.objectID == event.underlyingObjectId })?.memoText
+                        case .diaper:
+                            return diaperChanges.first(where: { $0.objectID == event.underlyingObjectId })?.memoText
+                        case .customEvent:
+                            return customEvents.first(where: { $0.objectID == event.underlyingObjectId })?.memoText
+                        @unknown default:
+                            return nil
+                        }
+                    }()
+                    
+                    return memoText?.lowercased().contains(lowercasedSearch) ?? false
+                }()
+                
+                guard matchesEventTypeName || matchesMemo else { return false }
+            }
+            
+            return true
         }
     }
 
@@ -161,21 +278,6 @@ struct HistoryView: View {
     var body: some View {
         NavigationView {
             List {
-                if hasActiveFilters {
-                    Section {
-                        FilterChipsRow(
-                            babyName: selectedBabyName,
-                            eventFilterTitle: eventFilterTitle,
-                            onClearBaby: { selectedBabyID = nil },
-                            onClearEvent: { selectedEventFilter = .all },
-                            onClearAll: {
-                                selectedBabyID = nil
-                                selectedEventFilter = .all
-                            }
-                        )
-                        .listRowInsets(EdgeInsets())
-                    }
-                }
                 ForEach(monthSections) { month in
                     Section {
                         ForEach(month.daySections) { section in
@@ -202,34 +304,31 @@ struct HistoryView: View {
                 }
             }
             .navigationTitle("History")
+            .searchable(
+                text: $searchText,
+                tokens: $searchTokens,
+                isPresented: $isSearchActive,
+                placement: .automatic,
+                prompt: "Search events"
+            ) { token in
+                Text(token.displayText)
+            }
+            .tokenSuggestionsOverlay(
+                suggestedTokens: suggestedTokens,
+                selectedTokens: $searchTokens,
+                isSearchActive: isSearchActive
+            )
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Done") { dismiss() }
                 }
                 ToolbarItemGroup(placement: .primaryAction) {
-                    // Filters
-                    Button { isShowingFilters = true } label: {
-                        Image(systemName: hasActiveFilters ? "line.3.horizontal.decrease.circle.fill" : "line.3.horizontal.decrease.circle")
-                            .symbolRenderingMode(.hierarchical)
-                            .font(.headline.weight(hasActiveFilters ? .bold : .regular))
-                            .foregroundStyle(hasActiveFilters ? AnyShapeStyle(.tint) : AnyShapeStyle(.secondary))
-                    }
-                    .accessibilityLabel(Text("Filters"))
-                    
                     // Add Event
                     Button { isShowingAddSheet = true } label: {
                         Image(systemName: "plus")
                     }
                     .accessibilityLabel(Text("Add Event"))
                 }
-            }
-            .sheet(isPresented: $isShowingFilters) {
-                FilterSheet(
-                    babies: Array(babies),
-                    selectedBabyID: $selectedBabyID,
-                    selectedEventFilter: $selectedEventFilter
-                )
-                .presentationDetents([.medium, .large])
             }
             .sheet(item: $eventToEdit) { event in
                 if let model = findModel(for: event) {
@@ -244,14 +343,6 @@ struct HistoryView: View {
                 HistoryEditView(model: nil, babies: Array(babies))
                     .environment(\.managedObjectContext, viewContext)
                     .environmentObject(settings)
-            }
-            .onAppear {
-                // Initialize the selected filter from stored value
-                selectedEventFilter = EventFilter(rawValue: storedEventFilterRaw) ?? .all
-            }
-            .onChange(of: selectedEventFilter) { _, newValue in
-                // Persist the selected filter whenever it changes
-                storedEventFilterRaw = newValue.rawValue
             }
         }
     }
@@ -383,54 +474,6 @@ struct HistoryView: View {
     }
 }
 
-private struct FilterChipsRow: View {
-    let babyName: String?
-    let eventFilterTitle: String?
-    let onClearBaby: () -> Void
-    let onClearEvent: () -> Void
-    let onClearAll: () -> Void
-
-    var body: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 8) {
-                if let babyName {
-                    chip(title: babyName, action: onClearBaby)
-                }
-                if let eventFilterTitle {
-                    chip(title: eventFilterTitle, action: onClearEvent)
-                }
-                Button(action: onClearAll) {
-                    HStack(spacing: 6) {
-                        Image(systemName: "xmark.circle.fill")
-                        Text(String(localized: "Clear"))
-                    }
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 6)
-                    .background(.thinMaterial, in: Capsule())
-                }
-                .accessibilityLabel(Text(String(localized: "Clear all filters")))
-            }
-            .padding(.vertical, 4)
-            .padding(.horizontal)
-        }
-    }
-
-    @ViewBuilder
-    private func chip(title: String, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            HStack(spacing: 6) {
-                Text(title)
-                Image(systemName: "xmark.circle.fill")
-            }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 6)
-            .background(.thinMaterial, in: Capsule())
-        }
-        .buttonStyle(.plain)
-        .accessibilityLabel(Text(String(format: String(localized: "Remove filter: %@"), title)))
-    }
-}
-
 private extension HistoryView {
     static func makeFeedRequest() -> NSFetchRequest<FeedSession> {
         let request: NSFetchRequest<FeedSession> = FeedSession.fetchRequest()
@@ -455,39 +498,48 @@ private extension HistoryView {
         request.sortDescriptors = [NSSortDescriptor(key: "timestamp", ascending: false)]
         return request
     }
+    
+    static func makeCustomEventTypeRequest() -> NSFetchRequest<CustomEventType> {
+        let request: NSFetchRequest<CustomEventType> = CustomEventType.fetchRequest()
+        request.sortDescriptors = [NSSortDescriptor(key: "createdAt", ascending: true)]
+        return request
+    }
 }
 
-private struct FilterSheet: View {
-    let babies: [BabyProfile]
-    @Binding var selectedBabyID: UUID?
-    @Binding var selectedEventFilter: HistoryView.EventFilter
+// MARK: - Preview
 
-    var body: some View {
-        NavigationView {
-            Form {
-                Section(String(localized: "Baby")) {
-                    Picker(String(localized: "Baby"), selection: Binding<UUID?>(
-                        get: { selectedBabyID },
-                        set: { selectedBabyID = $0 }
-                    )) {
-                        Text(String(localized: "All")).tag(UUID?.none)
-                        ForEach(babies.map { ($0.id, $0.name) }, id: \.0) { id, name in
-                            Text(name).tag(UUID?.some(id))
-                        }
-                    }
-                }
-
-                Section(String(localized: "Event Type")) {
-                    Picker(String(localized: "Event Type"), selection: $selectedEventFilter) {
-                        ForEach(HistoryView.EventFilter.allCases) { filter in
-                            Text(filter.title).tag(filter)
-                        }
-                    }
-                    .pickerStyle(.segmented)
-                }
-            }
-            .navigationTitle(String(localized: "Filters"))
-            .navigationBarTitleDisplayMode(.inline)
-        }
-    }
+#Preview {
+    let controller = PersistenceController.preview
+    let context = controller.container.viewContext
+    
+    // Create sample baby
+    let baby = BabyProfile(context: context, name: "Preview Baby")
+    
+    // Create sample feed session
+    let feed = FeedSession(context: context, startTime: Date().addingTimeInterval(-3600))
+    feed.endTime = Date().addingTimeInterval(-3000)
+    feed.amount = Measurement(value: 120, unit: .milliliters)
+    feed.memoText = "Good feeding #morning"
+    feed.profile = baby
+    
+    // Create sample diaper changes
+    let pee = DiaperChange(context: context, timestamp: Date().addingTimeInterval(-1800), type: .pee)
+    pee.profile = baby
+    
+    let poo = DiaperChange(context: context, timestamp: Date().addingTimeInterval(-900), type: .poo)
+    poo.memoText = "After meal"
+    poo.profile = baby
+    
+    // Create custom event type and event
+    let napType = CustomEventType(context: context, name: "Nap", emoji: "😴")
+    let nap = CustomEvent(context: context, timestamp: Date().addingTimeInterval(-5400),
+                         eventTypeName: napType.name, eventTypeEmoji: napType.emoji)
+    nap.memoText = "Good nap"
+    nap.profile = baby
+    
+    try? context.save()
+    
+    return HistoryView()
+        .environment(\.managedObjectContext, context)
+        .environmentObject(AppSettings())
 }
