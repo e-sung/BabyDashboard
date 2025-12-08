@@ -111,6 +111,66 @@ public final class PersistenceController {
             
             let diaper = DiaperChange(context: context, timestamp: now.addingTimeInterval(-1800), type: .pee) // 30 mins ago
             diaper.profile = baby
+        } else if args.contains("-Seed:babyWithSearchableHistory") {
+            // Baby A with various events for search testing
+            let babyA = BabyProfile(context: context, name: "Baby A")
+            if let feedTerm { babyA.feedTerm = feedTerm }
+            
+            // Baby B for multi-baby filtering
+            let babyB = BabyProfile(context: context, name: "Baby B")
+            if let feedTerm { babyB.feedTerm = feedTerm }
+            
+            let now = Date.current
+            
+            // Create custom event types
+            let napType = CustomEventType(context: context, name: "Nap", emoji: "😴")
+            let bathType = CustomEventType(context: context, name: "Bath", emoji: "🛁")
+            let medicineType = CustomEventType(context: context, name: "Medicine", emoji: "💊")
+            
+            // Baby A events
+            let feed1 = FeedSession(context: context, startTime: now.addingTimeInterval(-7200)) // 2 hours ago
+            feed1.endTime = now.addingTimeInterval(-6600)
+            feed1.amount = Measurement(value: 100, unit: .milliliters)
+            feed1.memoText = "Good appetite #morning"
+            feed1.profile = babyA
+            
+            let feed2 = FeedSession(context: context, startTime: now.addingTimeInterval(-3600)) // 1 hour ago
+            feed2.endTime = now.addingTimeInterval(-3000)
+            feed2.amount = Measurement(value: 80, unit: .milliliters)
+            feed2.memoText = "A bit fussy #tired"
+            feed2.profile = babyA
+            
+            let pee1 = DiaperChange(context: context, timestamp: now.addingTimeInterval(-5400), type: .pee)
+            pee1.memoText = "Normal"
+            pee1.profile = babyA
+            
+            let poo1 = DiaperChange(context: context, timestamp: now.addingTimeInterval(-1800), type: .poo)
+            poo1.memoText = "After feeding"
+            poo1.profile = babyA
+            
+            let nap1 = CustomEvent(context: context, timestamp: now.addingTimeInterval(-4800),
+                                  eventTypeName: napType.name, eventTypeEmoji: napType.emoji)
+            nap1.memoText = "Slept well #goodsleep"
+            nap1.profile = babyA
+            
+            let bath1 = CustomEvent(context: context, timestamp: now.addingTimeInterval(-2400),
+                                   eventTypeName: bathType.name, eventTypeEmoji: bathType.emoji)
+            bath1.memoText = "Quick bath before bed"
+            bath1.profile = babyA
+            
+            // Baby B events
+            let feed3 = FeedSession(context: context, startTime: now.addingTimeInterval(-4000))
+            feed3.endTime = now.addingTimeInterval(-3400)
+            feed3.amount = Measurement(value: 90, unit: .milliliters)
+            feed3.profile = babyB
+            
+            let pee2 = DiaperChange(context: context, timestamp: now.addingTimeInterval(-2000), type: .pee)
+            pee2.profile = babyB
+            
+            let medicine1 = CustomEvent(context: context, timestamp: now.addingTimeInterval(-1200),
+                                       eventTypeName: medicineType.name, eventTypeEmoji: medicineType.emoji)
+            medicine1.memoText = "Vitamin D drops"
+            medicine1.profile = babyB
         }
         
         try? context.save()
