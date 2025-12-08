@@ -87,9 +87,9 @@ struct BabyStatusView: View {
     
     private let diaperWarningThreshold: TimeInterval = 60 * 60 * 1 // 1 hours default
     
-    private var isIPad: Bool {
+    private var isIPhone: Bool {
         #if canImport(UIKit)
-        return UIDevice.current.userInterfaceIdiom == .pad
+        return UIDevice.current.userInterfaceIdiom == .phone
         #else
         return false
         #endif
@@ -99,14 +99,14 @@ struct BabyStatusView: View {
         TimelineView(.periodic(from: .now, by: 1.0)) { context in
             let now = Date.current
             
-            VStack(alignment: .leading, spacing: 20) {
+            VStack(alignment: .leading, spacing: isIPhone ? 12 : 20) {
                 // Header
                 HStack {
                     Button {
                         onNameTap()
                     } label: {
                         Text(baby.name)
-                            .font(.system(size: isIPad ? 50 : 34, weight: .bold))
+                            .font(.system(size: isIPhone ? 34 : 50, weight: .bold))
                             .padding(.horizontal)
                     }
                     .foregroundStyle(.primary)
@@ -146,7 +146,7 @@ struct BabyStatusView: View {
                 }
 
 
-                VStack(spacing: 16) {
+                VStack(spacing: isIPhone ? 10 : 16) {
                     // Feed Card
                     StatusCard(
                         icon: .image("bottle"),
@@ -197,13 +197,13 @@ struct BabyStatusView: View {
                         }
                     )
                 }
-                .padding(.horizontal, 20)
+                .padding(.horizontal, isIPhone ? 12 : 20)
             }
-            .padding(.vertical, 20)
+            .padding(.vertical, isIPhone ? 12 : 20)
             .frame(maxWidth: .infinity)
             .background(.regularMaterial)
             .background(Color(uiColor: .systemGroupedBackground)) // Light gray background
-            .cornerRadius(20)
+            .cornerRadius(isIPhone ? 16 : 20)
             .shadow(color: Color.black.opacity(0.1), radius: 10, x: 0, y: 5)
         }
     }
