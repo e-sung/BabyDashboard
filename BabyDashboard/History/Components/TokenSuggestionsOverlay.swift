@@ -19,34 +19,41 @@ struct TokenSuggestionsOverlay<Token: SearchableToken>: View {
     @Binding var selectedTokens: [Token]
     let isSearchActive: Bool
     
+    /// Max height for approximately 2 lines of tokens
+    /// Calculation: 2 rows × ~34pt (button) + 10pt row spacing + 24pt container padding ≈ 102pt
+    private let maxHeight: CGFloat = 102
+    
     var body: some View {
         if isSearchActive && !availableTokens.isEmpty {
-            // Token suggestions - height fits content
-            FlowLayout(spacing: 8, rowSpacing: 10) {
-                ForEach(availableTokens, id: \.id) { token in
-                    Button {
-                        withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-                            selectedTokens.append(token)
+            // Token suggestions - constrained to 2 lines, scrollable
+            ScrollView(.vertical, showsIndicators: false) {
+                FlowLayout(spacing: 8, rowSpacing: 10) {
+                    ForEach(availableTokens, id: \.id) { token in
+                        Button {
+                            withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                                selectedTokens.append(token)
+                            }
+                        } label: {
+                            Text(token.displayText)
+                                .font(.subheadline)
+                                .fontWeight(.medium)
+                                .padding(.horizontal, 14)
+                                .padding(.vertical, 10)
+                                .background(.regularMaterial, in: Capsule())
+                                .overlay(
+                                    Capsule()
+                                        .stroke(Color.primary.opacity(0.1), lineWidth: 0.5)
+                                )
                         }
-                    } label: {
-                        Text(token.displayText)
-                            .font(.subheadline)
-                            .fontWeight(.medium)
-                            .padding(.horizontal, 14)
-                            .padding(.vertical, 10)
-                            .background(.regularMaterial, in: Capsule())
-                            .overlay(
-                                Capsule()
-                                    .stroke(Color.primary.opacity(0.1), lineWidth: 0.5)
-                            )
+                        .buttonStyle(.plain)
+                        .accessibilityLabel(Text(String(format: String(localized: "Filter by %@"), token.displayText)))
                     }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel(Text(String(format: String(localized: "Filter by %@"), token.displayText)))
                 }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 12)
             }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 12)
             .frame(maxWidth: .infinity)
+            .frame(maxHeight: maxHeight)
             .background(.bar)
             .transition(.move(edge: .bottom).combined(with: .opacity))
             .animation(.spring(response: 0.3, dampingFraction: 0.8), value: isSearchActive)
@@ -99,6 +106,11 @@ extension View {
             PreviewToken(id: "4", displayText: "😴 Nap"),
             PreviewToken(id: "5", displayText: "Baby A"),
             PreviewToken(id: "6", displayText: "Baby B"),
+            PreviewToken(id: "7", displayText: "Baby B"),
+            PreviewToken(id: "8", displayText: "Baby B"),
+            PreviewToken(id: "9", displayText: "Baby B"),
+            PreviewToken(id: "10", displayText: "Baby B"),
+            PreviewToken(id: "11", displayText: "Baby B"),
         ]
         
         var body: some View {

@@ -40,8 +40,8 @@ struct HistoryView: View {
     @State private var isShowingAddSheet = false
     @State private var isSearchActive: Bool = false
     
-    /// Computed tokens for suggestions - shown when search field is active
-    private var suggestedTokens: [SearchToken] {
+    /// All available tokens for suggestions
+    private var allAvailableTokens: [SearchToken] {
         var tokens: [SearchToken] = []
         
         // Add baby tokens
@@ -59,50 +59,33 @@ struct HistoryView: View {
             tokens.append(.customEvent(emoji: eventType.emoji, name: eventType.name))
         }
         
-        // Filter out already selected tokens
-        return tokens.filter { !searchTokens.contains($0) }
-    }
-    
-    // MARK: - Search Token Model
-    
-    enum SearchToken: SearchableToken {
-        case baby(id: UUID, name: String)
-        case feed
-        case pee
-        case poo
-        case customEvent(emoji: String, name: String)
-        
-        var id: String {
-            switch self {
-            case .baby(let id, _):
-                return "baby-\(id.uuidString)"
-            case .feed:
-                return "feed"
-            case .pee:
-                return "pee"
-            case .poo:
-                return "poo"
-            case .customEvent(let emoji, _):
-                return "custom-\(emoji)"
-            }
+        // Add hashtag tokens from all events
+        let allHashtags = Set(historyEvents.flatMap { $0.hashtags })
+        for hashtag in allHashtags.sorted() {
+            tokens.append(.hashtag(hashtag))
         }
         
-        var displayText: String {
-            switch self {
-            case .baby(_, let name):
-                return name
-            case .feed:
-                return "🍼 Feed"
-            case .pee:
-                return "💧 Pee"
-            case .poo:
-                return "💩 Poo"
-            case .customEvent(let emoji, let name):
-                return "\(emoji) \(name)"
-            }
-        }
+        return tokens
     }
     
+    /// Filtered suggestions based on search text
+    private var suggestedTokens: [SearchToken] {
+        HistorySearchFilter.filterSuggestions(
+            allTokens: allAvailableTokens,
+            searchText: searchText,
+            selectedTokens: searchTokens
+        )
+    }
+    
+    // MARK: - Event Metadata Provider for Filtering
+    
+    private var metadataProvider: HistoryViewMetadataProvider {
+        HistoryViewMetadataProvider(
+            feedSessions: Array(feedSessions),
+            diaperChanges: Array(diaperChanges),
+            customEvents: Array(customEvents)
+        )
+    }
 
     private var historyEvents: [HistoryEvent] {
         let feedEvents = feedSessions.map { HistoryEvent(from: $0) }
@@ -112,123 +95,12 @@ struct HistoryView: View {
     }
 
     private var filteredEvents: [HistoryEvent] {
-        historyEvents.filter { event in
-            // Apply search token filters
-            if !searchTokens.isEmpty {
-                // Group tokens by category
-                let babyTokens = searchTokens.compactMap { token -> UUID? in
-                    if case .baby(let id, _) = token { return id }
-                    return nil
-                }
-                let eventTypeTokens = searchTokens.filter { token in
-                    switch token {
-                    case .feed, .pee, .poo: return true
-                    default: return false
-                    }
-                }
-                let customEventTokens = searchTokens.compactMap { token -> String? in
-                    if case .customEvent(let emoji, _) = token { return emoji }
-                    return nil
-                }
-                
-                // Check baby tokens (OR logic within category)
-                if !babyTokens.isEmpty {
-                    let eventBabyID: UUID? = {
-                        switch event.type {
-                        case .feed:
-                            return feedSessions.first(where: { $0.objectID == event.underlyingObjectId })?.profile?.id
-                        case .diaper:
-                            return diaperChanges.first(where: { $0.objectID == event.underlyingObjectId })?.profile?.id
-                        case .customEvent:
-                            return customEvents.first(where: { $0.objectID == event.underlyingObjectId })?.profile?.id
-                        @unknown default:
-                            return nil
-                        }
-                    }()
-                    
-                    guard let eventBabyID = eventBabyID, babyTokens.contains(eventBabyID) else {
-                        return false
-                    }
-                }
-                
-                // Check event type tokens (OR logic within category)
-                if !eventTypeTokens.isEmpty {
-                    let matchesEventType = eventTypeTokens.contains { token in
-                        switch (token, event.type) {
-                        case (.feed, .feed):
-                            return true
-                        case (.pee, .diaper):
-                            return event.diaperType == .pee
-                        case (.poo, .diaper):
-                            return event.diaperType == .poo
-                        default:
-                            return false
-                        }
-                    }
-                    guard matchesEventType else { return false }
-                }
-                
-                // Check custom event tokens (OR logic within category)
-                if !customEventTokens.isEmpty {
-                    if event.type != .customEvent {
-                        return false
-                    }
-                    let eventEmoji = customEvents.first(where: { $0.objectID == event.underlyingObjectId })?.eventTypeEmoji
-                    guard let eventEmoji = eventEmoji, customEventTokens.contains(eventEmoji) else {
-                        return false
-                    }
-                }
-            }
-            
-            // Apply text search
-            if !searchText.isEmpty {
-                let lowercasedSearch = searchText.lowercased()
-                
-                // Search in event type name
-                let matchesEventTypeName: Bool = {
-                    switch event.type {
-                    case .feed:
-                        return "feed".contains(lowercasedSearch)
-                    case .diaper:
-                        if event.diaperType == .pee {
-                            return "pee".contains(lowercasedSearch)
-                        } else if event.diaperType == .poo {
-                            return "poo".contains(lowercasedSearch)
-                        }
-                        return false
-                    case .customEvent:
-                        if let customEvent = customEvents.first(where: { $0.objectID == event.underlyingObjectId }) {
-                            return customEvent.eventTypeName.lowercased().contains(lowercasedSearch)
-                        }
-                        return false
-                    @unknown default:
-                        return false
-                    }
-                }()
-                
-                // Search in memo text
-                let matchesMemo: Bool = {
-                    let memoText: String? = {
-                        switch event.type {
-                        case .feed:
-                            return feedSessions.first(where: { $0.objectID == event.underlyingObjectId })?.memoText
-                        case .diaper:
-                            return diaperChanges.first(where: { $0.objectID == event.underlyingObjectId })?.memoText
-                        case .customEvent:
-                            return customEvents.first(where: { $0.objectID == event.underlyingObjectId })?.memoText
-                        @unknown default:
-                            return nil
-                        }
-                    }()
-                    
-                    return memoText?.lowercased().contains(lowercasedSearch) ?? false
-                }()
-                
-                guard matchesEventTypeName || matchesMemo else { return false }
-            }
-            
-            return true
-        }
+        HistorySearchFilter.filter(
+            events: historyEvents,
+            tokens: searchTokens,
+            searchText: searchText,
+            metadataProvider: metadataProvider
+        )
     }
 
     private struct DaySection: Identifiable {
