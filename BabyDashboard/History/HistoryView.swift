@@ -34,11 +34,14 @@ struct HistoryView: View {
 
     @State private var eventToEdit: HistoryEvent?
     
-    // Search state
-    @State private var searchText: String = ""
+    // Search state - persisted via UserDefaults
+    @AppStorage("historySearchText") private var searchText: String = ""
     @State private var searchTokens: [SearchToken] = []
     @State private var isShowingAddSheet = false
     @State private var isSearchActive: Bool = false
+    
+    // UserDefaults keys for token persistence
+    private static let searchTokensKey = "historySearchTokens"
     
     /// All available tokens for suggestions
     private var allAvailableTokens: [SearchToken] {
@@ -216,6 +219,12 @@ struct HistoryView: View {
                     .environment(\.managedObjectContext, viewContext)
                     .environmentObject(settings)
             }
+            .onAppear {
+                loadSearchTokens()
+            }
+            .onChange(of: searchTokens) { _, newTokens in
+                saveSearchTokens(newTokens)
+            }
         }
     }
 
@@ -343,6 +352,21 @@ struct HistoryView: View {
         } catch {
             // ignore for now
         }
+    }
+    
+    // MARK: - Search Token Persistence
+    
+    private func saveSearchTokens(_ tokens: [SearchToken]) {
+        guard let data = try? JSONEncoder().encode(tokens) else { return }
+        UserDefaults.standard.set(data, forKey: Self.searchTokensKey)
+    }
+    
+    private func loadSearchTokens() {
+        guard let data = UserDefaults.standard.data(forKey: Self.searchTokensKey),
+              let tokens = try? JSONDecoder().decode([SearchToken].self, from: data) else {
+            return
+        }
+        searchTokens = tokens
     }
 }
 

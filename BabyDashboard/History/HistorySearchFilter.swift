@@ -13,7 +13,8 @@ import Model
 
 /// A token representing a search filter criterion
 /// Conforms to SearchableToken for use with TokenSuggestionsOverlay
-enum SearchToken: SearchableToken {
+/// Conforms to Codable for UserDefaults persistence
+enum SearchToken: SearchableToken, Codable {
     case baby(id: UUID, name: String)
     case feed
     case pee
