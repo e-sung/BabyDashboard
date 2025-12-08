@@ -25,7 +25,7 @@ struct TokenSuggestionsOverlay<Token: SearchableToken>: View {
     
     var body: some View {
         if isSearchActive && !availableTokens.isEmpty {
-            // Token suggestions - constrained to 2 lines, scrollable
+            // Token suggestions - shrinks to fit content, max 2 lines
             ScrollView(.vertical, showsIndicators: false) {
                 FlowLayout(spacing: 8, rowSpacing: 10) {
                     ForEach(availableTokens, id: \.id) { token in
@@ -52,8 +52,10 @@ struct TokenSuggestionsOverlay<Token: SearchableToken>: View {
                 .padding(.horizontal, 16)
                 .padding(.vertical, 12)
             }
+            .scrollBounceBehavior(.basedOnSize)
             .frame(maxWidth: .infinity)
             .frame(maxHeight: maxHeight)
+            .fixedSize(horizontal: false, vertical: true)
             .background(.bar)
             .transition(.move(edge: .bottom).combined(with: .opacity))
             .animation(.spring(response: 0.3, dampingFraction: 0.8), value: isSearchActive)
