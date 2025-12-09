@@ -53,7 +53,7 @@ struct StatusCard: View {
         Button {
             onTap?()
         } label: {
-            VStack(alignment: .leading, spacing: 24) {
+            VStack(alignment: .leading, spacing: isIPhone ? 16 : 24) {
                 HeaderView(
                     icon: icon,
                     title: title,
@@ -62,6 +62,7 @@ struct StatusCard: View {
                     shouldWarn: shouldWarn,
                     warningColor: warningColor,
                     mainTextColor: mainTextColor,
+                    isIPhone: isIPhone,
                     onFooterTap: onFooterTap
                 )
                 // Progress Bar
@@ -71,11 +72,12 @@ struct StatusCard: View {
                     progressBarColor: progressBarColor,
                     secondaryProgressColor: secondaryProgressColor,
                     criteriaLabel: criteriaLabel,
-                    isAnimating: isAnimating
+                    isAnimating: isAnimating,
+                    isIPhone: isIPhone
                 )
 
             }
-            .padding(40)
+            .padding(isIPhone ? 24 : 40)
             .frame(maxWidth: .infinity)
             .background(Color(uiColor: .systemBackground))
             .cornerRadius(20)
@@ -92,8 +94,14 @@ struct StatusCard: View {
         }
         .accessibilityAddTraits(.isButton)
     }
-
-
+    
+    private var isIPhone: Bool {
+        #if canImport(UIKit)
+        return UIDevice.current.userInterfaceIdiom == .phone
+        #else
+        return false
+        #endif
+    }
 }
 
 private struct HeaderView: View {
@@ -104,39 +112,32 @@ private struct HeaderView: View {
     let shouldWarn: Bool
     let warningColor: Color
     let mainTextColor: Color?
+    let isIPhone: Bool
     let onFooterTap: (() -> Void)?
-    
-    private var isIPad: Bool {
-        #if canImport(UIKit)
-        return UIDevice.current.userInterfaceIdiom == .pad
-        #else
-        return false
-        #endif
-    }
 
     var body: some View {
         HStack(alignment: .center, spacing: 12) {
             // Icon Box
             ZStack {
-                RoundedRectangle(cornerRadius: isIPad ? 12 : 6)
+                RoundedRectangle(cornerRadius: isIPhone ? 6 : 12)
                     .fill(Color(uiColor: .secondarySystemBackground))
-                    .frame(width: isIPad ? 100 : 60, height: isIPad ? 100 : 60)
+                    .frame(width: isIPhone ? 50 : 100, height: isIPhone ? 50 : 100)
 
                 switch icon {
                 case .emoji(let string):
                     Text(string)
-                        .font(isIPad ? .system(size: 65) : .largeTitle)
+                        .font(isIPhone ? .title : .system(size: 65))
                         .dynamicTypeSize(.xxLarge)
                 case .image(let name):
                     Image(name)
                         .resizable()
                         .aspectRatio(contentMode: .fit)
-                        .frame(width: isIPad ? 65 : 30, height: isIPad ? 65 : 30)
+                        .frame(width: isIPhone ? 25 : 65, height: isIPhone ? 25 : 65)
                         .foregroundStyle(shouldWarn ? warningColor : .primary)
                 }
             }
             
-            VStack(alignment: .leading, spacing: isIPad ? 8 : 4) {
+            VStack(alignment: .leading, spacing: isIPhone ? 2 : 8) {
                 Button {
                     onFooterTap?()
                 } label: {
@@ -155,10 +156,10 @@ private struct HeaderView: View {
                 }
                 .accessibilityLabel(footerText)
                 .dynamicTypeSize(...DynamicTypeSize.accessibility1)
-                .font(isIPad ? .body : .caption)
+                .font(isIPhone ? .caption : .body)
 
                 Text(mainText)
-                    .font(isIPad ? .custom("Pretendard-Black", size: 70, relativeTo: .largeTitle) : .largeTitle.weight(.black))
+                    .font(isIPhone ? .title.weight(.black) : .custom("Pretendard-Black", size: 70, relativeTo: .largeTitle))
                     .foregroundStyle(shouldWarn ? warningColor : (mainTextColor ?? .primary))
                     .lineLimit(1)
                     .minimumScaleFactor(0.5)
@@ -174,14 +175,7 @@ private struct ProgressBar: View {
     let secondaryProgressColor: Color?
     let criteriaLabel: String
     let isAnimating: Bool
-    
-    private var isIPad: Bool {
-        #if canImport(UIKit)
-        return UIDevice.current.userInterfaceIdiom == .pad
-        #else
-        return false
-        #endif
-    }
+    let isIPhone: Bool
     
     var body: some View {
         HStack(spacing: 8) {
@@ -190,12 +184,12 @@ private struct ProgressBar: View {
                     // Background Track
                     Capsule()
                         .fill(Color(uiColor: .secondarySystemBackground))
-                        .frame(height: isIPad ? 12 : 6)
+                        .frame(height: isIPhone ? 6 : 12)
                     
                     // Main Progress Bar
                     Capsule()
                         .fill(progressBarColor)
-                        .frame(width: geometry.size.width * CGFloat(min(progress, 1.0)), height: isIPad ? 12 : 6)
+                        .frame(width: geometry.size.width * CGFloat(min(progress, 1.0)), height: isIPhone ? 6 : 12)
                         .opacity(progress > 1.0 ? 0.3 : 1.0)
                         .animation(.spring(response: 0.5, dampingFraction: 0.7), value: progress)
                     
@@ -203,7 +197,7 @@ private struct ProgressBar: View {
                     if let secondaryProgress, let secondaryProgressColor, progress < 1.0 {
                         Capsule()
                             .fill(secondaryProgressColor)
-                            .frame(width: geometry.size.width * CGFloat(min(secondaryProgress, 1.0)), height: isIPad ? 12 : 6)
+                            .frame(width: geometry.size.width * CGFloat(min(secondaryProgress, 1.0)), height: isIPhone ? 6 : 12)
                             .animation(.spring(response: 0.5, dampingFraction: 0.7), value: secondaryProgress)
                     }
                     
@@ -211,17 +205,17 @@ private struct ProgressBar: View {
                     if progress > 1.0 {
                         Capsule()
                             .fill(Color.red) // Default overdue color
-                            .frame(width: geometry.size.width * CGFloat(min(progress - 1.0, 1.0)), height: isIPad ? 12 : 6)
+                            .frame(width: geometry.size.width * CGFloat(min(progress - 1.0, 1.0)), height: isIPhone ? 6 : 12)
                             .animation(.spring(response: 0.5, dampingFraction: 0.7), value: progress)
                     }
                 }
             }
-            .frame(height: isIPad ? 12 : 6)
+            .frame(height: isIPhone ? 6 : 12)
             .scaleEffect(isAnimating ? 0.95 : 1.0)
             .animation(.spring(response: 0.3, dampingFraction: 0.6), value: isAnimating)
             
             Text(criteriaLabel)
-                .font(isIPad ? .title3 : .caption)
+                .font(isIPhone ? .caption : .title3)
                 .foregroundColor(.secondary)
                 .dynamicTypeSize(.large)
         }

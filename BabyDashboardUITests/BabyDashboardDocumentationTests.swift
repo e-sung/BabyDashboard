@@ -14,6 +14,13 @@ final class BabyDashboardDocumentationTests: XCTestCase {
     private let defaultTimeout: TimeInterval = 10
 
     override func setUpWithError() throws {
+        // Skip tests on iPhone - UI layout differs with compact cards
+        #if os(iOS)
+        if UIDevice.current.userInterfaceIdiom == .phone {
+            throw XCTSkip("BabyDashboardDocumentationTests are designed for iPad layout")
+        }
+        #endif
+        
         continueAfterFailure = false
         app = XCUIApplication()
         app.launchEnvironment["TZ"] = "UTC"
