@@ -146,58 +146,111 @@ struct BabyStatusView: View {
                 }
 
 
-                VStack(spacing: isIPhone ? 10 : 16) {
-                    // Feed Card
-                    StatusCard(
-                        icon: .image("bottle"),
-                        title: baby.inProgressFeedSession != nil ? String(localized: "Feeding") : String(localized: "Last Feed"),
-                        mainText: feedMainText(now: now),
-                        progressBarColor: .green,
-                        progress: feedProgress(now: now),
-                        secondaryProgress: feedSecondaryProgress(now: now),
-                        secondaryProgressColor: .blue,
-                        footerText: feedFooterText(now: now),
-                        criteriaLabel: feedCriteriaLabel,
-                        isAnimating: isFeedAnimating,
-                        shouldWarn: shouldWarnFeed,
-                        mainTextColor: baby.inProgressFeedSession != nil ? .blue : nil,
-                        accessibilityCriteriaLabel: feedAccessibilityCriteriaLabel,
-                        accessibilityHintText: "Double tap to start or stop feeding",
-                        onTap: onFeedTap,
-                        onFooterTap: {
-                            if baby.inProgressFeedSession != nil {
-                                onLastFeedTap?(baby.inProgressFeedSession!)
-                            } else if let session = baby.lastFinishedFeedSession {
-                                onLastFeedTap?(session)
+                // Conditional layout: HStack for iPhone, VStack for iPad
+                if isIPhone {
+                    HStack(spacing: 10) {
+                        // Compact Feed Card
+                        CompactStatusCard(
+                            icon: .image("bottle"),
+                            title: baby.inProgressFeedSession != nil ? String(localized: "Feeding") : String(localized: "Feed"),
+                            mainText: feedMainText(now: now),
+                            progressBarColor: .green,
+                            progress: feedProgress(now: now),
+                            secondaryProgress: feedSecondaryProgress(now: now),
+                            secondaryProgressColor: .blue,
+                            footerText: feedFooterText(now: now),
+                            criteriaLabel: feedCriteriaLabel,
+                            isAnimating: isFeedAnimating,
+                            shouldWarn: shouldWarnFeed,
+                            mainTextColor: baby.inProgressFeedSession != nil ? .blue : nil,
+                            accessibilityHintText: "Double tap to start or stop feeding",
+                            onTap: onFeedTap,
+                            onFooterTap: {
+                                if baby.inProgressFeedSession != nil {
+                                    onLastFeedTap?(baby.inProgressFeedSession!)
+                                } else if let session = baby.lastFinishedFeedSession {
+                                    onLastFeedTap?(session)
+                                }
                             }
-                        }
-                    )
-                    .onLongPressGesture(perform: onFeedLongPress)
-                    
-                    // Diaper Card
-                    StatusCard(
-                        icon: .image("diaper"),
-                        title: String(localized:"Diaper"),
-                        mainText: diaperTimeAgo(now: now),
-                        progressBarColor: Color("diaperProgressColor"),
-                        progress: diaperProgress(now: now),
-                        footerText: diaperFooterText,
-                        criteriaLabel: "1h",
-                        isAnimating: isDiaperAnimating,
-                        shouldWarn: shouldWarnDiaper,
-                        warningColor: Color("diaperProgressColor"),
-                        accessibilityCriteriaLabel: "1 hour",
-                        accessibilityHintText: "Double tap to log a diaper change",
+                        )
+                        .onLongPressGesture(perform: onFeedLongPress)
+                        
+                        // Compact Diaper Card
+                        CompactStatusCard(
+                            icon: .image("diaper"),
+                            title: String(localized: "Diaper"),
+                            mainText: diaperTimeAgo(now: now),
+                            progressBarColor: Color("diaperProgressColor"),
+                            progress: diaperProgress(now: now),
+                            footerText: diaperFooterText,
+                            criteriaLabel: "1h",
+                            isAnimating: isDiaperAnimating,
+                            shouldWarn: shouldWarnDiaper,
+                            warningColor: Color("diaperProgressColor"),
+                            accessibilityHintText: "Double tap to log a diaper change",
+                            onTap: onDiaperTap,
+                            onFooterTap: {
+                                if let diaper = baby.lastDiaperChange {
+                                    onLastDiaperTap?(diaper)
+                                }
+                            }
+                        )
+                    }
+                    .padding(.horizontal, 12)
+                } else {
+                    VStack(spacing: 16) {
+                        // Feed Card (iPad)
+                        StatusCard(
+                            icon: .image("bottle"),
+                            title: baby.inProgressFeedSession != nil ? String(localized: "Feeding") : String(localized: "Last Feed"),
+                            mainText: feedMainText(now: now),
+                            progressBarColor: .green,
+                            progress: feedProgress(now: now),
+                            secondaryProgress: feedSecondaryProgress(now: now),
+                            secondaryProgressColor: .blue,
+                            footerText: feedFooterText(now: now),
+                            criteriaLabel: feedCriteriaLabel,
+                            isAnimating: isFeedAnimating,
+                            shouldWarn: shouldWarnFeed,
+                            mainTextColor: baby.inProgressFeedSession != nil ? .blue : nil,
+                            accessibilityCriteriaLabel: feedAccessibilityCriteriaLabel,
+                            accessibilityHintText: "Double tap to start or stop feeding",
+                            onTap: onFeedTap,
+                            onFooterTap: {
+                                if baby.inProgressFeedSession != nil {
+                                    onLastFeedTap?(baby.inProgressFeedSession!)
+                                } else if let session = baby.lastFinishedFeedSession {
+                                    onLastFeedTap?(session)
+                                }
+                            }
+                        )
+                        .onLongPressGesture(perform: onFeedLongPress)
+                        
+                        // Diaper Card (iPad)
+                        StatusCard(
+                            icon: .image("diaper"),
+                            title: String(localized:"Diaper"),
+                            mainText: diaperTimeAgo(now: now),
+                            progressBarColor: Color("diaperProgressColor"),
+                            progress: diaperProgress(now: now),
+                            footerText: diaperFooterText,
+                            criteriaLabel: "1h",
+                            isAnimating: isDiaperAnimating,
+                            shouldWarn: shouldWarnDiaper,
+                            warningColor: Color("diaperProgressColor"),
+                            accessibilityCriteriaLabel: "1 hour",
+                            accessibilityHintText: "Double tap to log a diaper change",
 
-                        onTap: onDiaperTap,
-                        onFooterTap: {
-                            if let diaper = baby.lastDiaperChange {
-                                onLastDiaperTap?(diaper)
+                            onTap: onDiaperTap,
+                            onFooterTap: {
+                                if let diaper = baby.lastDiaperChange {
+                                    onLastDiaperTap?(diaper)
+                                }
                             }
-                        }
-                    )
+                        )
+                    }
+                    .padding(.horizontal, 20)
                 }
-                .padding(.horizontal, isIPhone ? 12 : 20)
             }
             .padding(.vertical, isIPhone ? 12 : 20)
             .frame(maxWidth: .infinity)
