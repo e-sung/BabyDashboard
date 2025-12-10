@@ -61,10 +61,12 @@ class MainViewModel: ObservableObject {
         triggerAnimation(for: baby.id, type: .feed)
     }
     
-    func finishFeeding(for baby: BabyProfile, amount: Measurement<UnitVolume>) {
+    func finishFeeding(for baby: BabyProfile, amount: Measurement<UnitVolume>, feedType: FeedType, memoText: String? = nil) {
         guard let session = baby.inProgressFeedSession else { return }
         session.endTime = Date.current
         session.amount = amount
+        session.feedType = feedType
+        session.memoText = memoText?.isEmpty == true ? nil : memoText
 
         saveAndPing()
     }

@@ -49,6 +49,19 @@ enum DiaperTypeAppEnum: String, AppEnum {
     ]
 }
 
+enum FeedTypeAppEnum: String, AppEnum {
+    case babyFormula
+    case breastFeed
+    case solid
+
+    static var typeDisplayRepresentation: TypeDisplayRepresentation = "Feed Type"
+    static var caseDisplayRepresentations: [FeedTypeAppEnum: DisplayRepresentation] = [
+        .babyFormula: "🍼 Baby Formula",
+        .breastFeed: "🤱 Breastfeed",
+        .solid: "🍲 Solid Food"
+    ]
+}
+
 struct CustomEventTypeEntity: AppEntity {
     let id: UUID
     let name: String

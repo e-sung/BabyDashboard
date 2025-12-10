@@ -36,7 +36,8 @@ public enum HistoryCSVService {
         "babyName",
         "timestamp",
         "amountValue",
-        "amountUnit"
+        "amountUnit",
+        "feedType"
     ]
 
     static let diapersHeader = [
@@ -70,7 +71,8 @@ public enum HistoryCSVService {
                 session.profile?.name ?? "",
                 iso8601String(from: session.startTime),
                 session.amount == nil ? "" : String(session.amountValue),
-                session.amount?.unit.symbol ?? session.amountUnitSymbol ?? ""
+                session.amount?.unit.symbol ?? session.amountUnitSymbol ?? "",
+                session.feedType?.rawValue ?? ""
             ])
             }
 
@@ -119,6 +121,7 @@ public enum HistoryCSVService {
                 let timestampStr = cols[1].trimmingCharacters(in: .whitespacesAndNewlines)
                 let amountValueStr = cols[2].trimmingCharacters(in: .whitespacesAndNewlines)
                 let amountUnitStr = cols[3].trimmingCharacters(in: .whitespacesAndNewlines)
+                let feedTypeStr = cols[4].trimmingCharacters(in: .whitespacesAndNewlines)
 
                 var baby: BabyProfile?
                 var babyId: UUID?
@@ -163,6 +166,12 @@ public enum HistoryCSVService {
                     if let value = Double(amountValueStr) {
                         session.amountValue = value
                         session.amountUnitSymbol = normalizedUnitSymbol(amountUnitStr)
+                    }
+                    // Parse feedType; default to babyFormula if missing or invalid
+                    if let parsedFeedType = FeedType(rawValue: feedTypeStr) {
+                        session.feedType = parsedFeedType
+                    } else {
+                        session.feedType = .babyFormula
                     }
                     session.profile = baby
                     feedIndex[key] = session

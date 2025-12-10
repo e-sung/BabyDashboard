@@ -34,6 +34,8 @@ struct MainView: View {
     @State private var finishingFeedFor: BabyProfile? = nil
     @State private var changingDiaperFor: BabyProfile? = nil
     @State private var feedAmountString: String = ""
+    @State private var selectedFeedType: FeedType = .babyFormula
+    @State private var feedMemoText: String = ""
     @State private var showingHistory = false
     @State private var editingFeedSession: FeedSession? = nil
     @State private var editingDiaperChange: DiaperChange? = nil
@@ -94,7 +96,7 @@ struct MainView: View {
             }
             .sheet(item: $editingProfile) { ProfileView(profile: $0, context: viewContext, shareController: .shared) }
             .sheet(item: $editingDiaperTimeFor, content: diaperEditSheet)
-            .sheet(item: $finishingFeedFor, onDismiss: { feedAmountString = "" }) { baby in
+            .sheet(item: $finishingFeedFor, onDismiss: { feedAmountString = ""; feedMemoText = "" }) { baby in
                 finishFeedSheet(baby: baby)
                     .presentationDetents([.medium, .large]) // allow half-height, expandable to full
                     .presentationDragIndicator(.visible)
@@ -299,42 +301,130 @@ private extension MainView {
             },
             set: { newValue in
                 let clamped = max(0, newValue)
-                // Format as integer string
                 feedAmountString = clamped.formatted(.number.precision(.fractionLength(UnitUtils.baseFractionLength)))
             }
         )
 
         VStack(spacing: 20) {
-            Text(String(localized: "How much did \(baby.name) eat?")).font(.largeTitle)
-            
-            HStack {
-                TextField("Amount", text: $feedAmountString)
-                    .font(.system(size: 60))
-                    .keyboardType(.decimalPad)
-                    .multilineTextAlignment(.center)
-                Text(currentVolumeUnitSymbol)
-                    .font(.title)
-            }
-            .padding()
-            
-            // Stepper to increment/decrement by 10
-            Stepper(value: amountBinding, in: 0...10_000, step: 10) {
-                Text(String(localized: "Adjust by 10"))
-            }
+            // Title
+            Text(String(localized: "Log Feed Session"))
+                .font(.title)
+                .padding(.top, 8)
 
-            Button("Done") {
+            // Feed type section
+            VStack(alignment: .leading, spacing: 6) {
+                Text(String(localized: "What"))
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+
+                Menu {
+                    ForEach(FeedType.allCases, id: \.self) { type in
+                        Button {
+                            selectedFeedType = type
+                        } label: {
+                            HStack {
+                                Text("\(type.emoji) \(type.displayName)")
+                                if selectedFeedType == type {
+                                    Image(systemName: "checkmark")
+                                }
+                            }
+                        }
+                    }
+                } label: {
+                    HStack {
+                        Text(selectedFeedType.emoji)
+                            .font(.title2)
+                        Text(selectedFeedType.displayName)
+                            .font(.body)
+                        Spacer()
+                        Image(systemName: "chevron.up.chevron.down")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 10)
+                    .background(Color(.secondarySystemBackground))
+                    .cornerRadius(10)
+                }
+                .accessibilityLabel(String(localized: "Feed type: \(selectedFeedType.displayName)"))
+            }
+            .padding(.horizontal)
+
+            // Amount input section
+            VStack(alignment: .leading, spacing: 6) {
+                Text(String(localized: "How much"))
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+                
+                HStack(spacing: 12) {
+                    HStack(spacing: 4) {
+                        TextField("0", text: $feedAmountString)
+                            .font(.title.bold())
+                            .keyboardType(.decimalPad)
+                            .multilineTextAlignment(.trailing)
+                            .frame(minWidth: 60)
+                        
+                        Text(currentVolumeUnitSymbol)
+                            .font(.title3)
+                            .foregroundColor(.secondary)
+                    }
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 10)
+                    .background(Color(.secondarySystemBackground))
+                    .cornerRadius(10)
+                    
+                    // Stepper buttons
+                    Stepper("", value: amountBinding, in: 0...10_000, step: 10)
+                        .labelsHidden()
+                }
+            }
+            .padding(.horizontal)
+
+            // Memo input section
+            VStack(alignment: .leading, spacing: 6) {
+                Text(String(localized: "Memo"))
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+                
+                TextField(String(localized: "#hashtags or notes"), text: $feedMemoText, axis: .vertical)
+                    .lineLimit(2...4)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 10)
+                    .background(Color(.secondarySystemBackground))
+                    .cornerRadius(10)
+            }
+            .padding(.horizontal)
+            
+
+            Spacer()
+            
+            // Done button
+            Button {
                 if let amountValue = Double(feedAmountString) {
                     let unit = UnitUtils.preferredUnit
                     let measurement = Measurement(value: amountValue, unit: unit)
-                    viewModel.finishFeeding(for: baby, amount: measurement)
+                    viewModel.finishFeeding(for: baby, amount: measurement, feedType: selectedFeedType, memoText: feedMemoText)
                     finishingFeedFor = nil
                 }
+            } label: {
+                Text(String(localized: "Log"))
+                    .font(.headline)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 14)
+                    .background(feedAmountString.isEmpty ? Color.gray : Color.blue)
+                    .foregroundColor(.white)
+                    .cornerRadius(12)
             }
-            .font(.title)
             .disabled(feedAmountString.isEmpty)
+            .padding(.horizontal)
+            .padding(.bottom, 16)
         }
         .padding()
         .onAppear {
+            // Pre-select feed type from last finished session, or default to babyFormula
+            selectedFeedType = baby.lastFinishedFeedSession?.feedType ?? .babyFormula
+            feedMemoText = ""
+            
             guard let latestFeedAmount = baby.lastFinishedFeedSession?.amountValue else {
                 return
             }

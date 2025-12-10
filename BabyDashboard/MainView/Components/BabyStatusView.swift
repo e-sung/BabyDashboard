@@ -327,7 +327,11 @@ struct BabyStatusView: View {
         guard let session = baby.lastFinishedFeedSession else { return "No data" }
         guard let endTime = session.endTime else { return "No Data" }
         let duration = endTime.timeIntervalSince(session.startTime)
-        var text = formattedDuration(from: duration)
+        
+        // Start with feedType emoji (default to babyFormula if nil)
+        let feedTypeEmoji = session.feedType?.emoji ?? FeedType.babyFormula.emoji
+        var text = feedTypeEmoji + " " + formattedDuration(from: duration)
+        
         if let amount = session.amount {
             let preferredUnit = UnitUtils.preferredUnit
             let converted = amount.converted(to: preferredUnit)

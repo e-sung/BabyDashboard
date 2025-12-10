@@ -112,10 +112,23 @@ extension FeedSession {
     @NSManaged public var amountUnitSymbol: String?
     @NSManaged public var amountValue: Double
     @NSManaged public var endTime: Date?
+    @NSManaged public var feedTypeRaw: String?
     @NSManaged public var memoText: String?
     @NSManaged public var startTime: Date
     @NSManaged public var uuid: UUID
     @NSManaged public var profile: BabyProfile?
+    
+    /// The type of feeding (baby formula, breastfeed, solid).
+    /// Returns nil for in-progress sessions where user hasn't selected a type yet.
+    public var feedType: FeedType? {
+        get {
+            guard let raw = feedTypeRaw else { return nil }
+            return FeedType(rawValue: raw)
+        }
+        set {
+            feedTypeRaw = newValue?.rawValue
+        }
+    }
 }
 
 extension FeedSession: Identifiable, Hashtagable {}
