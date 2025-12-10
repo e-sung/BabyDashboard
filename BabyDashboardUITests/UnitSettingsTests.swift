@@ -112,7 +112,7 @@ final class UnitSettingsTests: XCTestCase {
             amountField.typeText(deleteString)
         }
         amountField.typeText(amount)
-        app.buttons["Done"].tap()
+        app.buttons["Log"].tap()
     }
 }
 

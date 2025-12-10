@@ -98,7 +98,7 @@ struct MainView: View {
             .sheet(item: $editingDiaperTimeFor, content: diaperEditSheet)
             .sheet(item: $finishingFeedFor, onDismiss: { feedAmountString = ""; feedMemoText = "" }) { baby in
                 finishFeedSheet(baby: baby)
-                    .presentationDetents([.medium, .large]) // allow half-height, expandable to full
+                    .presentationSizing(.fitted)
                     .presentationDragIndicator(.visible)
             }
             .sheet(isPresented: $showingHistory) { HistoryView() }
@@ -313,10 +313,12 @@ private extension MainView {
 
             // Feed type section
             VStack(alignment: .leading, spacing: 6) {
-                Text(String(localized: "What"))
-                    .font(.subheadline)
-                    .foregroundColor(.secondary)
 
+            }
+            .padding(.horizontal)
+
+            // input section
+            VStack(alignment: .leading, spacing: 8) {
                 Menu {
                     ForEach(FeedType.allCases, id: \.self) { type in
                         Button {
@@ -347,23 +349,16 @@ private extension MainView {
                     .cornerRadius(10)
                 }
                 .accessibilityLabel(String(localized: "Feed type: \(selectedFeedType.displayName)"))
-            }
-            .padding(.horizontal)
 
-            // Amount input section
-            VStack(alignment: .leading, spacing: 6) {
-                Text(String(localized: "How much"))
-                    .font(.subheadline)
-                    .foregroundColor(.secondary)
-                
                 HStack(spacing: 12) {
                     HStack(spacing: 4) {
                         TextField("0", text: $feedAmountString)
                             .font(.title.bold())
                             .keyboardType(.decimalPad)
                             .multilineTextAlignment(.trailing)
-                            .frame(minWidth: 60)
-                        
+                            .frame(minWidth: 120)
+                            .accessibilityLabel(Text("Amount"))
+
                         Text(currentVolumeUnitSymbol)
                             .font(.title3)
                             .foregroundColor(.secondary)
@@ -378,7 +373,6 @@ private extension MainView {
                         .labelsHidden()
                 }
             }
-            .padding(.horizontal)
 
             // Memo input section
             VStack(alignment: .leading, spacing: 6) {
