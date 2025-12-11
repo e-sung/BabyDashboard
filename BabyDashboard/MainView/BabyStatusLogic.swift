@@ -74,6 +74,22 @@ struct BabyStatusLogic {
         self.preferredVolumeUnit = preferredVolumeUnit
     }
     
+    /// Convenience initializer for use with BabyProfile from views
+    init(
+        baby: BabyProfile,
+        diaperWarningThreshold: TimeInterval = 60 * 60,
+        isLargeDynamicType: Bool = false,
+        preferredVolumeUnit: UnitVolume = UnitUtils.preferredUnit
+    ) {
+        self.lastFeedSession = FeedSessionSnapshot(from: baby.lastFinishedFeedSession)
+        self.inProgressFeedSession = FeedSessionSnapshot(from: baby.inProgressFeedSession)
+        self.lastDiaperChange = DiaperChangeSnapshot(from: baby.lastDiaperChange)
+        self.feedTerm = baby.feedTerm
+        self.diaperWarningThreshold = diaperWarningThreshold
+        self.isLargeDynamicType = isLargeDynamicType
+        self.preferredVolumeUnit = preferredVolumeUnit
+    }
+    
     // MARK: - Feed Display Logic
     
     /// Main text for feed card (e.g., "2h 30m ago" or "1m 30s" during feeding)
