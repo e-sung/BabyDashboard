@@ -18,6 +18,7 @@ struct CompactStatusCard: View {
     let progress: Double
     let secondaryProgress: Double?
     let secondaryProgressColor: Color?
+    let footerIcon: String?  // Separate emoji to render before footer text
     let footerText: String
     let criteriaLabel: String
     let isAnimating: Bool
@@ -39,6 +40,7 @@ struct CompactStatusCard: View {
         progress: Double,
         secondaryProgress: Double? = nil,
         secondaryProgressColor: Color? = nil,
+        footerIcon: String? = nil,
         footerText: String,
         criteriaLabel: String = "",
         isAnimating: Bool = false,
@@ -57,6 +59,7 @@ struct CompactStatusCard: View {
         self.progress = progress
         self.secondaryProgress = secondaryProgress
         self.secondaryProgressColor = secondaryProgressColor
+        self.footerIcon = footerIcon
         self.footerText = footerText
         self.criteriaLabel = criteriaLabel
         self.isAnimating = isAnimating
@@ -114,11 +117,17 @@ struct CompactStatusCard: View {
                 Button {
                     onFooterTap?()
                 } label: {
-                    Text(footerText)
-                        .font(.caption2)
-                        .foregroundColor(.secondary)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.7)
+                    HStack(spacing: 2) {
+                        // Render emoji as separate Text to prevent layout flicker
+                        if let footerIcon {
+                            Text(footerIcon)
+                        }
+                        Text(footerText)
+                    }
+                    .font(.caption2)
+                    .foregroundColor(.secondary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
                 }
                 .accessibilityLabel(footerText)
             }

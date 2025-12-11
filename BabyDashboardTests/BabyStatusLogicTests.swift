@@ -196,11 +196,15 @@ struct BabyStatusLogicTests {
         
         // When
         let footer = logic.feedFooterText(now: now)
+        let icon = logic.feedFooterIcon
         
-        // Then: Should contain emoji, duration, and amount
-        #expect(footer.contains("🍼"))
+        // Then: Footer should contain duration and amount (no emoji - it's separate)
+        #expect(!footer.contains("🍼")) // Emoji is now in feedFooterIcon
         #expect(footer.contains("15") || footer.contains("in"))
         #expect(footer.contains("120") || footer.lowercased().contains("ml"))
+        
+        // Icon should be the feed type emoji
+        #expect(icon == "🍼")
     }
     
     @Test("Feed footer shows 'No data' with no session")

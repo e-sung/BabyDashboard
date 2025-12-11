@@ -14,6 +14,7 @@ struct StatusCard: View {
     let progress: Double
     let secondaryProgress: Double?
     let secondaryProgressColor: Color?
+    let footerIcon: String?  // Separate emoji to render before footer text
     let footerText: String
     let criteriaLabel: String
     let isAnimating: Bool
@@ -29,7 +30,7 @@ struct StatusCard: View {
 
     @Environment(\.sizeCategory) var sizeCategory
 
-    init(icon: StatusIcon, title: String, mainText: String, progressBarColor: Color, progress: Double, secondaryProgress: Double? = nil, secondaryProgressColor: Color? = nil, footerText: String, criteriaLabel: String = "", isAnimating: Bool = false, shouldWarn: Bool = false, warningColor: Color = .red, mainTextColor: Color? = nil, accessibilityCriteriaLabel: String? = nil, accessibilityHintText: String = "", onTap: (() -> Void)? = nil, onFooterTap: (() -> Void)? = nil) {
+    init(icon: StatusIcon, title: String, mainText: String, progressBarColor: Color, progress: Double, secondaryProgress: Double? = nil, secondaryProgressColor: Color? = nil, footerIcon: String? = nil, footerText: String, criteriaLabel: String = "", isAnimating: Bool = false, shouldWarn: Bool = false, warningColor: Color = .red, mainTextColor: Color? = nil, accessibilityCriteriaLabel: String? = nil, accessibilityHintText: String = "", onTap: (() -> Void)? = nil, onFooterTap: (() -> Void)? = nil) {
         self.icon = icon
         self.title = title
         self.mainText = mainText
@@ -37,6 +38,7 @@ struct StatusCard: View {
         self.progress = progress
         self.secondaryProgress = secondaryProgress
         self.secondaryProgressColor = secondaryProgressColor
+        self.footerIcon = footerIcon
         self.footerText = footerText
         self.criteriaLabel = criteriaLabel
         self.isAnimating = isAnimating
@@ -58,6 +60,7 @@ struct StatusCard: View {
                     icon: icon,
                     title: title,
                     mainText: mainText,
+                    footerIcon: footerIcon,
                     footerText: footerText,
                     shouldWarn: shouldWarn,
                     warningColor: warningColor,
@@ -108,6 +111,7 @@ private struct HeaderView: View {
     let icon: StatusIcon
     let title: String
     let mainText: String
+    let footerIcon: String?  // Separate emoji rendered before footer text
     let footerText: String
     let shouldWarn: Bool
     let warningColor: Color
@@ -147,6 +151,10 @@ private struct HeaderView: View {
                             .foregroundColor(.secondary)
                             .padding(.top, 4)
                         HStack(spacing: 4) {
+                            // Render emoji as separate Text to prevent layout flicker
+                            if let footerIcon {
+                                Text(footerIcon)
+                            }
                             Text(footerText)
                                 .foregroundColor(.secondary)
                                 .lineLimit(1)

@@ -77,8 +77,8 @@ struct BabyStatusLogic {
     /// Convenience initializer for use with BabyProfile from views
     init(
         baby: BabyProfile,
+        settings: AppSettings,
         diaperWarningThreshold: TimeInterval = 60 * 60,
-        isLargeDynamicType: Bool = false,
         preferredVolumeUnit: UnitVolume = UnitUtils.preferredUnit
     ) {
         self.lastFeedSession = FeedSessionSnapshot(from: baby.lastFinishedFeedSession)
@@ -86,7 +86,14 @@ struct BabyStatusLogic {
         self.lastDiaperChange = DiaperChangeSnapshot(from: baby.lastDiaperChange)
         self.feedTerm = baby.feedTerm
         self.diaperWarningThreshold = diaperWarningThreshold
-        self.isLargeDynamicType = isLargeDynamicType
+        
+        // Compute isLargeDynamicType from settings
+        if let size = settings.preferredFontScale.dynamicTypeSize {
+            self.isLargeDynamicType = size > .accessibility3
+        } else {
+            self.isLargeDynamicType = false
+        }
+        
         self.preferredVolumeUnit = preferredVolumeUnit
     }
     
@@ -131,7 +138,7 @@ struct BabyStatusLogic {
         return min(duration / feedTerm, 1.0)
     }
     
-    /// Footer text (e.g., "🍼 in 15m • 90 ml")
+    /// Footer text (e.g., "in 15m • 90 ml") - emoji is returned separately via feedFooterIcon
     func feedFooterText(now: Date) -> String {
         if inProgressFeedSession != nil {
             return ""
@@ -141,14 +148,20 @@ struct BabyStatusLogic {
         guard let endTime = session.endTime else { return "No data" }
         
         let duration = endTime.timeIntervalSince(session.startTime)
-        let feedTypeEmoji = session.feedType?.emoji ?? FeedType.babyFormula.emoji
-        var text = feedTypeEmoji + " " + formattedDuration(from: duration)
+        var text = formattedDuration(from: duration)
         
         if let amount = session.amount {
             let converted = amount.converted(to: preferredVolumeUnit)
             text += " • \(UnitUtils.format(measurement: converted))".lowercased()
         }
         return text
+    }
+    
+    /// Returns the feed type emoji for the footer, or nil if not applicable
+    var feedFooterIcon: String? {
+        guard inProgressFeedSession == nil else { return nil }
+        guard let session = lastFeedSession else { return nil }
+        return session.feedType?.emoji ?? FeedType.babyFormula.emoji
     }
     
     // MARK: - Diaper Display Logic
