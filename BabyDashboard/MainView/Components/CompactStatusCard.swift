@@ -18,6 +18,7 @@ struct CompactStatusCard: View {
     let progress: Double
     let secondaryProgress: Double?
     let secondaryProgressColor: Color?
+    let footerIcon: String?  // Separate emoji to render before footer text
     let footerText: String
     let criteriaLabel: String
     let isAnimating: Bool
@@ -26,6 +27,7 @@ struct CompactStatusCard: View {
     let mainTextColor: Color?
 
     // Accessibility
+    let accessibilityCriteriaLabel: String?
     let accessibilityHintText: String
     let onTap: (() -> Void)?
     let onFooterTap: (() -> Void)?
@@ -38,12 +40,14 @@ struct CompactStatusCard: View {
         progress: Double,
         secondaryProgress: Double? = nil,
         secondaryProgressColor: Color? = nil,
+        footerIcon: String? = nil,
         footerText: String,
         criteriaLabel: String = "",
         isAnimating: Bool = false,
         shouldWarn: Bool = false,
         warningColor: Color = .red,
         mainTextColor: Color? = nil,
+        accessibilityCriteriaLabel: String? = nil,
         accessibilityHintText: String = "",
         onTap: (() -> Void)? = nil,
         onFooterTap: (() -> Void)? = nil
@@ -55,12 +59,14 @@ struct CompactStatusCard: View {
         self.progress = progress
         self.secondaryProgress = secondaryProgress
         self.secondaryProgressColor = secondaryProgressColor
+        self.footerIcon = footerIcon
         self.footerText = footerText
         self.criteriaLabel = criteriaLabel
         self.isAnimating = isAnimating
         self.shouldWarn = shouldWarn
         self.warningColor = warningColor
         self.mainTextColor = mainTextColor
+        self.accessibilityCriteriaLabel = accessibilityCriteriaLabel
         self.accessibilityHintText = accessibilityHintText
         self.onTap = onTap
         self.onFooterTap = onFooterTap
@@ -111,12 +117,19 @@ struct CompactStatusCard: View {
                 Button {
                     onFooterTap?()
                 } label: {
-                    Text(footerText)
-                        .font(.caption2)
-                        .foregroundColor(.secondary)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.7)
+                    HStack(spacing: 2) {
+                        // Render emoji as separate Text to prevent layout flicker
+                        if let footerIcon {
+                            Text(footerIcon)
+                        }
+                        Text(footerText)
+                    }
+                    .font(.caption2)
+                    .foregroundColor(.secondary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
                 }
+                .accessibilityLabel(footerText)
             }
             .padding(16)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -129,6 +142,8 @@ struct CompactStatusCard: View {
         .accessibilityLabel(Text("\(title), \(mainText)"))
         .accessibilityValue(Text(progress, format: .percent.precision(.fractionLength(UnitUtils.baseFractionLength))))
         .accessibilityHint(Text(accessibilityHintText))
+        .accessibilityCustomContent("Last Session summary", footerText)
+        .accessibilityCustomContent("Interval", criteriaLabel)
         .accessibilityAction(named: "Edit Details") {
             onFooterTap?()
         }

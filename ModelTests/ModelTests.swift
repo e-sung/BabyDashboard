@@ -9,6 +9,45 @@ import CoreData
 import Testing
 @testable import Model
 
+// MARK: - FeedType Tests
+
+struct FeedTypeTests {
+    
+    @Test func feedTypeEmoji() {
+        #expect(FeedType.babyFormula.emoji == "🍼")
+        #expect(FeedType.breastFeed.emoji == "🤱")
+        #expect(FeedType.solid.emoji == "🍲")
+    }
+    
+    @Test func feedTypeRawValue() {
+        #expect(FeedType.babyFormula.rawValue == "babyFormula")
+        #expect(FeedType.breastFeed.rawValue == "breastFeed")
+        #expect(FeedType.solid.rawValue == "solid")
+    }
+    
+    @Test func feedTypeCodable() throws {
+        // Encode
+        let encoder = JSONEncoder()
+        let data = try encoder.encode(FeedType.breastFeed)
+        let jsonString = String(data: data, encoding: .utf8)
+        #expect(jsonString == "\"breastFeed\"")
+        
+        // Decode
+        let decoder = JSONDecoder()
+        let decoded = try decoder.decode(FeedType.self, from: data)
+        #expect(decoded == .breastFeed)
+    }
+    
+    @Test func feedTypeFromRawValue() {
+        #expect(FeedType(rawValue: "babyFormula") == .babyFormula)
+        #expect(FeedType(rawValue: "breastFeed") == .breastFeed)
+        #expect(FeedType(rawValue: "solid") == .solid)
+        #expect(FeedType(rawValue: "invalid") == nil)
+    }
+}
+
+// MARK: - HistoryCSVService Tests
+
 struct HistoryCSVServiceTest {
 
     let 수유이력csv = """
@@ -244,6 +283,17 @@ struct HistoryCSVServiceTest {
 
         #expect(feedCount == expectedFeedCount)
         #expect(babyNames == allowedBabyNames)
+        
+        // Verify that imported feeds default to babyFormula feedType
+        context.performAndWait {
+            let request: NSFetchRequest<FeedSession> = FeedSession.fetchRequest()
+            if let feeds = try? context.fetch(request) {
+                for feed in feeds {
+                    // All feeds should have feedType set to babyFormula since CSV didn't have feedType column
+                    assert(feed.feedType == .babyFormula, "Feed should have babyFormula as default feedType")
+                }
+            }
+        }
     }
 
 }

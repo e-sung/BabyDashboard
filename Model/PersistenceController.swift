@@ -180,7 +180,9 @@ public final class PersistenceController {
         container.newBackgroundContext()
     }
 
-    private static func makeManagedObjectModel() -> NSManagedObjectModel {
+    // Cache the model to avoid Core Data entity description conflicts
+    // when multiple in-memory containers are created during parallel tests
+    private static let cachedModel: NSManagedObjectModel = {
         let bundle = Bundle(for: BundleToken.self)
         if let url = bundle.url(forResource: "Model", withExtension: "momd"),
            let model = NSManagedObjectModel(contentsOf: url) {
@@ -191,6 +193,10 @@ public final class PersistenceController {
             return model
         }
         fatalError("Unable to locate Core Data model named 'Model'")
+    }()
+
+    private static func makeManagedObjectModel() -> NSManagedObjectModel {
+        cachedModel
     }
 
     private final class BundleToken {}

@@ -71,6 +71,9 @@ struct FinishFeedingIntent: AppIntent {
     @Parameter(title: "Amount", requestValueDialog: "How much did you feed?")
     var amount: Double
 
+    @Parameter(title: "Feed Type", default: .babyFormula, requestValueDialog: "What type of feeding?")
+    var feedType: FeedTypeAppEnum
+
     @MainActor
     func perform() async throws -> some IntentResult & ReturnsValue<String> & ProvidesDialog {
         let targetProfile: BabyProfile
@@ -102,7 +105,8 @@ struct FinishFeedingIntent: AppIntent {
 
         let unit: UnitVolume = UnitUtils.preferredUnit
         let measurement = Measurement(value: amount, unit: unit)
-        MainViewModel.shared.finishFeeding(for: targetProfile, amount: measurement)
+        let modelFeedType = FeedType(rawValue: feedType.rawValue) ?? .babyFormula
+        MainViewModel.shared.finishFeeding(for: targetProfile, amount: measurement, feedType: modelFeedType)
 
         let dialog: LocalizedStringResource = "Fed \(targetProfile.name) \(amount.formatted())."
         return .result(

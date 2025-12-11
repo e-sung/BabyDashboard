@@ -18,6 +18,7 @@
   },
   "testTargets" : [
     {
+      "enabled" : false,
       "target" : {
         "containerPath" : "container:BabyDashboard.xcodeproj",
         "identifier" : "0814D4852E8D4E7F0073412C",

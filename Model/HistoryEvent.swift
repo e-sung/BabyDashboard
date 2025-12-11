@@ -58,6 +58,9 @@ public extension HistoryEvent {
             detailsText = "\(durationMinutes) min"
         }
 
+        // Use feedType emoji, default to babyFormula (🍼) for in-progress or nil feedType
+        let feedTypeEmoji = session.feedType?.emoji ?? FeedType.babyFormula.emoji
+
         self.init(
             id: session.uuid,
             date: start,
@@ -66,7 +69,8 @@ public extension HistoryEvent {
             details: detailsText,
             diaperType: nil,
             underlyingObjectId: session.objectID,
-            hashtags: session.hashtags
+            hashtags: session.hashtags,
+            emoji: feedTypeEmoji
         )
     }
 

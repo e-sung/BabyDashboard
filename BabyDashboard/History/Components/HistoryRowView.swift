@@ -18,7 +18,7 @@ struct HistoryRowView: View {
                     .frame(width: 30, height: 30)
             }
             else if event.type == .feed {
-                Text("🍼")
+                Text(event.emoji ?? "🍼")
                     .font(.title2)
                     .frame(width: 30)
             }

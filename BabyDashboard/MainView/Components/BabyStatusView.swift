@@ -77,13 +77,6 @@ struct BabyStatusView: View {
             ])
         )
     }
-
-    
-    private let timeFormatter: DateFormatter = {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "HH:mm"
-        return formatter
-    }()
     
     private let diaperWarningThreshold: TimeInterval = 60 * 60 * 1 // 1 hours default
     
@@ -95,9 +88,19 @@ struct BabyStatusView: View {
         #endif
     }
     
+    /// Update interval: 1 second during feeding, 60 seconds otherwise
+    private var updateInterval: TimeInterval {
+        baby.inProgressFeedSession != nil ? 1.0 : 60.0
+    }
+    
     var body: some View {
-        TimelineView(.periodic(from: .now, by: 1.0)) { context in
+        TimelineView(.periodic(from: .now, by: updateInterval)) { context in
             let now = Date.current
+            let statusLogic = BabyStatusLogic(
+                baby: baby,
+                settings: settings,
+                diaperWarningThreshold: diaperWarningThreshold
+            )
             
             VStack(alignment: .leading, spacing: isIPhone ? 12 : 20) {
                 // Header
@@ -153,12 +156,13 @@ struct BabyStatusView: View {
                         CompactStatusCard(
                             icon: .image("bottle"),
                             title: baby.inProgressFeedSession != nil ? String(localized: "Feeding") : String(localized: "Feed"),
-                            mainText: feedMainText(now: now),
+                            mainText: statusLogic.feedMainText(now: now),
                             progressBarColor: .green,
-                            progress: feedProgress(now: now),
-                            secondaryProgress: feedSecondaryProgress(now: now),
+                            progress: statusLogic.feedProgress(now: now),
+                            secondaryProgress: statusLogic.feedSecondaryProgress(now: now),
                             secondaryProgressColor: .blue,
-                            footerText: feedFooterText(now: now),
+                            footerIcon: statusLogic.feedFooterIcon,
+                            footerText: statusLogic.feedFooterText(now: now),
                             criteriaLabel: feedCriteriaLabel,
                             isAnimating: isFeedAnimating,
                             shouldWarn: shouldWarnFeed,
@@ -179,10 +183,10 @@ struct BabyStatusView: View {
                         CompactStatusCard(
                             icon: .image("diaper"),
                             title: String(localized: "Diaper"),
-                            mainText: diaperTimeAgo(now: now),
+                            mainText: statusLogic.diaperTimeAgo(now: now),
                             progressBarColor: Color("diaperProgressColor"),
-                            progress: diaperProgress(now: now),
-                            footerText: diaperFooterText,
+                            progress: statusLogic.diaperProgress(now: now),
+                            footerText: statusLogic.diaperFooterText(),
                             criteriaLabel: "1h",
                             isAnimating: isDiaperAnimating,
                             shouldWarn: shouldWarnDiaper,
@@ -203,12 +207,13 @@ struct BabyStatusView: View {
                         StatusCard(
                             icon: .image("bottle"),
                             title: baby.inProgressFeedSession != nil ? String(localized: "Feeding") : String(localized: "Last Feed"),
-                            mainText: feedMainText(now: now),
+                            mainText: statusLogic.feedMainText(now: now),
                             progressBarColor: .green,
-                            progress: feedProgress(now: now),
-                            secondaryProgress: feedSecondaryProgress(now: now),
+                            progress: statusLogic.feedProgress(now: now),
+                            secondaryProgress: statusLogic.feedSecondaryProgress(now: now),
                             secondaryProgressColor: .blue,
-                            footerText: feedFooterText(now: now),
+                            footerIcon: statusLogic.feedFooterIcon,
+                            footerText: statusLogic.feedFooterText(now: now),
                             criteriaLabel: feedCriteriaLabel,
                             isAnimating: isFeedAnimating,
                             shouldWarn: shouldWarnFeed,
@@ -230,10 +235,10 @@ struct BabyStatusView: View {
                         StatusCard(
                             icon: .image("diaper"),
                             title: String(localized:"Diaper"),
-                            mainText: diaperTimeAgo(now: now),
+                            mainText: statusLogic.diaperTimeAgo(now: now),
                             progressBarColor: Color("diaperProgressColor"),
-                            progress: diaperProgress(now: now),
-                            footerText: diaperFooterText,
+                            progress: statusLogic.diaperProgress(now: now),
+                            footerText: statusLogic.diaperFooterText(),
                             criteriaLabel: "1h",
                             isAnimating: isDiaperAnimating,
                             shouldWarn: shouldWarnDiaper,
@@ -277,63 +282,7 @@ struct BabyStatusView: View {
             now: Date.current,
             lastDiaperTime: baby.lastDiaperChange?.timestamp,
             threshold: diaperWarningThreshold
-        )
-    }
-    
-    private func feedMainText(now: Date) -> String {
-        if baby.inProgressFeedSession != nil {
-            let interval = now.timeIntervalSince(baby.inProgressFeedSession?.startTime ?? now)
-            return formattedElapsedIncludingSeconds(from: interval)
-        }
-        
-        guard let session = baby.lastFinishedFeedSession else { return "--" }
-        let interval = now.timeIntervalSince(session.startTime)
-        return formatElapsedTime(from: interval)
-    }
-    
-    private func feedProgress(now: Date) -> Double {
-        let startTime: Date
-        if let current = baby.inProgressFeedSession {
-            startTime = current.startTime
-        } else if let finished = baby.lastFinishedFeedSession {
-            startTime = finished.startTime
-        } else {
-            return 0
-        }
-        
-        let interval = now.timeIntervalSince(startTime)
-        let term = baby.feedTerm
-        return interval / term
-    }
-    
-    private func feedSecondaryProgress(now: Date) -> Double? {
-        if let current = baby.inProgressFeedSession {
-            let interval = now.timeIntervalSince(current.startTime)
-            let term = baby.feedTerm
-            return min(interval / term, 1.0)
-        }
-        
-        guard let session = baby.lastFinishedFeedSession, let endTime = session.endTime else { return nil }
-        let duration = endTime.timeIntervalSince(session.startTime)
-        let term = baby.feedTerm
-        return min(duration / term, 1.0)
-    }
-    
-    private func feedFooterText(now: Date) -> String {
-        if baby.inProgressFeedSession != nil {
-            return ""
-        }
-
-        guard let session = baby.lastFinishedFeedSession else { return "No data" }
-        guard let endTime = session.endTime else { return "No Data" }
-        let duration = endTime.timeIntervalSince(session.startTime)
-        var text = formattedDuration(from: duration)
-        if let amount = session.amount {
-            let preferredUnit = UnitUtils.preferredUnit
-            let converted = amount.converted(to: preferredUnit)
-            text += " • \(UnitUtils.format(measurement: converted))".lowercased()
-        }
-        return text
+    )
     }
     
     private var feedCriteriaLabel: String {
@@ -346,86 +295,6 @@ struct BabyStatusView: View {
         let term = baby.feedTerm
         let hours = Int(term / 3600)
         return "\(hours) hours"
-    }
-    
-    private func diaperTimeAgo(now: Date) -> String {
-        guard let diaper = baby.lastDiaperChange else { return "--" }
-        let interval = now.timeIntervalSince(diaper.timestamp)
-        return formatElapsedTime(from: interval)
-    }
-    
-    private func diaperProgress(now: Date) -> Double {
-        guard let diaper = baby.lastDiaperChange else { return 0 }
-        let interval = now.timeIntervalSince(diaper.timestamp)
-        return min(interval / diaperWarningThreshold, 1.0)
-    }
-    
-    private var diaperFooterText: String {
-        guard let diaper = baby.lastDiaperChange else { return "No data" }
-        return "\(timeFormatter.string(from: diaper.timestamp))"
-    }
-    
-    private var diaperCriteriaLabel: String {
-        let hours = Int(diaperWarningThreshold / 3600)
-        return "\(hours)h"
-    }
-    
-    // MARK: - Helpers
-    
-    private var isLargeDynamicType: Bool {
-        if let size = settings.preferredFontScale.dynamicTypeSize {
-            return size > .accessibility3
-        }
-        return false
-    }
-
-    private func makeComponentsFormatter(allowedUnits: NSCalendar.Unit) -> DateComponentsFormatter {
-        let formatter = DateComponentsFormatter()
-        formatter.allowedUnits = allowedUnits
-        formatter.unitsStyle = .abbreviated
-        if isLargeDynamicType {
-            var enCalendar = Calendar(identifier: .gregorian)
-            enCalendar.locale = Locale(identifier: "en_US_POSIX")
-            formatter.calendar = enCalendar
-        }
-        formatter.zeroFormattingBehavior = [.dropAll]
-        return formatter
-    }
-    
-    private func formattedDuration(from interval: TimeInterval) -> String {
-        let formatter = makeComponentsFormatter(allowedUnits: [.hour, .minute])
-        guard let formatted = formatter.string(from: interval) else { return "" }
-        return String(localized: "in \(formatted)")
-    }
-    
-    private func formattedElapsingTime(from interval: TimeInterval) -> String {
-        let formatter = makeComponentsFormatter(allowedUnits: [.hour, .minute])
-        guard let formatted = formatter.string(from: interval) else { return "" }
-        if isLargeDynamicType {
-            return formatted
-        }
-        return String(localized: "\(formatted) ago")
-    }
-
-    private func formatElapsedTime(from interval: TimeInterval) -> String {
-        if interval < 60 { return String(localized: "Just now") }
-        let formatter = makeComponentsFormatter(allowedUnits: [.hour, .minute])
-        if let formatted = formatter.string(from: interval) {
-            if isLargeDynamicType {
-                return formatted
-            }
-            return String(localized: "\(formatted) ago")
-        }
-        return String(localized: "Just now")
-    }
-
-    private func formattedElapsedIncludingSeconds(from interval: TimeInterval) -> String {
-        let units: NSCalendar.Unit = interval < 60 ? [.second] : [.hour, .minute, .second]
-        let formatter = makeComponentsFormatter(allowedUnits: units)
-        if let formatted = formatter.string(from: interval) {
-            return formatted
-        }
-        return "0s"
     }
     
     // MARK: - Checklist Toggle Logic
