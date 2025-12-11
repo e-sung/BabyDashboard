@@ -262,15 +262,6 @@ struct BabyStatusView: View {
     }
     
     // MARK: - Computed Properties
-    
-    /// Creates a BabyStatusLogic instance for display calculations
-    private func makeStatusLogic() -> BabyStatusLogic {
-        BabyStatusLogic(
-            baby: baby,
-            diaperWarningThreshold: diaperWarningThreshold,
-            isLargeDynamicType: isLargeDynamicType
-        )
-    }
 
     private var shouldWarnFeed: Bool {
         WarningLogic.shouldWarnFeed(
@@ -289,20 +280,65 @@ struct BabyStatusView: View {
         )
     }
     
+    // MARK: - Display Methods (access baby directly for real-time updates)
+    
     private func feedMainText(now: Date) -> String {
-        makeStatusLogic().feedMainText(now: now)
+        if baby.inProgressFeedSession != nil {
+            let interval = now.timeIntervalSince(baby.inProgressFeedSession?.startTime ?? now)
+            return formattedElapsedIncludingSeconds(from: interval)
+        }
+        
+        guard let session = baby.lastFinishedFeedSession else { return "--" }
+        let interval = now.timeIntervalSince(session.startTime)
+        return formatElapsedTime(from: interval)
     }
     
     private func feedProgress(now: Date) -> Double {
-        makeStatusLogic().feedProgress(now: now)
+        let startTime: Date
+        if let current = baby.inProgressFeedSession {
+            startTime = current.startTime
+        } else if let finished = baby.lastFinishedFeedSession {
+            startTime = finished.startTime
+        } else {
+            return 0
+        }
+        
+        let interval = now.timeIntervalSince(startTime)
+        let term = baby.feedTerm
+        return interval / term
     }
     
     private func feedSecondaryProgress(now: Date) -> Double? {
-        makeStatusLogic().feedSecondaryProgress(now: now)
+        if let current = baby.inProgressFeedSession {
+            let interval = now.timeIntervalSince(current.startTime)
+            let term = baby.feedTerm
+            return min(interval / term, 1.0)
+        }
+        
+        guard let session = baby.lastFinishedFeedSession, let endTime = session.endTime else { return nil }
+        let duration = endTime.timeIntervalSince(session.startTime)
+        let term = baby.feedTerm
+        return min(duration / term, 1.0)
     }
     
     private func feedFooterText(now: Date) -> String {
-        makeStatusLogic().feedFooterText(now: now)
+        if baby.inProgressFeedSession != nil {
+            return ""
+        }
+
+        guard let session = baby.lastFinishedFeedSession else { return "No data" }
+        guard let endTime = session.endTime else { return "No data" }
+        let duration = endTime.timeIntervalSince(session.startTime)
+        
+        let feedTypeEmoji = session.feedType?.emoji ?? FeedType.babyFormula.emoji
+        var text = feedTypeEmoji + " " + formattedDuration(from: duration)
+        
+        if let amount = session.amount {
+            let preferredUnit = UnitUtils.preferredUnit
+            let converted = amount.converted(to: preferredUnit)
+            text += " • \(UnitUtils.format(measurement: converted))".lowercased()
+        }
+        return text
     }
     
     private var feedCriteriaLabel: String {
@@ -318,15 +354,20 @@ struct BabyStatusView: View {
     }
     
     private func diaperTimeAgo(now: Date) -> String {
-        makeStatusLogic().diaperTimeAgo(now: now)
+        guard let diaper = baby.lastDiaperChange else { return "--" }
+        let interval = now.timeIntervalSince(diaper.timestamp)
+        return formatElapsedTime(from: interval)
     }
     
     private func diaperProgress(now: Date) -> Double {
-        makeStatusLogic().diaperProgress(now: now)
+        guard let diaper = baby.lastDiaperChange else { return 0 }
+        let interval = now.timeIntervalSince(diaper.timestamp)
+        return min(interval / diaperWarningThreshold, 1.0)
     }
     
     private var diaperFooterText: String {
-        makeStatusLogic().diaperFooterText()
+        guard let diaper = baby.lastDiaperChange else { return "No data" }
+        return "\(timeFormatter.string(from: diaper.timestamp))"
     }
     
     private var diaperCriteriaLabel: String {

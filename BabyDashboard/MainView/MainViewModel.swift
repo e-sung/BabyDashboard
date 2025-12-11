@@ -59,7 +59,7 @@ class MainViewModel: ObservableObject {
     func startFeeding(for baby: BabyProfile) {
         do {
             _ = try feedLogger.startFeeding(for: baby)
-            saveAndPing()
+            pingAndRefresh()
             triggerAnimation(for: baby.id, type: .feed)
         } catch {
             debugPrint("[FeedLogger] Failed to start feeding: \(error.localizedDescription)")
@@ -69,7 +69,7 @@ class MainViewModel: ObservableObject {
     func finishFeeding(for baby: BabyProfile, amount: Measurement<UnitVolume>, feedType: FeedType, memoText: String? = nil) {
         do {
             _ = try feedLogger.finishFeeding(for: baby, amount: amount, feedType: feedType, memoText: memoText)
-            saveAndPing()
+            pingAndRefresh()
         } catch {
             debugPrint("[FeedLogger] Failed to finish feeding: \(error.localizedDescription)")
         }
@@ -78,7 +78,7 @@ class MainViewModel: ObservableObject {
     func cancelFeeding(for baby: BabyProfile) {
         do {
             if try feedLogger.cancelFeeding(for: baby) {
-                saveAndPing()
+                pingAndRefresh()
                 triggerAnimation(for: baby.id, type: .feed)
             }
         } catch {
@@ -146,8 +146,13 @@ class MainViewModel: ObservableObject {
 
     private func saveAndPing() {
         try? viewContext.save()
+        pingAndRefresh()
+    }
+    
+    /// Ping nearby peers and refresh widgets without saving.
+    /// Use when FeedLogger has already saved the context.
+    private func pingAndRefresh() {
         NearbySyncManager.shared.sendPing()
-        // Update widget cache and reload timelines (using shared helper)
         refreshBabyWidgetSnapshots(using: viewContext)
     }
 }
