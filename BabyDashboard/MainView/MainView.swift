@@ -227,12 +227,7 @@ private extension MainView {
                                 onDiaperTap: { changingDiaperFor = baby },
                                 onNameTap: { editingProfile = baby },
                                 onLastFeedTap: { session in
-                                    if session.isInProgress {
-                                        sessionToDelete = session
-                                        showDeleteAlert = true
-                                    } else {
-                                        editingFeedSession = session
-                                    }
+                                    editingFeedSession = session
                                 },
                                 onLastDiaperTap: { change in
                                     editingDiaperChange = change
