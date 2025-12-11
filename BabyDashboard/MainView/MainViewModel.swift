@@ -25,14 +25,13 @@ class MainViewModel: ObservableObject {
     private let shareController: ShareController
     
     // Delegate core feed operations to FeedLogger
-    private var feedLogger: FeedLogger {
-        FeedLogger(context: viewContext)
-    }
+    private let feedLogger: FeedLogger
 
     static var shared = MainViewModel(context: PersistenceController.shared.viewContext)
 
     init(context: NSManagedObjectContext) {
         self.viewContext = context
+        self.feedLogger = FeedLogger(context: context)
         self.shareController = .shared
 
         Timer.scheduledTimer(withTimeInterval: 1, repeats: true, block: { [weak self] _ in

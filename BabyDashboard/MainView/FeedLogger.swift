@@ -2,6 +2,18 @@ import Foundation
 import CoreData
 import Model
 
+/// Errors that can occur during feed logging operations
+enum FeedLoggerError: Error, LocalizedError {
+    case noInProgressSession
+    
+    var errorDescription: String? {
+        switch self {
+        case .noInProgressSession:
+            return "No in-progress feeding session to finish"
+        }
+    }
+}
+
 /// Handles feed session lifecycle operations.
 /// Extracted from MainViewModel for testability.
 struct FeedLogger {
@@ -36,16 +48,19 @@ struct FeedLogger {
     ///   - amount: The amount consumed
     ///   - feedType: Type of feed (formula, breastfeed, solid)
     ///   - memoText: Optional memo/hashtags
-    /// - Returns: The finished session, or nil if no in-progress session exists
-    /// - Throws: Core Data save error; context is rolled back on failure
+    /// - Returns: The finished session
+    /// - Throws: `FeedLoggerError.noInProgressSession` if no session is in progress,
+    ///           or Core Data save error; context is rolled back on failure
     @discardableResult
     func finishFeeding(
         for baby: BabyProfile,
         amount: Measurement<UnitVolume>,
         feedType: FeedType,
         memoText: String? = nil
-    ) throws -> FeedSession? {
-        guard let session = baby.inProgressFeedSession else { return nil }
+    ) throws -> FeedSession {
+        guard let session = baby.inProgressFeedSession else {
+            throw FeedLoggerError.noInProgressSession
+        }
         
         session.endTime = Date.current
         session.amount = amount

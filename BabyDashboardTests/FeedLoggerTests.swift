@@ -84,15 +84,14 @@ struct FeedLoggerTests {
         )
         
         // Then
-        #expect(session != nil)
-        #expect(session?.isInProgress == false)
-        #expect(session?.endTime != nil)
-        #expect(session?.amount?.value == 120)
-        #expect(session?.feedType == .babyFormula)
-        #expect(session?.memoText == "#morning")
+        #expect(session.isInProgress == false)
+        #expect(session.endTime != nil)
+        #expect(session.amount?.value == 120)
+        #expect(session.feedType == .babyFormula)
+        #expect(session.memoText == "#morning")
     }
     
-    @Test("Finish feeding with no in-progress session returns nil")
+    @Test("Finish feeding with no in-progress session throws error")
     func finishFeedingWithNoSession() throws {
         // Given
         let context = makeContext()
@@ -104,15 +103,14 @@ struct FeedLoggerTests {
         
         let amount = Measurement(value: 120, unit: UnitVolume.milliliters)
         
-        // When
-        let session = try logger.finishFeeding(
-            for: baby,
-            amount: amount,
-            feedType: .babyFormula
-        )
-        
-        // Then
-        #expect(session == nil)
+        // When/Then: Should throw noInProgressSession error
+        #expect(throws: FeedLoggerError.noInProgressSession) {
+            try logger.finishFeeding(
+                for: baby,
+                amount: amount,
+                feedType: .babyFormula
+            )
+        }
     }
     
     @Test("Finish feeding with empty memo sets nil")
@@ -134,7 +132,7 @@ struct FeedLoggerTests {
         )
         
         // Then
-        #expect(session?.memoText == nil)
+        #expect(session.memoText == nil)
     }
     
     // MARK: - Cancel Feeding Tests
@@ -195,7 +193,7 @@ struct FeedLoggerTests {
                 feedType: feedType
             )
             
-            #expect(session?.feedType == feedType)
+            #expect(session.feedType == feedType)
         }
     }
 }
