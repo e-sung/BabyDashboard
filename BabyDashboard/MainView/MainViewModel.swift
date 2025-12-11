@@ -23,6 +23,11 @@ class MainViewModel: ObservableObject {
 
     // Use ShareController directly for any share-related actions
     private let shareController: ShareController
+    
+    // Delegate core feed operations to FeedLogger
+    private var feedLogger: FeedLogger {
+        FeedLogger(context: viewContext)
+    }
 
     static var shared = MainViewModel(context: PersistenceController.shared.viewContext)
 
@@ -49,33 +54,36 @@ class MainViewModel: ObservableObject {
         date = now.formatted(Date.FormatStyle(locale: Locale.autoupdatingCurrent).year(.defaultDigits).month(.abbreviated).day(.defaultDigits).weekday(.wide))
     }
     
-    // MARK: - Intents
+    // MARK: - Feed Operations (Delegate to FeedLogger)
     
     func startFeeding(for baby: BabyProfile) {
-        if let ongoing = baby.inProgressFeedSession {
-            viewContext.delete(ongoing)
+        do {
+            _ = try feedLogger.startFeeding(for: baby)
+            saveAndPing()
+            triggerAnimation(for: baby.id, type: .feed)
+        } catch {
+            debugPrint("[FeedLogger] Failed to start feeding: \(error.localizedDescription)")
         }
-        let newSession = FeedSession(context: viewContext, startTime: Date.current)
-        newSession.profile = baby
-        saveAndPing()
-        triggerAnimation(for: baby.id, type: .feed)
     }
     
     func finishFeeding(for baby: BabyProfile, amount: Measurement<UnitVolume>, feedType: FeedType, memoText: String? = nil) {
-        guard let session = baby.inProgressFeedSession else { return }
-        session.endTime = Date.current
-        session.amount = amount
-        session.feedType = feedType
-        session.memoText = memoText?.isEmpty == true ? nil : memoText
-
-        saveAndPing()
+        do {
+            _ = try feedLogger.finishFeeding(for: baby, amount: amount, feedType: feedType, memoText: memoText)
+            saveAndPing()
+        } catch {
+            debugPrint("[FeedLogger] Failed to finish feeding: \(error.localizedDescription)")
+        }
     }
     
     func cancelFeeding(for baby: BabyProfile) {
-        guard let session = baby.inProgressFeedSession else { return }
-        viewContext.delete(session)
-        saveAndPing()
-        triggerAnimation(for: baby.id, type: .feed)
+        do {
+            if try feedLogger.cancelFeeding(for: baby) {
+                saveAndPing()
+                triggerAnimation(for: baby.id, type: .feed)
+            }
+        } catch {
+            debugPrint("[FeedLogger] Failed to cancel feeding: \(error.localizedDescription)")
+        }
     }
     
     func logDiaperChange(for baby: BabyProfile, type: DiaperType) {

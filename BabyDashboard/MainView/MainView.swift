@@ -99,6 +99,7 @@ struct MainView: View {
             .sheet(item: $finishingFeedFor, onDismiss: { feedAmountString = ""; feedMemoText = "" }) { baby in
                 finishFeedSheet(baby: baby)
                     .presentationSizing(.fitted)
+                    .presentationDetents(isIPhone ? [.medium, .large] : [])
                     .presentationDragIndicator(.visible)
             }
             .sheet(isPresented: $showingHistory) { HistoryView() }

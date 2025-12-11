@@ -26,6 +26,7 @@ struct CompactStatusCard: View {
     let mainTextColor: Color?
 
     // Accessibility
+    let accessibilityCriteriaLabel: String?
     let accessibilityHintText: String
     let onTap: (() -> Void)?
     let onFooterTap: (() -> Void)?
@@ -44,6 +45,7 @@ struct CompactStatusCard: View {
         shouldWarn: Bool = false,
         warningColor: Color = .red,
         mainTextColor: Color? = nil,
+        accessibilityCriteriaLabel: String? = nil,
         accessibilityHintText: String = "",
         onTap: (() -> Void)? = nil,
         onFooterTap: (() -> Void)? = nil
@@ -61,6 +63,7 @@ struct CompactStatusCard: View {
         self.shouldWarn = shouldWarn
         self.warningColor = warningColor
         self.mainTextColor = mainTextColor
+        self.accessibilityCriteriaLabel = accessibilityCriteriaLabel
         self.accessibilityHintText = accessibilityHintText
         self.onTap = onTap
         self.onFooterTap = onFooterTap
@@ -117,6 +120,7 @@ struct CompactStatusCard: View {
                         .lineLimit(1)
                         .minimumScaleFactor(0.7)
                 }
+                .accessibilityLabel(footerText)
             }
             .padding(16)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -129,6 +133,8 @@ struct CompactStatusCard: View {
         .accessibilityLabel(Text("\(title), \(mainText)"))
         .accessibilityValue(Text(progress, format: .percent.precision(.fractionLength(UnitUtils.baseFractionLength))))
         .accessibilityHint(Text(accessibilityHintText))
+        .accessibilityCustomContent("Last Session summary", footerText)
+        .accessibilityCustomContent("Interval", criteriaLabel)
         .accessibilityAction(named: "Edit Details") {
             onFooterTap?()
         }
