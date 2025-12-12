@@ -28,7 +28,7 @@ struct HistoryRowView: View {
                     .font(.headline)
 
                 Text(event.details)
-                    .font(.subheadline)
+                    .font(.body)
                     .foregroundColor(.secondary)
 
                 if !event.hashtags.isEmpty {
@@ -44,7 +44,7 @@ struct HistoryRowView: View {
             Spacer()
 
             Text(event.date, style: .time)
-                .font(.subheadline)
+                .font(.body)
                 .foregroundColor(.secondary)
         }
         .padding(.vertical, 8)

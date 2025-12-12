@@ -36,7 +36,6 @@ struct MainView: View {
     @State private var feedAmountString: String = ""
     @State private var selectedFeedType: FeedType = .babyFormula
     @State private var feedMemoText: String = ""
-    @State private var showingHistory = false
     @State private var editingFeedSession: FeedSession? = nil
     @State private var editingDiaperChange: DiaperChange? = nil
     
@@ -50,10 +49,6 @@ struct MainView: View {
     @State private var toastDismissWorkItem: DispatchWorkItem? = nil
     @State private var highlightResetWorkItem: DispatchWorkItem? = nil
 
-    // New: analysis navigation
-    @State private var showingAnalysis = false
-    @State private var showingSettings = false
-    
     // Daily checklist configuration
     @State private var isConfiguringChecklist = false
     @State private var showingChecklistConfig: BabyProfile? = nil
@@ -102,7 +97,6 @@ struct MainView: View {
                     .presentationDetents(isIPhone ? [.medium, .large] : [])
                     .presentationDragIndicator(.visible)
             }
-            .sheet(isPresented: $showingHistory) { HistoryView() }
             .sheet(item: $editingFeedSession) { session in
                 HistoryEditView(model: .feed(session), babies: Array(babies))
                     .environment(\.managedObjectContext, viewContext)
@@ -112,30 +106,6 @@ struct MainView: View {
                 HistoryEditView(model: .diaper(change), babies: Array(babies))
                     .environment(\.managedObjectContext, viewContext)
                     .environmentObject(settings)
-            }
-            // New: present analysis
-            .sheet(isPresented: $showingAnalysis) {
-                // Request review when user dismisses the analysis view
-                // Only triggers if user has 7+ days of feed sessions and hasn't been asked before
-                Task { @MainActor in
-                    ReviewRequestManager.shared.requestReviewIfEligible(
-                        context: viewContext,
-                        requestReview: {
-                            #if canImport(UIKit)
-                            if let scene = UIApplication.shared.connectedScenes.first as? UIWindowScene {
-                                SKStoreReviewController.requestReview(in: scene)
-                            }
-                            #endif
-                        }
-                    )
-                }
-            } content: {
-                NavigationView {
-                    HistoryAnalysisView()
-                }
-            }
-            .sheet(isPresented: $showingSettings) {
-                SettingsView(settings: settings, shareController: .shared)
             }
             .sheet(item: $showingChecklistConfig) { baby in
                 ChecklistConfigurationSheet(baby: baby)
@@ -432,35 +402,24 @@ private extension MainView {
     func toolbarContent() -> some ToolbarContent {
         ToolbarItem(placement: isIPhone ? .navigationBarTrailing : .navigationBarLeading) {
             HStack(spacing: 20) {
-                Button(action: { showingHistory = true }) {
-                    Image(systemName: "list.bullet.clipboard")
-                        .imageScale(.large)
+                if isConfiguringChecklist {
+                    Button(action: { isConfiguringChecklist = false }) {
+                        Text("Done")
+                    }
+                } else {
+                    Button(action: { isConfiguringChecklist = true }) {
+                        Image(systemName: isConfiguringChecklist ? "rectangle.3.group.dashed" : "rectangle.3.group")
+                            .imageScale(.large)
+                    }
+                    .accessibilityLabel("Configure Daily Checklist")
                 }
-                .accessibilityLabel("History")
-                
-                Button(action: { showingSettings = true }) {
-                    Image(systemName: "gear")
-                        .imageScale(.large)
-                }
-                .accessibilityLabel("Settings")
-                
-                Button(action: { showingAnalysis = true }) {
-                    Image(systemName: "chart.xyaxis.line")
-                        .imageScale(.large)
-                }
-                .accessibilityLabel(Text("Analysis"))
-                
-                Button(action: { isConfiguringChecklist.toggle() }) {
-                    Image(systemName: isConfiguringChecklist ? "rectangle.3.group.dashed" : "rectangle.3.group")
-                        .imageScale(.large)
-                }
-                .accessibilityLabel("Configure Daily Checklist")
+
             }
         }
         
         // ClockView is now an overlay, so we remove it from here
     }
-    
+
     func handleFeedTap(for baby: BabyProfile) {
         if baby.inProgressFeedSession != nil {
             finishingFeedFor = baby
@@ -675,4 +634,3 @@ private struct ToastView: View {
         .environmentObject(AppSettings())
         .environment(\.managedObjectContext, context)
 }
-

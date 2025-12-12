@@ -8,6 +8,7 @@
 import SwiftUI
 import Model
 import CoreData // for NSPersistentStoreRemoteChange
+import StoreKit
 
 @main
 struct BabyDashboardApp: App {
@@ -18,12 +19,52 @@ struct BabyDashboardApp: App {
     @Environment(\.scenePhase) private var scenePhase
 
     private let persistenceController = PersistenceController.shared
+    
+    private enum RootTab: Hashable {
+        case dashboard
+        case history
+        case analysis
+        case settings
+    }
+    
+    @State private var selectedTab: RootTab = .dashboard
+    @State private var hasRequestedReviewFromAnalysis = false
 
     var body: some Scene {
         WindowGroup {
-            MainView(
-                viewModel: MainViewModel.shared
-            )
+            TabView(selection: $selectedTab) {
+                MainView(
+                    viewModel: MainViewModel.shared
+                )
+                .tag(RootTab.dashboard)
+                .tabItem {
+                    Label("Dashboard", systemImage: "house.fill")
+                }
+
+                NavigationStack {
+                    HistoryView()
+                }
+                .tag(RootTab.history)
+                .tabItem {
+                    Label("History", systemImage: "clock")
+                }
+
+                NavigationStack {
+                    HistoryAnalysisView()
+                }
+                .tag(RootTab.analysis)
+                .tabItem {
+                    Label("Analysis", systemImage: "chart.xyaxis.line")
+                }
+
+                NavigationStack {
+                    SettingsView(settings: settings, shareController: .shared)
+                }
+                .tag(RootTab.settings)
+                .tabItem {
+                    Label("Settings", systemImage: "gearshape")
+                }
+            }
             .environment(\.managedObjectContext, persistenceController.viewContext)
             .environmentObject(settings)
             .task {
@@ -48,6 +89,25 @@ struct BabyDashboardApp: App {
             }
             .applyDynamicTypeSize(settings.preferredFontScale.dynamicTypeSize)
             .preferredColorScheme(.dark)
+            .onChange(of: selectedTab) { oldValue, newValue in
+                if oldValue == .analysis,
+                   newValue == .dashboard,
+                   !hasRequestedReviewFromAnalysis {
+                    Task { @MainActor in
+                        ReviewRequestManager.shared.requestReviewIfEligible(
+                            context: persistenceController.viewContext,
+                            requestReview: {
+                                #if canImport(UIKit)
+                                if let scene = UIApplication.shared.connectedScenes.first as? UIWindowScene {
+                                    AppStore.requestReview(in: scene)
+                                }
+                                #endif
+                            }
+                        )
+                    }
+                    hasRequestedReviewFromAnalysis = true
+                }
+            }
         }
         .onChange(of: scenePhase) { _, newPhase in
             if newPhase == .active {
@@ -69,3 +129,4 @@ struct BabyDashboardApp: App {
         }
     }
 }
+

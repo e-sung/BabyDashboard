@@ -7,7 +7,6 @@ import AppIntents
 struct SettingsView: View {
     @ObservedObject var settings: AppSettings
     @ObservedObject var shareController: ShareController
-    @Environment(\.dismiss) private var dismiss
     @Environment(\.managedObjectContext) private var viewContext
 
     // Kind used for both export and import
@@ -56,160 +55,155 @@ struct SettingsView: View {
     }
 
     var body: some View {
-        NavigationView {
-            Form {
-                Section(header: Text("Daily Summaries")) {
-                    DatePicker("Start of Day", selection: startOfDayBinding, displayedComponents: .hourAndMinute)
-                }
+        Form {
+            Section(header: Text("Daily Summaries")) {
+                DatePicker("Start of Day", selection: startOfDayBinding, displayedComponents: .hourAndMinute)
+            }
 
-                Section(header: Text("Measurement Unit")) {
-                    Picker("Unit", selection: Binding(
-                        get: { UnitUtils.preferredUnit },
-                        set: { UnitUtils.preferredUnit = $0 }
-                    )) {
-                        ForEach([UnitVolume.milliliters, UnitVolume.fluidOunces], id: \.self) { unit in
-                            Text(unit.symbol).tag(unit)
-                        }
+            Section(header: Text("Measurement Unit")) {
+                Picker("Unit", selection: Binding(
+                    get: { UnitUtils.preferredUnit },
+                    set: { UnitUtils.preferredUnit = $0 }
+                )) {
+                    ForEach([UnitVolume.milliliters, UnitVolume.fluidOunces], id: \.self) { unit in
+                        Text(unit.symbol).tag(unit)
                     }
-                    .pickerStyle(.segmented)
                 }
+                .pickerStyle(.segmented)
+            }
 
-                Section(header: Text("Appearance")) {
-                    VStack(spacing: 12) {
-                        HStack {
-                            Image(systemName: "textformat.size.smaller")
-                            Spacer()
-                            Text(settings.preferredFontScale.label)
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                            Spacer()
-                            Image(systemName: "textformat.size.larger")
-                        }
-                        .font(.body)
-                        .foregroundStyle(.secondary)
-                        
-                        Slider(
-                            value: Binding(
-                                get: {
-                                    Double(AppFontScale.allCases.firstIndex(of: settings.preferredFontScale) ?? 0)
-                                },
-                                set: { newValue in
-                                    let index = Int(round(newValue))
-                                    if index >= 0 && index < AppFontScale.allCases.count {
-                                        settings.preferredFontScale = AppFontScale.allCases[index]
-                                    }
+            Section(header: Text("Appearance")) {
+                VStack(spacing: 12) {
+                    HStack {
+                        Image(systemName: "textformat.size.smaller")
+                        Spacer()
+                        Text(settings.preferredFontScale.label)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        Spacer()
+                        Image(systemName: "textformat.size.larger")
+                    }
+                    .font(.body)
+                    .foregroundStyle(.secondary)
+                    
+                    Slider(
+                        value: Binding(
+                            get: {
+                                Double(AppFontScale.allCases.firstIndex(of: settings.preferredFontScale) ?? 0)
+                            },
+                            set: { newValue in
+                                let index = Int(round(newValue))
+                                if index >= 0 && index < AppFontScale.allCases.count {
+                                    settings.preferredFontScale = AppFontScale.allCases[index]
                                 }
-                            ),
-                            in: 0...Double(AppFontScale.allCases.count - 1),
-                            step: 1
-                        )
-                        .accessibilityIdentifier("FontSizeSlider")
-                    }
-                    .padding(.vertical, 8)
-                }
-
-                Section(header: Text("Siri & Shortcuts")) {
-                    Text("Add shortcuts to quickly start and finish feedings, or log diaper changes using Siri or the Shortcuts app.")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
-
-                    ShortcutsLink()
-                }
-
-                Section(header: Text("Data – Feeds")) {
-                    Button {
-                        Task { await export(kind: .feeds) }
-                    } label: {
-                        Label("Export Feeds CSV", systemImage: "square.and.arrow.up")
-                    }
-
-                    Button {
-                        importKind = .feeds
-                        isImporting = true
-                    } label: {
-                        Label("Import Feeds CSV", systemImage: "square.and.arrow.down")
-                    }
-                }
-
-                Section(header: Text("Data – Diapers")) {
-                    Button {
-                        Task { await export(kind: .diapers) }
-                    } label: {
-                        Label("Export Diapers CSV", systemImage: "square.and.arrow.up")
-                    }
-
-                    Button {
-                        importKind = .diapers
-                        isImporting = true
-                    } label: {
-                        Label("Import Diapers CSV", systemImage: "square.and.arrow.down")
-                    }
-                }
-
-                #if DEBUG
-                Section(header: Text("Debug – Danger Zone")) {
-                    Button(role: .destructive) {
-                        showingNukeConfirm = true
-                    } label: {
-                        Label("Delete All Data", systemImage: "trash")
-                    }
-                }
-                #endif
-            }
-            .navigationTitle("Settings")
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Done") { dismiss() }
-                }
-            }
-            // Exporter (single document, presented when preparedExport is set)
-            .fileExporter(
-                isPresented: $isExporting,
-                document: preparedExport,
-                contentType: .commaSeparatedText,
-                defaultFilename: defaultExportFilename()
-            ) { result in
-                if case .failure(let error) = result {
-                    importError = "Export failed: \(error.localizedDescription)"
-                }
-                exportKind = nil
-            }
-            // Single importer for both kinds
-            .fileImporter(
-                isPresented: $isImporting,
-                allowedContentTypes: [.commaSeparatedText, .plainText],
-                allowsMultipleSelection: false
-            ) { result in
-                switch result {
-                case .success(let urls):
-                    guard let url = urls.first else { return }
-                    Task {
-                        do {
-                            let didStart = url.startAccessingSecurityScopedResource()
-                            defer { if didStart { url.stopAccessingSecurityScopedResource() } }
-                            let data = try Data(contentsOf: url)
-                            if importKind == .feeds {
-                                let report = try await HistoryCSVService.decodeFeedsAndImport(data: data, context: viewContext)
-                                importReport = report
-                            } else if importKind == .diapers {
-                                let report = try await HistoryCSVService.decodeDiapersAndImport(data: data, context: viewContext)
-                                importReport = report
                             }
-                            importKind = nil
-                        } catch {
-                            importError = "Import failed: \(error.localizedDescription)"
-                        }
-                    }
-                case .failure(let error):
-                    importError = "Import failed: \(error.localizedDescription)"
+                        ),
+                        in: 0...Double(AppFontScale.allCases.count - 1),
+                        step: 1
+                    )
+                    .accessibilityIdentifier("FontSizeSlider")
+                }
+                .padding(.vertical, 8)
+            }
+
+            Section(header: Text("Siri & Shortcuts")) {
+                Text("Add shortcuts to quickly start and finish feedings, or log diaper changes using Siri or the Shortcuts app.")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                ShortcutsLink()
+            }
+
+            Section(header: Text("Data – Feeds")) {
+                Button {
+                    Task { await export(kind: .feeds) }
+                } label: {
+                    Label("Export Feeds CSV", systemImage: "square.and.arrow.up")
+                }
+
+                Button {
+                    importKind = .feeds
+                    isImporting = true
+                } label: {
+                    Label("Import Feeds CSV", systemImage: "square.and.arrow.down")
                 }
             }
-            .alert("Import Complete", isPresented: Binding(get: { importReport != nil }, set: { if !$0 { importReport = nil } })) {
-                Button("OK", role: .cancel) { importReport = nil }
-            } message: {
-                if let r = importReport {
-                    Text("""
+
+            Section(header: Text("Data – Diapers")) {
+                Button {
+                    Task { await export(kind: .diapers) }
+                } label: {
+                    Label("Export Diapers CSV", systemImage: "square.and.arrow.up")
+                }
+
+                Button {
+                    importKind = .diapers
+                    isImporting = true
+                } label: {
+                    Label("Import Diapers CSV", systemImage: "square.and.arrow.down")
+                }
+            }
+
+            #if DEBUG
+            Section(header: Text("Debug – Danger Zone")) {
+                Button(role: .destructive) {
+                    showingNukeConfirm = true
+                } label: {
+                    Label("Delete All Data", systemImage: "trash")
+                }
+            }
+            #endif
+        }
+        .readableContentWidth(maxWidth: 720)
+        .navigationTitle("Settings")
+        // Exporter (single document, presented when preparedExport is set)
+        .fileExporter(
+            isPresented: $isExporting,
+            document: preparedExport,
+            contentType: .commaSeparatedText,
+            defaultFilename: defaultExportFilename()
+        ) { result in
+            if case .failure(let error) = result {
+                importError = "Export failed: \(error.localizedDescription)"
+            }
+            exportKind = nil
+        }
+        // Single importer for both kinds
+        .fileImporter(
+            isPresented: $isImporting,
+            allowedContentTypes: [.commaSeparatedText, .plainText],
+            allowsMultipleSelection: false
+        ) { result in
+            switch result {
+            case .success(let urls):
+                guard let url = urls.first else { return }
+                Task {
+                    do {
+                        let didStart = url.startAccessingSecurityScopedResource()
+                        defer { if didStart { url.stopAccessingSecurityScopedResource() } }
+                        let data = try Data(contentsOf: url)
+                        if importKind == .feeds {
+                            let report = try await HistoryCSVService.decodeFeedsAndImport(data: data, context: viewContext)
+                            importReport = report
+                        } else if importKind == .diapers {
+                            let report = try await HistoryCSVService.decodeDiapersAndImport(data: data, context: viewContext)
+                            importReport = report
+                        }
+                        importKind = nil
+                    } catch {
+                        importError = "Import failed: \(error.localizedDescription)"
+                    }
+                }
+            case .failure(let error):
+                importError = "Import failed: \(error.localizedDescription)"
+            }
+        }
+        .alert("Import Complete", isPresented: Binding(get: { importReport != nil }, set: { if !$0 { importReport = nil } })) {
+            Button("OK", role: .cancel) { importReport = nil }
+        } message: {
+            if let r = importReport {
+                Text("""
 Inserted Feeds: \(r.insertedFeeds)
 Updated Feeds: \(r.updatedFeeds)
 Skipped Feeds: \(r.skippedFeeds)
@@ -219,13 +213,12 @@ Created Babies: \(r.createdBabies)
 Errors: \(r.errors.count)
 \(r.errors.prefix(5).joined(separator: "\n"))
 """)
-                }
             }
-            .alert("Error", isPresented: Binding(get: { importError != nil }, set: { if !$0 { importError = nil } })) {
-                Button("OK", role: .cancel) { importError = nil }
-            } message: {
-                Text(importError ?? "")
-            }
+        }
+        .alert("Error", isPresented: Binding(get: { importError != nil }, set: { if !$0 { importError = nil } })) {
+            Button("OK", role: .cancel) { importError = nil }
+        } message: {
+            Text(importError ?? "")
         }
         #if DEBUG
         .alert("Delete All Data?", isPresented: $showingNukeConfirm) {
@@ -313,4 +306,3 @@ Errors: \(r.errors.count)
     }
     #endif
 }
-
