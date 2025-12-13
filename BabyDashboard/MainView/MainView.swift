@@ -110,6 +110,8 @@ struct MainView: View {
             .sheet(item: $showingChecklistConfig) { baby in
                 ChecklistConfigurationSheet(baby: baby)
                     .environment(\.managedObjectContext, viewContext)
+                    .presentationDetents([.medium, .large])
+                    .presentationDragIndicator(.visible)
             }
             .toolbar(content: toolbarContent)
             .navigationBarTitleDisplayMode(.inline)
@@ -408,8 +410,7 @@ private extension MainView {
                     }
                 } else {
                     Button(action: { isConfiguringChecklist = true }) {
-                        Image(systemName: isConfiguringChecklist ? "rectangle.3.group.dashed" : "rectangle.3.group")
-                            .imageScale(.large)
+                        Text("Edit")
                     }
                     .accessibilityLabel("Configure Daily Checklist")
                 }
