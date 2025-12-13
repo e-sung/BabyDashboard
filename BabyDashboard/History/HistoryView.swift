@@ -38,6 +38,7 @@ struct HistoryView: View {
     @State private var searchTokens: [SearchToken] = []
     @State private var isShowingAddSheet = false
     @State private var isSearchActive: Bool = false
+    @State private var isShowingExportImport = false
     
     // UserDefaults keys for token persistence
     private static let searchTokensKey = "historySearchTokens"
@@ -150,32 +151,49 @@ struct HistoryView: View {
     }
 
     var body: some View {
-        List {
-            ForEach(monthSections) { month in
-                Section {
-                    ForEach(month.daySections) { section in
-                        Section {
-                            ForEach(section.events) { event in
-                                HistoryRowView(event: event)
-                                    .frame(maxWidth: .infinity, alignment: .leading)
-                                    .contentShape(Rectangle())
-                                    .onTapGesture { eventToEdit = event }
+        ZStack(alignment: .bottomTrailing) {
+            List {
+                ForEach(monthSections) { month in
+                    Section {
+                        ForEach(month.daySections) { section in
+                            Section {
+                                ForEach(section.events) { event in
+                                    HistoryRowView(event: event)
+                                        .frame(maxWidth: .infinity, alignment: .leading)
+                                        .contentShape(Rectangle())
+                                        .onTapGesture { eventToEdit = event }
+                                }
+                                .onDelete(perform: deleteEvent)
+                            } header: {
+                                dayHeaderView(for: section)
                             }
-                            .onDelete(perform: deleteEvent)
-                        } header: {
-                            dayHeaderView(for: section)
                         }
+                    } header: {
+                        monthHeaderView(for: month)
                     }
-                } header: {
-                    monthHeaderView(for: month)
                 }
             }
-        }
-        .readableContentWidth(maxWidth: 900, iPadPadding: 32, iPhonePadding: 0)
-        .overlay {
-            if filteredEvents.isEmpty {
-                ContentUnavailableView("No History", systemImage: "clock", description: Text("Events will appear here."))
+            .readableContentWidth(maxWidth: 900, iPadPadding: 32, iPhonePadding: 0)
+            .overlay {
+                if filteredEvents.isEmpty {
+                    ContentUnavailableView("No History", systemImage: "clock", description: Text("Events will appear here."))
+                }
             }
+            
+            // Floating Add Button
+            Button {
+                isShowingAddSheet = true
+            } label: {
+                Image(systemName: "plus")
+                    .font(.title2.weight(.semibold))
+                    .foregroundStyle(.white)
+                    .frame(width: 56, height: 56)
+                    .background(Circle().fill(.blue))
+                    .shadow(color: .black.opacity(0.2), radius: 4, x: 0, y: 2)
+            }
+            .accessibilityLabel(Text("Add Event"))
+            .padding(.trailing, 20)
+            .padding(.bottom, 20)
         }
         .navigationTitle("History")
         .searchable(
@@ -193,11 +211,11 @@ struct HistoryView: View {
             isSearchActive: isSearchActive
         )
         .toolbar {
-            ToolbarItemGroup(placement: .primaryAction) {
-                Button { isShowingAddSheet = true } label: {
-                    Image(systemName: "plus")
+            ToolbarItemGroup(placement: .navigation) {
+                Button { isShowingExportImport = true } label: {
+                    Image(systemName: "line.3.horizontal")
                 }
-                .accessibilityLabel(Text("Add Event"))
+                .accessibilityLabel(Text("Export Import Menu"))
             }
         }
         .sheet(item: $eventToEdit) { event in
@@ -213,6 +231,10 @@ struct HistoryView: View {
             HistoryEditView(model: nil, babies: Array(babies))
                 .environment(\.managedObjectContext, viewContext)
                 .environmentObject(settings)
+        }
+        .sheet(isPresented: $isShowingExportImport) {
+            ExportImportDialogView()
+                .environment(\.managedObjectContext, viewContext)
         }
         .onAppear {
             loadSearchTokens()

@@ -193,11 +193,6 @@
 			path = BabyDashboardTests;
 			sourceTree = "<group>";
 		};
-		0814D4892E8D4E7F0073412C /* BabyDashboardUITests */ = {
-			isa = PBXFileSystemSynchronizedRootGroup;
-			path = BabyDashboardUITests;
-			sourceTree = "<group>";
-		};
 		087DCDCC2EBB352A00487EC1 /* Config */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
@@ -292,7 +287,6 @@
 				087DCDCC2EBB352A00487EC1 /* Config */,
 				0814D4702E8D4E7E0073412C /* BabyDashboard */,
 				0814D47F2E8D4E7F0073412C /* BabyDashboardTests */,
-				0814D4892E8D4E7F0073412C /* BabyDashboardUITests */,
 				08E6BBB92EAFF5D100DD237C /* Model */,
 				08E6BBC62EAFF5D100DD237C /* ModelTests */,
 				08F230C52EB7B817007CB56A /* DashboardWidget */,
@@ -400,9 +394,6 @@
 			);
 			dependencies = (
 				0814D4882E8D4E7F0073412C /* PBXTargetDependency */,
-			);
-			fileSystemSynchronizedGroups = (
-				0814D4892E8D4E7F0073412C /* BabyDashboardUITests */,
 			);
 			name = BabyDashboardUITests;
 			packageProductDependencies = (
@@ -870,7 +861,7 @@
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = BabyDashboard/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = "쌍둥이 대시보드 (Dev)";
+				INFOPLIST_KEY_CFBundleDisplayName = "쌍둥이 대시보드";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.healthcare-fitness";
 				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "같은 네트워크 내의 기기들간 더 빠른 동기화를 지원합니다";
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
@@ -1179,7 +1170,7 @@
 					"@executable_path/../../../../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 26.0;
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = 1.0.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.sungdoo.babyDashboard2.dev.widget;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				REGISTER_APP_GROUPS = YES;
@@ -1223,7 +1214,7 @@
 					"@executable_path/../../../../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 26.0;
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = 1.0.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.sungdoo.babyDashboard2.widget;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				REGISTER_APP_GROUPS = YES;
