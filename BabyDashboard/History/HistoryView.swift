@@ -3,7 +3,6 @@ import CoreData
 import Model
 
 struct HistoryView: View {
-    @Environment(\.dismiss) private var dismiss
     @Environment(\.managedObjectContext) private var viewContext
     @EnvironmentObject var settings: AppSettings
 
@@ -151,80 +150,75 @@ struct HistoryView: View {
     }
 
     var body: some View {
-        NavigationView {
-            List {
-                ForEach(monthSections) { month in
-                    Section {
-                        ForEach(month.daySections) { section in
-                            Section {
-                                ForEach(section.events) { event in
-                                    HistoryRowView(event: event)
-                                        .frame(maxWidth: .infinity, alignment: .leading)
-                                        .contentShape(Rectangle())
-                                        .onTapGesture { eventToEdit = event }
-                                }
-                                .onDelete(perform: deleteEvent)
-                            } header: {
-                                dayHeaderView(for: section)
+        List {
+            ForEach(monthSections) { month in
+                Section {
+                    ForEach(month.daySections) { section in
+                        Section {
+                            ForEach(section.events) { event in
+                                HistoryRowView(event: event)
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                    .contentShape(Rectangle())
+                                    .onTapGesture { eventToEdit = event }
                             }
+                            .onDelete(perform: deleteEvent)
+                        } header: {
+                            dayHeaderView(for: section)
                         }
-                    } header: {
-                        monthHeaderView(for: month)
                     }
+                } header: {
+                    monthHeaderView(for: month)
                 }
             }
-            .overlay {
-                if filteredEvents.isEmpty {
-                    ContentUnavailableView("No History", systemImage: "clock", description: Text("Events will appear here."))
-                }
+        }
+        .readableContentWidth(maxWidth: 900, iPadPadding: 32, iPhonePadding: 0)
+        .overlay {
+            if filteredEvents.isEmpty {
+                ContentUnavailableView("No History", systemImage: "clock", description: Text("Events will appear here."))
             }
-            .navigationTitle("History")
-            .searchable(
-                text: $searchText,
-                tokens: $searchTokens,
-                isPresented: $isSearchActive,
-                placement: .automatic,
-                prompt: "Search events"
-            ) { token in
-                Text(token.displayText)
-            }
-            .tokenSuggestionsOverlay(
-                suggestedTokens: suggestedTokens,
-                selectedTokens: $searchTokens,
-                isSearchActive: isSearchActive
-            )
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Done") { dismiss() }
+        }
+        .navigationTitle("History")
+        .searchable(
+            text: $searchText,
+            tokens: $searchTokens,
+            isPresented: $isSearchActive,
+            placement: .automatic,
+            prompt: "Search events"
+        ) { token in
+            Text(token.displayText)
+        }
+        .tokenSuggestionsOverlay(
+            suggestedTokens: suggestedTokens,
+            selectedTokens: $searchTokens,
+            isSearchActive: isSearchActive
+        )
+        .toolbar {
+            ToolbarItemGroup(placement: .primaryAction) {
+                Button { isShowingAddSheet = true } label: {
+                    Image(systemName: "plus")
                 }
-                ToolbarItemGroup(placement: .primaryAction) {
-                    // Add Event
-                    Button { isShowingAddSheet = true } label: {
-                        Image(systemName: "plus")
-                    }
-                    .accessibilityLabel(Text("Add Event"))
-                }
+                .accessibilityLabel(Text("Add Event"))
             }
-            .sheet(item: $eventToEdit) { event in
-                if let model = findModel(for: event) {
-                    HistoryEditView(model: model, babies: Array(babies))
-                        .environment(\.managedObjectContext, viewContext)
-                        .environmentObject(settings)
-                } else {
-                    Text("Could not find event to edit.")
-                }
-            }
-            .sheet(isPresented: $isShowingAddSheet) {
-                HistoryEditView(model: nil, babies: Array(babies))
+        }
+        .sheet(item: $eventToEdit) { event in
+            if let model = findModel(for: event) {
+                HistoryEditView(model: model, babies: Array(babies))
                     .environment(\.managedObjectContext, viewContext)
                     .environmentObject(settings)
+            } else {
+                Text("Could not find event to edit.")
             }
-            .onAppear {
-                loadSearchTokens()
-            }
-            .onChange(of: searchTokens) { _, newTokens in
-                saveSearchTokens(newTokens)
-            }
+        }
+        .sheet(isPresented: $isShowingAddSheet) {
+            HistoryEditView(model: nil, babies: Array(babies))
+                .environment(\.managedObjectContext, viewContext)
+                .environmentObject(settings)
+        }
+        .onAppear {
+            loadSearchTokens()
+        }
+        .onChange(of: searchTokens) { _, newTokens in
+            saveSearchTokens(newTokens)
         }
     }
 
