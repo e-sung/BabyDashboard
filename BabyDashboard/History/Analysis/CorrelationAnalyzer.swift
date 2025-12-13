@@ -326,6 +326,8 @@ actor CorrelationAnalyzer {
             if let results = try? context.fetch(request) {
                 events = results.map { HistoryEvent(from: $0) }
             }
+        @unknown default:
+            break
         }
         
         return events

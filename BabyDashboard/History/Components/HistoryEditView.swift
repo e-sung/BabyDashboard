@@ -199,7 +199,7 @@ struct HistoryEditView: View {
                 }
                 .sheet(isPresented: $isShowingAddEventType) {
                     if let babyID = selectedBabyID,
-                       let baby = babies.first(where: { $0.id == babyID }) {
+                       babies.first(where: { $0.id == babyID }) != nil {
                         AddCustomEventTypeSheet() {
                             isShowingAddEventType = false
                             updateAvailableCustomEventTypes()

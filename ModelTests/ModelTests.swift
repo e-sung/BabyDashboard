@@ -7,6 +7,7 @@
 
 import CoreData
 import Testing
+import XCTest
 @testable import Model
 
 // MARK: - FeedType Tests
@@ -295,5 +296,183 @@ struct HistoryCSVServiceTest {
             }
         }
     }
+}
 
+// MARK: - Performance Stress Tests (XCTest with measure blocks)
+
+/// Performance stress test for HistoryCSVService using XCTest measure blocks.
+/// Results will be visible in Xcode's test result bundle with baseline comparisons.
+final class HistoryCSVServicePerformanceTests: XCTestCase {
+    
+    // Shared test data
+    private var feedsCSVData: Data!
+    private var diapersCSVData: Data!
+    private var exportController: PersistenceController!
+    
+    // Configuration: 3 years, 2 babies, 6 feeds/day, 10 diapers/day
+    private let babyNames = ["BabyA", "BabyB"]
+    private let daysCount = 365 * 3  // 3 years
+    private let feedsPerDayPerBaby = 6
+    private let diapersPerDayPerBaby = 10
+    
+    var expectedFeedsTotal: Int {
+        babyNames.count * daysCount * feedsPerDayPerBaby  // 2 * 1095 * 6 = 13,140
+    }
+    
+    var expectedDiapersTotal: Int {
+        babyNames.count * daysCount * diapersPerDayPerBaby  // 2 * 1095 * 10 = 21,900
+    }
+    
+    override func setUp() async throws {
+        try await super.setUp()
+        
+        // Generate test data once for all performance tests
+        exportController = PersistenceController(inMemory: true)
+        let context = await exportController.viewContext
+        
+        try await context.perform {
+            // Create baby profiles
+            var babies: [String: BabyProfile] = [:]
+            for name in self.babyNames {
+                let baby = BabyProfile(context: context, name: name)
+                babies[name] = baby
+            }
+            
+            let calendar = Calendar.current
+            let now = Date()
+            let feedTypes: [FeedType] = [.babyFormula, .breastFeed, .solid]
+            let diaperTypes: [DiaperType] = [.pee, .poo]
+            
+            // Generate feeds: 6 per day per baby
+            for dayOffset in 0..<self.daysCount {
+                let dayStart = calendar.date(byAdding: .day, value: -dayOffset, to: now)!
+                
+                for (_, baby) in babies {
+                    for feedIndex in 0..<self.feedsPerDayPerBaby {
+                        let hourOffset = feedIndex * 4
+                        let feedTime = calendar.date(byAdding: .hour, value: hourOffset, to: calendar.startOfDay(for: dayStart))!
+                        
+                        let session = FeedSession(context: context, startTime: feedTime)
+                        session.endTime = feedTime.addingTimeInterval(900)
+                        session.amountValue = Double.random(in: 60...180)
+                        session.amountUnitSymbol = "mL"
+                        session.feedType = feedTypes[feedIndex % feedTypes.count]
+                        session.profile = baby
+                    }
+                }
+                
+                // Generate diapers: 10 per day per baby
+                for (_, baby) in babies {
+                    for diaperIndex in 0..<self.diapersPerDayPerBaby {
+                        let minuteOffset = diaperIndex * 144
+                        let diaperTime = calendar.date(byAdding: .minute, value: minuteOffset, to: calendar.startOfDay(for: dayStart))!
+                        
+                        let diaper = DiaperChange(context: context, timestamp: diaperTime, type: diaperTypes[diaperIndex % diaperTypes.count])
+                        diaper.profile = baby
+                    }
+                }
+            }
+            
+            try context.save()
+        }
+        
+        // Pre-export data for import tests
+        feedsCSVData = try HistoryCSVService.encodeFeeds(context: await exportController.viewContext)
+        diapersCSVData = try HistoryCSVService.encodeDiapers(context: await exportController.viewContext)
+    }
+    
+    override func tearDown() async throws {
+        feedsCSVData = nil
+        diapersCSVData = nil
+        exportController = nil
+        try await super.tearDown()
+    }
+    
+    /// Measures feed CSV export performance for 3 years of data (13,140 records)
+    func testExportFeedsPerformance() async throws {
+        let context = await exportController.viewContext
+        
+        measure {
+            _ = try? HistoryCSVService.encodeFeeds(context: context)
+        }
+    }
+    
+    /// Measures diaper CSV export performance for 3 years of data (21,900 records)
+    func testExportDiapersPerformance() async throws {
+        let context = await exportController.viewContext
+        
+        measure {
+            _ = try? HistoryCSVService.encodeDiapers(context: context)
+        }
+    }
+    
+    /// Measures feed CSV import performance for 3 years of data (13,140 records)
+    func testImportFeedsPerformance() async throws {
+        let options = XCTMeasureOptions()
+        options.iterationCount = 3  // Fewer iterations since import is slow
+        
+        measure(options: options) {
+            let importController = PersistenceController(inMemory: true)
+            
+            let exp = expectation(description: "Import feeds")
+            
+            Task {
+                let importContext = await importController.viewContext
+                
+                // Set up baby profiles
+                await importContext.perform {
+                    for name in self.babyNames {
+                        _ = BabyProfile(context: importContext, name: name)
+                    }
+                    try? importContext.save()
+                }
+                
+                // Import feeds
+                let report = try? await HistoryCSVService.decodeFeedsAndImport(
+                    data: self.feedsCSVData,
+                    context: importContext
+                )
+                
+                XCTAssertEqual(report?.insertedFeeds, self.expectedFeedsTotal)
+                exp.fulfill()
+            }
+            
+            wait(for: [exp], timeout: 120)
+        }
+    }
+    
+    /// Measures diaper CSV import performance for 3 years of data (21,900 records)
+    func testImportDiapersPerformance() async throws {
+        let options = XCTMeasureOptions()
+        options.iterationCount = 3
+        
+        measure(options: options) {
+            let importController = PersistenceController(inMemory: true)
+            
+            let exp = expectation(description: "Import diapers")
+            
+            Task {
+                let importContext = await importController.viewContext
+                
+                // Set up baby profiles
+                await importContext.perform {
+                    for name in self.babyNames {
+                        _ = BabyProfile(context: importContext, name: name)
+                    }
+                    try? importContext.save()
+                }
+                
+                // Import diapers
+                let report = try? await HistoryCSVService.decodeDiapersAndImport(
+                    data: self.diapersCSVData,
+                    context: importContext
+                )
+                
+                XCTAssertEqual(report?.insertedDiapers, self.expectedDiapersTotal)
+                exp.fulfill()
+            }
+            
+            wait(for: [exp], timeout: 120)
+        }
+    }
 }

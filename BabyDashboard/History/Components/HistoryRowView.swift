@@ -49,28 +49,6 @@ struct HistoryRowView: View {
         }
         .padding(.vertical, 8)
     }
-    
-    private var iconName: String {
-        switch event.type {
-        case .feed:
-            return "baby.bottle.fill"
-        case .diaper:
-            return "person.fill"
-        @unknown default:
-            return "questionmark.circle"
-        }
-    }
-    
-    private var iconColor: Color {
-        switch event.type {
-        case .feed:
-            return .blue
-        case .diaper:
-            return event.diaperType == .poo ? .brown : .green
-        @unknown default:
-            return .gray
-        }
-    }
 }
 
 // MARK: - Wrapped Tag Capsule
