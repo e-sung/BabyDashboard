@@ -50,7 +50,7 @@ struct BabyDashboardApp: App {
                 }
 
                 NavigationStack {
-                    HistoryAnalysisView()
+                    AnalysisView()
                 }
                 .tag(RootTab.analysis)
                 .tabItem {
